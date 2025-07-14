@@ -96,7 +96,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { databaseService } from '../services/database'
-import { getCurrentLocation } from '../services/geolocation'
+import { getCurrentLocation, getFreshLocation } from '../services/geolocation'
 import { Place } from '../types/expense'
 
 const amount = ref<number>(0)
@@ -166,10 +166,28 @@ async function loadNearbyPlaces(latitude: number, longitude: number) {
 }
 
 async function refreshPlaces() {
-  if (currentLocation.value) {
-    await loadNearbyPlaces(currentLocation.value.latitude, currentLocation.value.longitude)
-  } else {
-    await loadCurrentLocationAndPlaces()
+  try {
+    // Get a fresh, accurate location reading
+    const freshLocation = await getFreshLocation()
+    if (freshLocation) {
+      currentLocation.value = freshLocation
+      await loadNearbyPlaces(freshLocation.latitude, freshLocation.longitude)
+    } else {
+      // Fallback to cached location if fresh location fails
+      if (currentLocation.value) {
+        await loadNearbyPlaces(currentLocation.value.latitude, currentLocation.value.longitude)
+      } else {
+        await loadCurrentLocationAndPlaces()
+      }
+    }
+  } catch (error) {
+    console.error('Error refreshing location:', error)
+    // Fallback to existing behavior
+    if (currentLocation.value) {
+      await loadNearbyPlaces(currentLocation.value.latitude, currentLocation.value.longitude)
+    } else {
+      await loadCurrentLocationAndPlaces()
+    }
   }
 }
 
