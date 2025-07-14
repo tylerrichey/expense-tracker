@@ -1,13 +1,27 @@
 import Database from 'better-sqlite3'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { mkdirSync, existsSync } from 'fs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 class DatabaseService {
   constructor() {
-    this.db = new Database(join(__dirname, 'expenses.db'))
+    // Use /app/data for database storage to match Docker volume mount
+    const dbPath = process.env.NODE_ENV === 'production' 
+      ? '/app/data/expenses.db' 
+      : join(__dirname, 'expenses.db')
+    
+    // Ensure data directory exists in production
+    if (process.env.NODE_ENV === 'production') {
+      const dataDir = dirname(dbPath)
+      if (!existsSync(dataDir)) {
+        mkdirSync(dataDir, { recursive: true })
+      }
+    }
+    
+    this.db = new Database(dbPath)
     this.initializeDatabase()
   }
 
