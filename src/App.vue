@@ -6,7 +6,7 @@
     <main>
       <ExpenseForm @expense-added="handleExpenseAdded" />
       <ExpenseSummary :refresh-trigger="refreshTrigger" />
-      <ExpenseList :refresh-trigger="refreshTrigger" />
+      <ExpenseList :refresh-trigger="refreshTrigger" @expense-deleted="handleExpenseDeleted" />
     </main>
   </div>
 </template>
@@ -20,6 +20,10 @@ import ExpenseList from './components/ExpenseList.vue'
 const refreshTrigger = ref(0)
 
 function handleExpenseAdded() {
+  refreshTrigger.value++
+}
+
+function handleExpenseDeleted() {
   refreshTrigger.value++
 }
 </script>

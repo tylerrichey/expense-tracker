@@ -53,6 +53,10 @@ const props = defineProps<{
   refreshTrigger?: number
 }>()
 
+const emit = defineEmits<{
+  expenseDeleted: []
+}>()
+
 async function loadExpenses() {
   loading.value = true
   error.value = ''
@@ -80,6 +84,7 @@ async function deleteExpense(id: number) {
   try {
     await databaseService.deleteExpense(id)
     expenses.value = expenses.value.filter(expense => expense.id !== id)
+    emit('expenseDeleted')
   } catch (err) {
     console.error('Error deleting expense:', err)
     error.value = 'Failed to delete expense'
