@@ -6,6 +6,21 @@ class PlacesService {
     this.baseURL = 'https://places.googleapis.com/v1/places:searchNearby'
   }
 
+  calculateDistance(point1, point2) {
+    const R = 6371e3 // Earth's radius in meters
+    const φ1 = point1.latitude * Math.PI / 180
+    const φ2 = point2.latitude * Math.PI / 180
+    const Δφ = (point2.latitude - point1.latitude) * Math.PI / 180
+    const Δλ = (point2.longitude - point1.longitude) * Math.PI / 180
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+
+    return R * c // Distance in meters
+  }
+
   async searchNearbyPlaces(latitude, longitude, radius = 800) {
     if (!this.apiKey) {
       throw new Error('Google Places API key not configured')
@@ -49,13 +64,19 @@ class PlacesService {
         }
       )
 
-      return response.data.places?.map(place => ({
+      const userLocation = { latitude: parseFloat(latitude), longitude: parseFloat(longitude) }
+      
+      const places = response.data.places?.map(place => ({
         id: place.id,
         name: place.displayName?.text || 'Unknown Place',
         address: place.formattedAddress || '',
         types: place.types || [],
-        location: place.location
+        location: place.location,
+        distance: this.calculateDistance(userLocation, place.location)
       })) || []
+      
+      // Sort by distance (closest first)
+      return places.sort((a, b) => a.distance - b.distance)
     } catch (error) {
       console.error('Error fetching nearby places:', error.response?.data || error.message)
       throw new Error('Failed to fetch nearby places')
