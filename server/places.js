@@ -21,7 +21,7 @@ class PlacesService {
     return R * c // Distance in meters
   }
 
-  async searchNearbyPlaces(latitude, longitude, radius = 800) {
+  async searchNearbyPlaces(latitude, longitude, radius = 1000) {
     if (!this.apiKey) {
       throw new Error('Google Places API key not configured')
     }
@@ -32,17 +32,7 @@ class PlacesService {
         {
           includedTypes: [
             'restaurant',
-            'bar',
-            'gas_station',
-            'supermarket',
-            'shopping_mall',
-            'store',
-            'pharmacy',
-            'hospital',
-            'bank',
-            'atm',
-            'cafe',
-            'lodging'
+            'bar'
           ],
           maxResultCount: 20,
           locationRestriction: {
