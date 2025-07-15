@@ -12,21 +12,21 @@
     "start": "node server/index.js"
   },
   "dependencies": {
-    "vue": "^3.4.21",
-    "express": "^4.19.2",
+    "axios": "^1.6.8",
     "better-sqlite3": "^9.4.3",
     "cors": "^2.8.5",
-    "axios": "^1.6.8"
+    "express": "^4.19.2",
+    "vue": "^3.4.21"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.0.4",
-    "typescript": "^5.4.2",
-    "vue-tsc": "^2.0.6",
-    "vite": "^5.2.7",
-    "nodemon": "^3.1.0",
-    "concurrently": "^8.2.2",
-    "@types/express": "^4.17.21",
+    "@types/better-sqlite3": "^7.6.9",
     "@types/cors": "^2.8.17",
-    "@types/better-sqlite3": "^7.6.9"
+    "@types/express": "^4.17.21",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.0",
+    "typescript": "^5.4.2",
+    "vite": "^5.2.7",
+    "vue-tsc": "^2.0.6"
   }
 }

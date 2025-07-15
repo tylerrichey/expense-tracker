@@ -299,6 +299,7 @@ h3 {
     width: 28px;
     height: 28px;
     font-size: 12px;
+    align-self: center;
   }
   
   .expense-date {
