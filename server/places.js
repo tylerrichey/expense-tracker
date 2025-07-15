@@ -21,7 +21,7 @@ class PlacesService {
     return R * c // Distance in meters
   }
 
-  async searchNearbyPlaces(latitude, longitude, radius = 1000) {
+  async searchNearbyPlaces(latitude, longitude, radius = 500) {
     if (!this.apiKey) {
       throw new Error('Google Places API key not configured')
     }
@@ -29,7 +29,8 @@ class PlacesService {
     const requestBody = {
       includedTypes: [
         'restaurant',
-        'bar'
+        'bar',
+        'bar_and_grill'
       ],
       maxResultCount: 20,
       locationRestriction: {
