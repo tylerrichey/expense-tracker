@@ -30,7 +30,7 @@ class PlacesService {
       includedTypes: [
         'restaurant',
         'bar',
-        'bar_and_grill'
+        'establishment'
       ],
       maxResultCount: 20,
       locationRestriction: {
