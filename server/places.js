@@ -51,7 +51,16 @@ class PlacesService {
     }
 
     // Log the Google Places API request
-    console.log('\n🌍 === GOOGLE PLACES API REQUEST ===')
+    const timestamp = new Date().toLocaleString('en-US', { 
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+    console.log(`\n🌍 === GOOGLE PLACES API REQUEST [${timestamp} PST] ===`)
     console.log('URL:', this.baseURL)
     console.log('Headers:', JSON.stringify({
       ...requestHeaders,
@@ -70,7 +79,16 @@ class PlacesService {
       )
 
       // Log the Google Places API response
-      console.log('\n🌍 === GOOGLE PLACES API RESPONSE ===')
+      const responseTimestamp = new Date().toLocaleString('en-US', { 
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric',
+        month: '2-digit', 
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+      console.log(`\n🌍 === GOOGLE PLACES API RESPONSE [${responseTimestamp} PST] ===`)
       console.log('Status:', response.status, response.statusText)
       console.log('Response Headers:', JSON.stringify(response.headers, null, 2))
       console.log('Response Data:', JSON.stringify(response.data, null, 2))
@@ -92,7 +110,16 @@ class PlacesService {
       return places.sort((a, b) => a.distance - b.distance)
     } catch (error) {
       // Log detailed error information for Google Places API
-      console.log('\n❌ === GOOGLE PLACES API ERROR ===')
+      const errorTimestamp = new Date().toLocaleString('en-US', { 
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric',
+        month: '2-digit', 
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+      console.log(`\n❌ === GOOGLE PLACES API ERROR [${errorTimestamp} PST] ===`)
       console.log('Error Message:', error.message)
       if (error.response) {
         console.log('Error Status:', error.response.status, error.response.statusText)

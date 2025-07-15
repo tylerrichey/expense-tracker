@@ -102,7 +102,7 @@ app.get('/api/places/nearby', async (req, res) => {
     const places = await placesService.searchNearbyPlaces(
       latitude, 
       longitude, 
-      radius ? parseInt(radius) : 1000
+      radius ? parseInt(radius) : 500
     )
     
     res.json(places)
