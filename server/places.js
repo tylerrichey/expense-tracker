@@ -26,33 +26,55 @@ class PlacesService {
       throw new Error('Google Places API key not configured')
     }
 
+    const requestBody = {
+      includedTypes: [
+        'restaurant',
+        'bar'
+      ],
+      maxResultCount: 20,
+      locationRestriction: {
+        circle: {
+          center: {
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude)
+          },
+          radius: radius
+        }
+      }
+    }
+
+    const requestHeaders = {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': this.apiKey,
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types,places.location'
+    }
+
+    // Log the Google Places API request
+    console.log('\n🌍 === GOOGLE PLACES API REQUEST ===')
+    console.log('URL:', this.baseURL)
+    console.log('Headers:', JSON.stringify({
+      ...requestHeaders,
+      'X-Goog-Api-Key': '[REDACTED]' // Hide API key in logs
+    }, null, 2))
+    console.log('Request Body:', JSON.stringify(requestBody, null, 2))
+    console.log('=====================================\n')
+
     try {
       const response = await axios.post(
         this.baseURL,
+        requestBody,
         {
-          includedTypes: [
-            'restaurant',
-            'bar'
-          ],
-          maxResultCount: 20,
-          locationRestriction: {
-            circle: {
-              center: {
-                latitude: parseFloat(latitude),
-                longitude: parseFloat(longitude)
-              },
-              radius: radius
-            }
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': this.apiKey,
-            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.types,places.location'
-          }
+          headers: requestHeaders
         }
       )
+
+      // Log the Google Places API response
+      console.log('\n🌍 === GOOGLE PLACES API RESPONSE ===')
+      console.log('Status:', response.status, response.statusText)
+      console.log('Response Headers:', JSON.stringify(response.headers, null, 2))
+      console.log('Response Data:', JSON.stringify(response.data, null, 2))
+      console.log('Total Places Found:', response.data.places?.length || 0)
+      console.log('=====================================\n')
 
       const userLocation = { latitude: parseFloat(latitude), longitude: parseFloat(longitude) }
       
@@ -68,6 +90,19 @@ class PlacesService {
       // Sort by distance (closest first)
       return places.sort((a, b) => a.distance - b.distance)
     } catch (error) {
+      // Log detailed error information for Google Places API
+      console.log('\n❌ === GOOGLE PLACES API ERROR ===')
+      console.log('Error Message:', error.message)
+      if (error.response) {
+        console.log('Error Status:', error.response.status, error.response.statusText)
+        console.log('Error Headers:', JSON.stringify(error.response.headers, null, 2))
+        console.log('Error Data:', JSON.stringify(error.response.data, null, 2))
+      } else if (error.request) {
+        console.log('Request made but no response received')
+        console.log('Request Details:', error.request)
+      }
+      console.log('================================\n')
+      
       console.error('Error fetching nearby places:', error.response?.data || error.message)
       throw new Error('Failed to fetch nearby places')
     }
