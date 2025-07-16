@@ -98,7 +98,9 @@ async function deleteExpense(id: number) {
 
 function formatDate(date: Date): string {
   const now = new Date()
-  const diffInMs = now.getTime() - date.getTime()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const expenseDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diffInMs = today.getTime() - expenseDate.getTime()
   const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
   
   if (diffInDays === 0) {
