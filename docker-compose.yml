@@ -11,6 +11,7 @@ services:
       - NODE_ENV=production
       - PORT=${PORT:-3000}
       - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-}
     volumes:
       - expense_data:/app/data
     restart: unless-stopped
