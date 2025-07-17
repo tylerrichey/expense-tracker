@@ -1,23 +1,37 @@
 <template>
   <div id="app">
-    <header>
-      <h1>Expense Tracker</h1>
-    </header>
-    <main>
-      <ExpenseForm @expense-added="handleExpenseAdded" />
-      <ExpenseSummary :refresh-trigger="refreshTrigger" />
-      <ExpenseList :refresh-trigger="refreshTrigger" @expense-deleted="handleExpenseDeleted" />
-    </main>
+    <LoginForm 
+      v-if="!isAuthenticated" 
+      @authenticated="handleAuthenticated" 
+    />
+    <div v-else>
+      <header>
+        <h1>Expense Tracker</h1>
+        <button @click="handleLogout" class="logout-button">Logout</button>
+      </header>
+      <main>
+        <ExpenseForm @expense-added="handleExpenseAdded" />
+        <ExpenseSummary :refresh-trigger="refreshTrigger" />
+        <ExpenseList :refresh-trigger="refreshTrigger" @expense-deleted="handleExpenseDeleted" />
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import LoginForm from './components/LoginForm.vue'
 import ExpenseForm from './components/ExpenseForm.vue'
 import ExpenseSummary from './components/ExpenseSummary.vue'
 import ExpenseList from './components/ExpenseList.vue'
+import { AuthService } from './services/auth'
 
 const refreshTrigger = ref(0)
+const isAuthenticated = ref(false)
+
+onMounted(() => {
+  isAuthenticated.value = AuthService.isAuthenticated()
+})
 
 function handleExpenseAdded() {
   refreshTrigger.value++
@@ -25,6 +39,16 @@ function handleExpenseAdded() {
 
 function handleExpenseDeleted() {
   refreshTrigger.value++
+}
+
+function handleAuthenticated() {
+  isAuthenticated.value = true
+}
+
+function handleLogout() {
+  AuthService.logout()
+  isAuthenticated.value = false
+  refreshTrigger.value = 0
 }
 </script>
 
@@ -52,11 +76,33 @@ header {
   color: white;
   padding: 20px;
   text-align: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 header h1 {
   font-size: 2rem;
   font-weight: bold;
+  margin: 0;
+}
+
+.logout-button {
+  position: absolute;
+  right: 20px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.logout-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 
 main {

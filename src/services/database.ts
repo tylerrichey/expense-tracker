@@ -1,14 +1,20 @@
 import { Expense, Place } from '../types/expense'
+import { AuthService } from './auth'
 
 class DatabaseService {
   private baseURL = '/api'
 
+  private getAuthHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      ...AuthService.getAuthHeaders()
+    }
+  }
+
   async addExpense(expense: Omit<Expense, 'id'>): Promise<Expense> {
     const response = await fetch(`${this.baseURL}/expenses`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify({
         amount: expense.amount,
         latitude: expense.latitude,
@@ -27,7 +33,9 @@ class DatabaseService {
   }
 
   async getAllExpenses(): Promise<Expense[]> {
-    const response = await fetch(`${this.baseURL}/expenses`)
+    const response = await fetch(`${this.baseURL}/expenses`, {
+      headers: this.getAuthHeaders()
+    })
 
     if (!response.ok) {
       throw new Error('Failed to fetch expenses')
@@ -41,7 +49,9 @@ class DatabaseService {
   }
 
   async getRecentExpenses(days: number = 7): Promise<Expense[]> {
-    const response = await fetch(`${this.baseURL}/expenses/recent?days=${days}`)
+    const response = await fetch(`${this.baseURL}/expenses/recent?days=${days}`, {
+      headers: this.getAuthHeaders()
+    })
 
     if (!response.ok) {
       throw new Error('Failed to fetch recent expenses')
@@ -56,7 +66,8 @@ class DatabaseService {
 
   async deleteExpense(id: number): Promise<void> {
     const response = await fetch(`${this.baseURL}/expenses/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
     })
 
     if (!response.ok) {
@@ -75,7 +86,9 @@ class DatabaseService {
       params.append('radius', radius.toString())
     }
 
-    const response = await fetch(`${this.baseURL}/places/nearby?${params}`)
+    const response = await fetch(`${this.baseURL}/places/nearby?${params}`, {
+      headers: this.getAuthHeaders()
+    })
 
     if (!response.ok) {
       const error = await response.json()
@@ -86,7 +99,9 @@ class DatabaseService {
   }
 
   async getExpenseSummary(days: number): Promise<{ total: number; count: number }> {
-    const response = await fetch(`${this.baseURL}/expenses/summary/${days}`)
+    const response = await fetch(`${this.baseURL}/expenses/summary/${days}`, {
+      headers: this.getAuthHeaders()
+    })
 
     if (!response.ok) {
       throw new Error('Failed to fetch expense summary')
@@ -96,7 +111,9 @@ class DatabaseService {
   }
 
   async getCurrentMonthSummary(): Promise<{ total: number; count: number }> {
-    const response = await fetch(`${this.baseURL}/expenses/summary/month/current`)
+    const response = await fetch(`${this.baseURL}/expenses/summary/month/current`, {
+      headers: this.getAuthHeaders()
+    })
 
     if (!response.ok) {
       throw new Error('Failed to fetch current month summary')

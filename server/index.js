@@ -10,15 +10,56 @@ const __dirname = dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3000
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD
+
+if (!AUTH_PASSWORD) {
+  console.error('ERROR: AUTH_PASSWORD environment variable is required')
+  process.exit(1)
+}
 
 app.use(cors())
 app.use(express.json())
 
+// Authentication middleware
+const authenticateRequest = (req, res, next) => {
+  const authHeader = req.headers.authorization
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authentication required' })
+  }
+  
+  const token = authHeader.substring(7)
+  if (token !== AUTH_PASSWORD) {
+    return res.status(401).json({ error: 'Invalid authentication' })
+  }
+  
+  next()
+}
+
 // Serve static files from the dist directory
 app.use(express.static(join(__dirname, '../dist')))
 
-// API Routes
-app.post('/api/expenses', async (req, res) => {
+// Authentication endpoint
+app.post('/api/auth/login', (req, res) => {
+  const { password } = req.body
+  
+  if (!password) {
+    return res.status(400).json({ error: 'Password is required' })
+  }
+  
+  if (password === AUTH_PASSWORD) {
+    res.json({ 
+      success: true, 
+      token: AUTH_PASSWORD,
+      message: 'Authentication successful' 
+    })
+  } else {
+    res.status(401).json({ error: 'Invalid password' })
+  }
+})
+
+// API Routes (protected)
+app.post('/api/expenses', authenticateRequest, async (req, res) => {
   try {
     const { amount, latitude, longitude, place_id, place_name, place_address } = req.body
     
@@ -49,7 +90,7 @@ app.post('/api/expenses', async (req, res) => {
   }
 })
 
-app.get('/api/expenses', async (req, res) => {
+app.get('/api/expenses', authenticateRequest, async (req, res) => {
   try {
     const expenses = await databaseService.getAllExpenses()
     res.json(expenses)
@@ -59,7 +100,7 @@ app.get('/api/expenses', async (req, res) => {
   }
 })
 
-app.get('/api/expenses/recent', async (req, res) => {
+app.get('/api/expenses/recent', authenticateRequest, async (req, res) => {
   try {
     const days = parseInt(req.query.days) || 7
     const expenses = await databaseService.getRecentExpenses(days)
@@ -70,7 +111,7 @@ app.get('/api/expenses/recent', async (req, res) => {
   }
 })
 
-app.delete('/api/expenses/:id', async (req, res) => {
+app.delete('/api/expenses/:id', authenticateRequest, async (req, res) => {
   try {
     const id = parseInt(req.params.id)
     
@@ -91,7 +132,7 @@ app.delete('/api/expenses/:id', async (req, res) => {
   }
 })
 
-app.get('/api/places/nearby', async (req, res) => {
+app.get('/api/places/nearby', authenticateRequest, async (req, res) => {
   try {
     const { latitude, longitude, radius } = req.query
     
@@ -112,7 +153,7 @@ app.get('/api/places/nearby', async (req, res) => {
   }
 })
 
-app.get('/api/expenses/summary/:days', async (req, res) => {
+app.get('/api/expenses/summary/:days', authenticateRequest, async (req, res) => {
   try {
     const days = parseInt(req.params.days)
     
@@ -128,7 +169,7 @@ app.get('/api/expenses/summary/:days', async (req, res) => {
   }
 })
 
-app.get('/api/expenses/summary/month/current', async (req, res) => {
+app.get('/api/expenses/summary/month/current', authenticateRequest, async (req, res) => {
   try {
     const summary = await databaseService.getCurrentMonthSummary()
     res.json(summary)
