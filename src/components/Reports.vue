@@ -75,22 +75,20 @@ const averageExpense = computed(() => {
 })
 
 const dailyAverage = computed(() => {
-  const currentYear = new Date().getFullYear()
-  const yearExpenses = expenses.value.filter(expense => 
-    new Date(expense.timestamp).getFullYear() === currentYear
-  )
+  if (expenses.value.length === 0) return 0
   
-  if (yearExpenses.length === 0) return 0
-  
-  // Find the earliest and latest dates in the current year's data
-  const dates = yearExpenses.map(expense => new Date(expense.timestamp).getTime())
+  // Find the earliest and latest dates in the full dataset
+  const dates = expenses.value.map(expense => new Date(expense.timestamp).getTime())
   const earliestDate = new Date(Math.min(...dates))
   const latestDate = new Date(Math.max(...dates))
   
   // Calculate days between first and last expense (inclusive)
   const daysBetween = Math.ceil((latestDate.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
   
-  return daysBetween > 0 ? totalSpent.value / daysBetween : 0
+  // Calculate total for all expenses (not just current year)
+  const allTimeTotal = expenses.value.reduce((sum, expense) => sum + expense.amount, 0)
+  
+  return daysBetween > 0 ? allTimeTotal / daysBetween : 0
 })
 
 async function loadReports() {
