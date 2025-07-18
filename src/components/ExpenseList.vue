@@ -133,7 +133,6 @@ defineExpose({ loadExpenses })
 <style scoped>
 .expense-list {
   width: 100%;
-  max-width: 400px;
   margin: 20px 0 0 0;
   padding: 15px;
   border: 1px solid #333;

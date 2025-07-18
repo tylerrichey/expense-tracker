@@ -281,7 +281,6 @@ onMounted(() => {
 <style scoped>
 .expense-form {
   width: 100%;
-  max-width: 400px;
   margin: 0;
   padding: 15px;
   border: 1px solid #333;
