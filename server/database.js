@@ -8,10 +8,17 @@ const __dirname = dirname(__filename)
 
 class DatabaseService {
   constructor() {
-    // Use /app/data for database storage to match Docker volume mount
-    const dbPath = process.env.NODE_ENV === 'production' 
-      ? '/app/data/expenses.db' 
-      : join(__dirname, 'expenses.db')
+    // Use different database paths based on environment
+    let dbPath
+    if (process.env.NODE_ENV === 'production') {
+      dbPath = '/app/data/expenses.db'
+    } else if (process.env.NODE_ENV === 'development') {
+      // Use test database in development mode
+      dbPath = join(__dirname, 'expenses-test.db')
+    } else {
+      // Default to regular database
+      dbPath = join(__dirname, 'expenses.db')
+    }
     
     // Ensure data directory exists in production
     if (process.env.NODE_ENV === 'production') {
@@ -21,6 +28,7 @@ class DatabaseService {
       }
     }
     
+    console.log(`📁 Using database: ${dbPath}`)
     this.db = new Database(dbPath)
     this.initializeDatabase()
   }

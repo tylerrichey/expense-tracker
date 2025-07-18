@@ -9,24 +9,43 @@
         <h1>Expense Tracker</h1>
       </header>
       <main>
-        <ExpenseForm @expense-added="handleExpenseAdded" />
-        <ExpenseSummary :refresh-trigger="refreshTrigger" />
-        <ExpenseList :refresh-trigger="refreshTrigger" @expense-deleted="handleExpenseDeleted" />
+        <AccordionMenu 
+          :menu-items="menuItems" 
+          default-active="home"
+          @expense-added="handleExpenseAdded"
+          @expense-deleted="handleExpenseDeleted"
+        />
       </main>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, markRaw, computed } from 'vue'
 import LoginForm from './components/LoginForm.vue'
-import ExpenseForm from './components/ExpenseForm.vue'
-import ExpenseSummary from './components/ExpenseSummary.vue'
-import ExpenseList from './components/ExpenseList.vue'
+import AccordionMenu from './components/AccordionMenu.vue'
+import Home from './components/Home.vue'
+import Reports from './components/Reports.vue'
 import { AuthService } from './services/auth'
 
 const refreshTrigger = ref(0)
 const isAuthenticated = ref(false)
+
+const menuItems = computed(() => [
+  {
+    id: 'home',
+    title: 'Home',
+    component: markRaw(Home),
+    props: {
+      refreshTrigger: refreshTrigger.value
+    }
+  },
+  {
+    id: 'reports',
+    title: 'Reports',
+    component: markRaw(Reports)
+  }
+])
 
 onMounted(() => {
   isAuthenticated.value = AuthService.isAuthenticated()

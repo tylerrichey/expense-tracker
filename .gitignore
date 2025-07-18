@@ -122,6 +122,7 @@ es/
 # SQLite database files specific to this project
 expenses.db
 server/expenses.db
+server/expenses-test.db
 
 # OS generated files
 .DS_Store
