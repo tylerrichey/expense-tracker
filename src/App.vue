@@ -5,12 +5,9 @@
       @authenticated="handleAuthenticated" 
     />
     <div v-else>
-      <header>
-        <h1>Expense Tracker</h1>
-      </header>
       <main>
-        <AccordionMenu 
-          :menu-items="menuItems" 
+        <HorizontalNav 
+          :nav-items="navItems" 
           default-active="home"
           @expense-added="handleExpenseAdded"
           @expense-deleted="handleExpenseDeleted"
@@ -23,7 +20,7 @@
 <script setup lang="ts">
 import { ref, onMounted, markRaw, computed } from 'vue'
 import LoginForm from './components/LoginForm.vue'
-import AccordionMenu from './components/AccordionMenu.vue'
+import HorizontalNav from './components/HorizontalNav.vue'
 import Home from './components/Home.vue'
 import Reports from './components/Reports.vue'
 import { AuthService } from './services/auth'
@@ -31,7 +28,7 @@ import { AuthService } from './services/auth'
 const refreshTrigger = ref(0)
 const isAuthenticated = ref(false)
 
-const menuItems = computed(() => [
+const navItems = computed(() => [
   {
     id: 'home',
     title: 'Home',
@@ -74,33 +71,16 @@ function handleAuthenticated() {
 
 body {
   font-family: Arial, sans-serif;
-  background-color: #f5f5f5;
-  color: #333;
+  background-color: #121212;
+  color: #e0e0e0;
 }
 
 #app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background-color: #121212;
 }
-
-header {
-  background-color: #007bff;
-  color: white;
-  padding: 20px;
-  text-align: center;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-header h1 {
-  font-size: 2rem;
-  font-weight: bold;
-  margin: 0;
-}
-
 
 main {
   flex: 1;
@@ -118,10 +98,6 @@ main {
   main {
     padding: 40px 20px;
     max-width: 600px;
-  }
-  
-  header h1 {
-    font-size: 2.5rem;
   }
 }
 </style>

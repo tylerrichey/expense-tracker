@@ -284,15 +284,15 @@ onMounted(() => {
   max-width: 400px;
   margin: 0;
   padding: 15px;
-  border: 1px solid #ddd;
+  border: 1px solid #333;
   border-radius: 8px;
-  background-color: #f9f9f9;
+  background-color: #1e1e1e;
 }
 
 h2 {
   text-align: center;
   margin-bottom: 20px;
-  color: #333;
+  color: #e0e0e0;
   font-size: 1.5rem;
 }
 
@@ -304,20 +304,21 @@ label {
   display: block;
   margin-bottom: 5px;
   font-weight: bold;
-  color: #555;
+  color: #b0b0b0;
   font-size: 14px;
 }
 
 input[type="number"], .location-select, .location-input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #ccc;
+  border: 1px solid #444;
   border-radius: 4px;
   font-size: 16px;
   box-sizing: border-box;
   -webkit-appearance: none;
   -moz-appearance: textfield;
-  background-color: white;
+  background-color: #2a2a2a;
+  color: #e0e0e0;
 }
 
 input[type="number"]:focus, .location-select:focus, .location-input:focus {
@@ -347,16 +348,16 @@ input[type="number"]:focus, .location-select:focus, .location-input:focus {
 }
 
 .location-select:disabled {
-  background-color: #f5f5f5;
+  background-color: #1a1a1a;
   color: #666;
   cursor: not-allowed;
 }
 
 .refresh-button {
   background: transparent;
-  border: 1px solid #ccc;
+  border: 1px solid #444;
   border-radius: 4px;
-  color: #555;
+  color: #b0b0b0;
   padding: 12px;
   cursor: pointer;
   font-size: 16px;
@@ -371,15 +372,15 @@ input[type="number"]:focus, .location-select:focus, .location-input:focus {
 }
 
 .refresh-button:hover:not(:disabled) {
-  background: #f8f9fa;
+  background: #3a3a3a;
   border-color: #007bff;
   color: #007bff;
 }
 
 .refresh-button:disabled {
   background: transparent;
-  border-color: #dee2e6;
-  color: #6c757d;
+  border-color: #333;
+  color: #666;
   cursor: not-allowed;
 }
 
@@ -389,9 +390,9 @@ input[type="number"]:focus, .location-select:focus, .location-input:focus {
 
 .toggle-button {
   background: transparent;
-  border: 1px solid #ccc;
+  border: 1px solid #444;
   border-radius: 4px;
-  color: #555;
+  color: #b0b0b0;
   padding: 12px;
   cursor: pointer;
   font-size: 16px;
@@ -406,7 +407,7 @@ input[type="number"]:focus, .location-select:focus, .location-input:focus {
 }
 
 .toggle-button:hover {
-  background: #f8f9fa;
+  background: #3a3a3a;
   border-color: #007bff;
   color: #007bff;
 }
@@ -418,10 +419,10 @@ input[type="number"]:focus, .location-select:focus, .location-input:focus {
 .selected-place-info {
   margin-top: 8px;
   padding: 8px;
-  background-color: #e9ecef;
+  background-color: #2a2a2a;
   border-radius: 4px;
   font-size: 14px;
-  color: #495057;
+  color: #b0b0b0;
   border-left: 3px solid #007bff;
 }
 
@@ -444,7 +445,7 @@ button:hover:not(:disabled) {
 }
 
 button:disabled {
-  background-color: #6c757d;
+  background-color: #444;
   cursor: not-allowed;
 }
 
@@ -461,15 +462,15 @@ button:active {
 }
 
 .message.success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background-color: #1a2e1a;
+  color: #4caf50;
+  border: 1px solid #2e5c2e;
 }
 
 .message.error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background-color: #2e1a1a;
+  color: #f44336;
+  border: 1px solid #5c2e2e;
 }
 
 /* Mobile optimizations */

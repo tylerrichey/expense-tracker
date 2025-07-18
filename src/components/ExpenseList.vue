@@ -136,14 +136,14 @@ defineExpose({ loadExpenses })
   max-width: 400px;
   margin: 20px 0 0 0;
   padding: 15px;
-  border: 1px solid #ddd;
+  border: 1px solid #333;
   border-radius: 8px;
-  background-color: #f9f9f9;
+  background-color: #1e1e1e;
 }
 
 h3 {
   margin-bottom: 15px;
-  color: #333;
+  color: #e0e0e0;
   text-align: center;
   font-size: 1.3rem;
 }
@@ -151,14 +151,14 @@ h3 {
 .loading, .error, .no-expenses {
   text-align: center;
   padding: 20px;
-  color: #666;
+  color: #888;
   font-size: 14px;
 }
 
 .error {
-  color: #721c24;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
+  color: #f44336;
+  background-color: #2e1a1a;
+  border: 1px solid #5c2e2e;
   border-radius: 4px;
 }
 
@@ -171,15 +171,15 @@ h3 {
   align-items: center;
   padding: 12px;
   margin-bottom: 8px;
-  background-color: white;
-  border: 1px solid #e0e0e0;
+  background-color: #2a2a2a;
+  border: 1px solid #444;
   border-radius: 6px;
   transition: box-shadow 0.2s;
   touch-action: manipulation;
 }
 
 .expense-item:hover {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
 }
 
 .expense-content {
@@ -237,7 +237,7 @@ h3 {
 
 .expense-date {
   font-size: 14px;
-  color: #555;
+  color: #b0b0b0;
   margin-bottom: 2px;
   line-height: 1.3;
 }
