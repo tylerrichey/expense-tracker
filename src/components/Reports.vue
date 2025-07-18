@@ -22,6 +22,26 @@
       </div>
     </div>
 
+    <div class="report-section">
+      <h4>Average Spent Per Weekday</h4>
+      <div class="weekday-chart">
+        <div 
+          v-for="day in weekdayAverages" 
+          :key="day.name" 
+          class="weekday-bar-container"
+        >
+          <div class="weekday-name">{{ day.name }}</div>
+          <div class="weekday-bar-wrapper">
+            <div 
+              class="weekday-bar" 
+              :style="{ height: `${day.percentage}%` }"
+            ></div>
+          </div>
+          <div class="weekday-amount">${{ day.average.toFixed(2) }}</div>
+        </div>
+      </div>
+    </div>
+
 <div class="report-section">
       <h4>Top Locations</h4>
       <div class="location-list">
@@ -54,6 +74,7 @@ interface LocationStat {
 }
 
 const expenses = ref<any[]>([])
+const weekdayAverages = ref<Array<{name: string, average: number, percentage: number}>>([])
 const topLocations = ref<LocationStat[]>([])
 
 const totalSpent = computed(() => {
@@ -97,8 +118,9 @@ async function loadReports() {
     const allExpenses = await databaseService.getAllExpenses()
     expenses.value = allExpenses
 
-    // Calculate top locations
+    // Calculate top locations and weekday averages
     calculateTopLocations()
+    calculateWeekdayAverages()
   } catch (error) {
     console.error('Error loading reports:', error)
   }
@@ -131,6 +153,34 @@ function calculateTopLocations() {
   topLocations.value = Array.from(locationMap.values())
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
+}
+
+function calculateWeekdayAverages() {
+  const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const weekdayTotals = new Array(7).fill(0)
+  const weekdayCounts = new Array(7).fill(0)
+  
+  expenses.value.forEach(expense => {
+    const date = new Date(expense.timestamp)
+    const weekday = date.getDay() // 0 = Sunday, 1 = Monday, etc.
+    weekdayTotals[weekday] += expense.amount
+    weekdayCounts[weekday] += 1
+  })
+  
+  // Calculate averages
+  const averages = weekdayTotals.map((total, index) => 
+    weekdayCounts[index] > 0 ? total / weekdayCounts[index] : 0
+  )
+  
+  // Find max average for percentage calculation
+  const maxAverage = Math.max(...averages)
+  
+  // Create chart data
+  weekdayAverages.value = weekdayNames.map((name, index) => ({
+    name,
+    average: averages[index],
+    percentage: maxAverage > 0 ? (averages[index] / maxAverage) * 100 : 0
+  }))
 }
 
 function downloadCSV() {
@@ -305,6 +355,61 @@ onMounted(() => {
   color: #888;
 }
 
+.weekday-chart {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  padding: 20px;
+  background: #1e1e1e;
+  border-radius: 8px;
+  border: 1px solid #333;
+  height: 200px;
+}
+
+.weekday-bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+}
+
+.weekday-name {
+  font-size: 12px;
+  color: #b0b0b0;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.weekday-bar-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: end;
+  width: 100%;
+  min-height: 100px;
+}
+
+.weekday-bar {
+  width: 100%;
+  background: linear-gradient(to top, #007bff, #4dabf7);
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: all 0.3s ease;
+}
+
+.weekday-bar-container:hover .weekday-bar {
+  background: linear-gradient(to top, #0056b3, #339af0);
+  transform: scaleY(1.05);
+}
+
+.weekday-amount {
+  font-size: 11px;
+  color: #007bff;
+  font-weight: bold;
+  margin-top: 8px;
+  text-align: center;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .download-btn {
@@ -332,6 +437,26 @@ onMounted(() => {
   
   .location-amount {
     font-size: 14px;
+  }
+  
+  .weekday-chart {
+    height: 150px;
+    padding: 15px;
+    gap: 8px;
+  }
+  
+  .weekday-name {
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+  
+  .weekday-bar-wrapper {
+    min-height: 70px;
+  }
+  
+  .weekday-amount {
+    font-size: 10px;
+    margin-top: 6px;
   }
 }
 </style>
