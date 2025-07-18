@@ -7,7 +7,6 @@
     <div v-else>
       <header>
         <h1>Expense Tracker</h1>
-        <button @click="handleLogout" class="logout-button">Logout</button>
       </header>
       <main>
         <ExpenseForm @expense-added="handleExpenseAdded" />
@@ -45,11 +44,6 @@ function handleAuthenticated() {
   isAuthenticated.value = true
 }
 
-function handleLogout() {
-  AuthService.logout()
-  isAuthenticated.value = false
-  refreshTrigger.value = 0
-}
 </script>
 
 <style>
@@ -88,22 +82,6 @@ header h1 {
   margin: 0;
 }
 
-.logout-button {
-  position: absolute;
-  right: 20px;
-  background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
-}
-
-.logout-button:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-}
 
 main {
   flex: 1;

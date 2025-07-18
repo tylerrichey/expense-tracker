@@ -163,9 +163,6 @@ h3 {
 }
 
 .expenses {
-  max-height: 350px;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .expense-item {
@@ -265,9 +262,6 @@ h3 {
     margin-bottom: 12px;
   }
   
-  .expenses {
-    max-height: 300px;
-  }
   
   .expense-item {
     padding: 10px;
