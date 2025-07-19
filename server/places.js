@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { logger } from './logger.js'
 
 class PlacesService {
   constructor() {
@@ -51,23 +52,7 @@ class PlacesService {
     }
 
     // Log the Google Places API request
-    const timestamp = new Date().toLocaleString('en-US', { 
-      timeZone: 'America/Los_Angeles',
-      year: 'numeric',
-      month: '2-digit', 
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })
-    console.log(`\n🌍 === GOOGLE PLACES API REQUEST [${timestamp} PST] ===`)
-    console.log('URL:', this.baseURL)
-    console.log('Headers:', JSON.stringify({
-      ...requestHeaders,
-      'X-Goog-Api-Key': '[REDACTED]' // Hide API key in logs
-    }, null, 2))
-    console.log('Request Body:', JSON.stringify(requestBody, null, 2))
-    console.log('=====================================\n')
+    logger.logRequest(this.baseURL, requestHeaders, requestBody)
 
     try {
       const response = await axios.post(
@@ -79,21 +64,7 @@ class PlacesService {
       )
 
       // Log the Google Places API response
-      const responseTimestamp = new Date().toLocaleString('en-US', { 
-        timeZone: 'America/Los_Angeles',
-        year: 'numeric',
-        month: '2-digit', 
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      })
-      console.log(`\n🌍 === GOOGLE PLACES API RESPONSE [${responseTimestamp} PST] ===`)
-      console.log('Status:', response.status, response.statusText)
-      console.log('Response Headers:', JSON.stringify(response.headers, null, 2))
-      console.log('Response Data:', JSON.stringify(response.data, null, 2))
-      console.log('Total Places Found:', response.data.places?.length || 0)
-      console.log('=====================================\n')
+      logger.logResponse(response.status, response.statusText, response.headers, response.data)
 
       const userLocation = { latitude: parseFloat(latitude), longitude: parseFloat(longitude) }
       
@@ -110,26 +81,7 @@ class PlacesService {
       return places.sort((a, b) => a.distance - b.distance)
     } catch (error) {
       // Log detailed error information for Google Places API
-      const errorTimestamp = new Date().toLocaleString('en-US', { 
-        timeZone: 'America/Los_Angeles',
-        year: 'numeric',
-        month: '2-digit', 
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      })
-      console.log(`\n❌ === GOOGLE PLACES API ERROR [${errorTimestamp} PST] ===`)
-      console.log('Error Message:', error.message)
-      if (error.response) {
-        console.log('Error Status:', error.response.status, error.response.statusText)
-        console.log('Error Headers:', JSON.stringify(error.response.headers, null, 2))
-        console.log('Error Data:', JSON.stringify(error.response.data, null, 2))
-      } else if (error.request) {
-        console.log('Request made but no response received')
-        console.log('Request Details:', error.request)
-      }
-      console.log('================================\n')
+      logger.logError(error)
       
       console.error('Error fetching nearby places:', error.response?.data || error.message)
       throw new Error('Failed to fetch nearby places')
