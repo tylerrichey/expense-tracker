@@ -68,7 +68,9 @@
             v-model="selectedPlace"
             :disabled="loadingPlaces"
             class="location-select"
+            required
           >
+            <option value="" disabled>Select a location</option>
             <option
               v-for="place in places"
               :key="place.id"
@@ -169,8 +171,8 @@ async function loadNearbyPlaces(latitude: number, longitude: number) {
     places.value = await databaseService.getNearbyPlaces(latitude, longitude)
     
     if (places.value.length > 0) {
-      // Default to first place in the list
-      selectedPlace.value = places.value[0]
+      // Show dropdown but don't auto-select anything
+      selectedPlace.value = ""
       showManualInput.value = false
     } else {
       // No places found, show manual input
@@ -223,11 +225,7 @@ function toggleInputMode() {
     manualPlaceName.value = ""
   } else {
     // Switching to dropdown
-    if (places.value.length > 0) {
-      selectedPlace.value = places.value[0]
-    } else {
-      selectedPlace.value = ""
-    }
+    selectedPlace.value = ""
     manualPlaceName.value = ""
   }
 }
@@ -238,10 +236,17 @@ async function submitExpense() {
     return
   }
 
-  // Validate manual location entry
-  if (showManualInput.value && (!manualPlaceName.value || manualPlaceName.value.trim() === '')) {
-    showMessage('Please enter a location name', 'error')
-    return
+  // Validate location is provided (either manual input or selected place)
+  if (showManualInput.value) {
+    if (!manualPlaceName.value || manualPlaceName.value.trim() === '') {
+      showMessage('Please enter a location name', 'error')
+      return
+    }
+  } else {
+    if (!selectedPlace.value || (typeof selectedPlace.value === 'string' && selectedPlace.value.trim() === '')) {
+      showMessage('Please select a location', 'error')
+      return
+    }
   }
 
   isSubmitting.value = true
@@ -272,10 +277,8 @@ async function submitExpense() {
     // Reset location fields based on current mode
     if (showManualInput.value) {
       manualPlaceName.value = ""
-    } else if (places.value.length > 0) {
-      // Reset to first place in dropdown
-      selectedPlace.value = places.value[0]
     } else {
+      // Reset dropdown to empty selection
       selectedPlace.value = ""
     }
     
