@@ -121,6 +121,18 @@ class DatabaseService {
 
     return await response.json()
   }
+
+  async getAllUniquePlaces(): Promise<string[]> {
+    const response = await fetch(`${this.baseURL}/places/all`, {
+      headers: this.getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch places')
+    }
+
+    return await response.json()
+  }
 }
 
 export const databaseService = new DatabaseService()

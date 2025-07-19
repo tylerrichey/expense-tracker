@@ -17,14 +17,33 @@
       <div class="form-group">
         <label for="location">Location:</label>
         <div v-if="showManualInput" class="location-container">
-          <input
-            id="location"
-            v-model="manualPlaceName"
-            type="text"
-            placeholder="Enter location name"
-            class="location-input"
-            required
-          />
+          <div class="autocomplete-container">
+            <input
+              id="location"
+              v-model="manualPlaceName"
+              type="text"
+              placeholder="Enter location name"
+              class="location-input"
+              required
+              @input="onPlaceNameInput"
+              @focus="onPlaceNameFocus"
+              @blur="onPlaceNameBlur"
+              @keydown="onPlaceNameKeydown"
+              autocomplete="off"
+            />
+            <ul v-if="showSuggestions && filteredPlaces.length > 0" class="suggestions-list">
+              <li 
+                v-for="(place, index) in filteredPlaces" 
+                :key="place"
+                :class="{ 'highlighted': selectedSuggestionIndex === index }"
+                @mousedown="selectSuggestion(place)"
+                @mouseenter="selectedSuggestionIndex = index"
+                class="suggestion-item"
+              >
+                {{ place }}
+              </li>
+            </ul>
+          </div>
           <button
             type="button"
             @click="refreshPlaces"
@@ -109,6 +128,10 @@ const loadingPlaces = ref(false)
 const currentLocation = ref<{latitude: number, longitude: number} | null>(null)
 const showManualInput = ref(false)
 const manualPlaceName = ref("")
+const allPlaces = ref<string[]>([])
+const filteredPlaces = ref<string[]>([])
+const showSuggestions = ref(false)
+const selectedSuggestionIndex = ref(-1)
 
 const emit = defineEmits<{
   expenseAdded: []
@@ -273,8 +296,81 @@ function showMessage(text: string, type: 'success' | 'error') {
   }, 3000)
 }
 
+async function loadAllPlaces() {
+  try {
+    allPlaces.value = await databaseService.getAllUniquePlaces()
+  } catch (error) {
+    console.error('Error loading places:', error)
+  }
+}
+
+function onPlaceNameInput() {
+  const inputValue = manualPlaceName.value.toLowerCase().trim()
+  
+  if (inputValue.length > 0) {
+    filteredPlaces.value = allPlaces.value.filter(place => 
+      place.toLowerCase().includes(inputValue)
+    ).slice(0, 5) // Limit to 5 suggestions
+    showSuggestions.value = filteredPlaces.value.length > 0
+  } else {
+    filteredPlaces.value = []
+    showSuggestions.value = false
+  }
+  
+  selectedSuggestionIndex.value = -1
+}
+
+function onPlaceNameFocus() {
+  if (manualPlaceName.value.trim()) {
+    onPlaceNameInput()
+  }
+}
+
+function onPlaceNameBlur() {
+  // Delay hiding suggestions to allow for click events
+  setTimeout(() => {
+    showSuggestions.value = false
+    selectedSuggestionIndex.value = -1
+  }, 150)
+}
+
+function onPlaceNameKeydown(event: KeyboardEvent) {
+  if (!showSuggestions.value || filteredPlaces.value.length === 0) return
+  
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault()
+      selectedSuggestionIndex.value = Math.min(
+        selectedSuggestionIndex.value + 1,
+        filteredPlaces.value.length - 1
+      )
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      selectedSuggestionIndex.value = Math.max(selectedSuggestionIndex.value - 1, -1)
+      break
+    case 'Enter':
+      if (selectedSuggestionIndex.value >= 0) {
+        event.preventDefault()
+        selectSuggestion(filteredPlaces.value[selectedSuggestionIndex.value])
+      }
+      break
+    case 'Escape':
+      showSuggestions.value = false
+      selectedSuggestionIndex.value = -1
+      break
+  }
+}
+
+function selectSuggestion(place: string) {
+  manualPlaceName.value = place
+  showSuggestions.value = false
+  selectedSuggestionIndex.value = -1
+}
+
 onMounted(() => {
   loadCurrentLocationAndPlaces()
+  loadAllPlaces()
 })
 </script>
 
@@ -339,6 +435,50 @@ input[type="number"]:focus, .location-select:focus, .location-input:focus {
   display: flex;
   gap: 8px;
   align-items: stretch;
+}
+
+.autocomplete-container {
+  position: relative;
+  flex: 1;
+}
+
+.suggestions-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.suggestion-item {
+  padding: 12px;
+  cursor: pointer;
+  color: #e0e0e0;
+  border-bottom: 1px solid #333;
+  transition: background-color 0.2s;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item.highlighted {
+  background-color: #3a3a3a;
+}
+
+.suggestion-item.highlighted {
+  background-color: #007bff;
+  color: white;
 }
 
 .location-select {

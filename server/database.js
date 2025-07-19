@@ -205,6 +205,24 @@ class DatabaseService {
       return Promise.reject(err)
     }
   }
+
+  getAllUniquePlaces() {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT DISTINCT place_name
+        FROM expenses 
+        WHERE place_name IS NOT NULL AND place_name != ''
+        ORDER BY place_name ASC
+      `)
+      const rows = stmt.all()
+      
+      const places = rows.map(row => row.place_name)
+      
+      return Promise.resolve(places)
+    } catch (err) {
+      return Promise.reject(err)
+    }
+  }
 }
 
 export const databaseService = new DatabaseService()

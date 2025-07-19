@@ -180,6 +180,16 @@ app.get('/api/expenses/summary/month/current', authenticateRequest, async (req, 
   }
 })
 
+app.get('/api/places/all', authenticateRequest, async (req, res) => {
+  try {
+    const places = await databaseService.getAllUniquePlaces()
+    res.json(places)
+  } catch (error) {
+    console.error('Error fetching all places:', error)
+    res.status(500).json({ error: 'Failed to fetch places' })
+  }
+})
+
 // Serve the Vue app for all other routes
 app.get('*', (req, res) => {
   res.sendFile(join(__dirname, '../dist/index.html'))
