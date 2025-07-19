@@ -7,14 +7,18 @@ const __dirname = dirname(__filename)
 
 class Logger {
   constructor() {
+    // Get current date for filename
+    const today = new Date()
+    const dateStr = today.toISOString().split('T')[0] // YYYY-MM-DD format
+    
     // Use the same path logic as the database
     let logPath
     if (process.env.NODE_ENV === 'production') {
-      logPath = '/app/data/google-places-api.log'
+      logPath = `/app/data/google-places-api-${dateStr}.log`
     } else if (process.env.NODE_ENV === 'development') {
-      logPath = join(__dirname, 'google-places-api-test.log')
+      logPath = join(__dirname, `google-places-api-test-${dateStr}.log`)
     } else {
-      logPath = join(__dirname, 'google-places-api.log')
+      logPath = join(__dirname, `google-places-api-${dateStr}.log`)
     }
     
     this.logPath = logPath
