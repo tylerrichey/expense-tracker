@@ -79,39 +79,79 @@ jobs:
               if [ "$OLD_RUNNING" = true ]; then
                 echo "🔄 Performing rolling update..."
                 
-                # Start new container on different port temporarily
-                echo "🚀 Starting new container on port 3001..."
-                docker run -d --name app-new \
-                  -p 3001:3000 \
-                  -e NODE_ENV=production \
-                  -e AUTH_PASSWORD="$AUTH_PASSWORD" \
-                  -e GOOGLE_PLACES_API_KEY="$GOOGLE_PLACES_API_KEY" \
-                  -v "$(pwd)/data:/app/data" \
-                  $(docker compose config --images | head -1)
+                # Debug: Check current directory and files
+                echo "🔍 Debug info:"
+                echo "Current directory: $(pwd)"
+                echo "Dockerfile exists: $(test -f Dockerfile && echo 'YES' || echo 'NO')"
+                echo "Contents of current directory:"
+                ls -la
+                
+                # Create temporary compose file for new container on port 3001
+                echo "🚀 Creating temporary deployment on port 3001..."
+                cat > docker-compose.temp.yml << 'EOF'
+services:
+  expense-tracker-new:
+    build: .
+    container_name: expense-tracker-new
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-}
+    volumes:
+      - ./data:/app/data
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+EOF
+                
+                # Start new container using docker compose
+                docker compose -f docker-compose.temp.yml up -d
                 
                 # Wait and health check
                 echo "⏳ Waiting for new deployment..."
                 sleep 30
                 
-                if curl -f http://localhost:3001/api/health > /dev/null 2>&1; then
-                  echo "✅ New deployment healthy, switching..."
-                  docker compose down
-                  docker stop app-new
-                  docker rm app-new
-                  docker compose up -d
-                  
-                  # Final health check
-                  sleep 15
-                  if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
-                    echo "✅ Deployment successful!"
+                # Health check with retries
+                RETRY_COUNT=0
+                MAX_RETRIES=6
+                while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                  if curl -f http://localhost:3001/api/health > /dev/null 2>&1; then
+                    echo "✅ New deployment healthy, switching..."
+                    break
                   else
-                    echo "⚠️ Final health check failed but containers running"
+                    echo "⏳ Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES failed, retrying in 10s..."
+                    sleep 10
+                    RETRY_COUNT=$((RETRY_COUNT + 1))
                   fi
-                else
-                  echo "❌ New deployment failed, rolling back..."
-                  docker stop app-new
-                  docker rm app-new
+                done
+                
+                if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                  echo "❌ New deployment failed health checks, rolling back..."
+                  docker compose -f docker-compose.temp.yml down
+                  rm -f docker-compose.temp.yml
                   exit 1
+                fi
+                
+                # New deployment is healthy, switch over
+                echo "🔄 Switching to new deployment..."
+                docker compose down
+                docker compose -f docker-compose.temp.yml down
+                rm -f docker-compose.temp.yml
+                docker compose up -d
+                
+                # Final health check
+                sleep 15
+                if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
+                  echo "✅ Deployment successful!"
+                else
+                  echo "⚠️ Final health check failed but containers running"
                 fi
               else
                 echo "🚀 First deployment..."

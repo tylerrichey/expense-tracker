@@ -87,20 +87,22 @@ fi
 log_info "Performing rolling update..."
 
 # Create a temporary compose file for new deployment
-TEMP_COMPOSE=$(mktemp)
-cat > "$TEMP_COMPOSE" << EOF
+TEMP_COMPOSE="docker-compose.temp.yml"
+cat > "$TEMP_COMPOSE" << 'EOF'
 services:
-  app-new:
+  expense-tracker-new:
     build: .
-    restart: unless-stopped
+    container_name: expense-tracker-new
     ports:
-      - "3001:3000"  # Temporary port
+      - "3001:3000"
     environment:
       - NODE_ENV=production
-      - AUTH_PASSWORD=\${AUTH_PASSWORD}
-      - GOOGLE_PLACES_API_KEY=\${GOOGLE_PLACES_API_KEY}
+      - PORT=3000
+      - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-}
     volumes:
       - ./data:/app/data
+    restart: "no"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 10s
