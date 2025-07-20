@@ -88,28 +88,28 @@ jobs:
                 
                 # Create temporary compose file for new container on port 3001
                 echo "🚀 Creating temporary deployment on port 3001..."
-                cat > docker-compose.temp.yml << 'EOF'
-services:
-  expense-tracker-new:
-    build: .
-    container_name: expense-tracker-new
-    ports:
-      - "3001:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-}
-      - AUTH_PASSWORD=${AUTH_PASSWORD:-}
-    volumes:
-      - ./data:/app/data
-    restart: "no"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-EOF
+                cat > docker-compose.temp.yml << 'COMPOSE_EOF'
+            services:
+              expense-tracker-new:
+                build: .
+                container_name: expense-tracker-new
+                ports:
+                  - "3001:3000"
+                environment:
+                  - NODE_ENV=production
+                  - PORT=3000
+                  - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-}
+                  - AUTH_PASSWORD=${AUTH_PASSWORD:-}
+                volumes:
+                  - ./data:/app/data
+                restart: "no"
+                healthcheck:
+                  test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 3
+                  start_period: 30s
+            COMPOSE_EOF
                 
                 # Start new container using docker compose
                 docker compose -f docker-compose.temp.yml up -d
