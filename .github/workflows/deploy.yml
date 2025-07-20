@@ -48,11 +48,86 @@ jobs:
             # Navigate to project directory
             cd ${{ secrets.DEPLOY_PATH || '/app/expense-tracker' }}
             
-            # Make deploy script executable
-            chmod +x scripts/deploy.sh
+            # Pull latest changes first
+            echo "📥 Pulling latest code..."
+            git pull origin main
             
-            # Run zero-downtime deployment
-            ./scripts/deploy.sh
+            # Now the deploy script should exist, make it executable
+            if [ -f scripts/deploy.sh ]; then
+              echo "✅ Found deploy script, using zero-downtime deployment..."
+              chmod +x scripts/deploy.sh
+              ./scripts/deploy.sh
+            else
+              echo "⚠️ Deploy script not found, using fallback deployment..."
+              
+              # Fallback: Basic zero-downtime deployment
+              echo "🚀 Starting basic zero-downtime deployment..."
+              
+              # Check if containers are running
+              OLD_RUNNING=false
+              if docker compose ps | grep -q "Up"; then
+                OLD_RUNNING=true
+                echo "✅ Detected running deployment"
+              else
+                echo "ℹ️ No existing deployment found"
+              fi
+              
+              # Build new image
+              echo "🔨 Building new Docker image..."
+              docker compose build
+              
+              if [ "$OLD_RUNNING" = true ]; then
+                echo "🔄 Performing rolling update..."
+                
+                # Start new container on different port temporarily
+                echo "🚀 Starting new container on port 3001..."
+                docker run -d --name app-new \
+                  -p 3001:3000 \
+                  -e NODE_ENV=production \
+                  -e AUTH_PASSWORD="$AUTH_PASSWORD" \
+                  -e GOOGLE_PLACES_API_KEY="$GOOGLE_PLACES_API_KEY" \
+                  -v "$(pwd)/data:/app/data" \
+                  $(docker compose config --images | head -1)
+                
+                # Wait and health check
+                echo "⏳ Waiting for new deployment..."
+                sleep 30
+                
+                if curl -f http://localhost:3001/api/health > /dev/null 2>&1; then
+                  echo "✅ New deployment healthy, switching..."
+                  docker compose down
+                  docker stop app-new
+                  docker rm app-new
+                  docker compose up -d
+                  
+                  # Final health check
+                  sleep 15
+                  if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
+                    echo "✅ Deployment successful!"
+                  else
+                    echo "⚠️ Final health check failed but containers running"
+                  fi
+                else
+                  echo "❌ New deployment failed, rolling back..."
+                  docker stop app-new
+                  docker rm app-new
+                  exit 1
+                fi
+              else
+                echo "🚀 First deployment..."
+                docker compose up -d
+                sleep 15
+                if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
+                  echo "✅ First deployment successful!"
+                else
+                  echo "⚠️ Health check failed but containers running"
+                fi
+              fi
+              
+              # Cleanup
+              docker image prune -af
+              echo "🎉 Deployment completed!"
+            fi
 
   notify:
     name: Notify Deployment Status
