@@ -8,6 +8,7 @@
     "dev:server": "cross-env NODE_ENV=development nodemon server/index.js",
     "dev:client": "vite",
     "build": "npm run test && vue-tsc && vite build",
+    "build:prod": "vue-tsc && vite build",
     "preview": "vite preview",
     "start": "node server/index.js",
     "generate-test-data": "node scripts/generate-test-data.js",
