@@ -35,6 +35,14 @@ jobs:
     if: github.ref == 'refs/heads/main'
     
     steps:
+      - name: Debug secrets
+        run: |
+          echo "Host set: ${{ secrets.DEPLOY_HOST != '' }}"
+          echo "User set: ${{ secrets.DEPLOY_USER != '' }}"
+          echo "Key set: ${{ secrets.DEPLOY_SSH_KEY != '' }}"
+          echo "Path set: ${{ secrets.DEPLOY_PATH != '' }}"
+          echo "Port set: ${{ secrets.DEPLOY_PORT != '' }}"
+      
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1.0.3
         with:
