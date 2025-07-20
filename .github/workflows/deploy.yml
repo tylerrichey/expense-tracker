@@ -102,34 +102,62 @@ jobs:
                 echo "🚀 Starting new deployment..."
                 docker compose up -d
                 
-                # Health check with retries
+                # Health check with retries (faster checks for quick-starting service)
+                echo "🏥 Starting health checks..."
                 RETRY_COUNT=0
                 MAX_RETRIES=6
+                RETRY_DELAY=5
+                
                 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                  echo "🔍 Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
                   if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
-                    echo "✅ Deployment successful!"
+                    echo "✅ Deployment successful! Service is healthy."
                     break
                   else
-                    echo "⏳ Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES failed, retrying in 10s..."
-                    sleep 10
-                    RETRY_COUNT=$((RETRY_COUNT + 1))
+                    if [ $RETRY_COUNT -eq $((MAX_RETRIES - 1)) ]; then
+                      echo "❌ Health check failed after $MAX_RETRIES attempts"
+                      echo "📋 Container logs for debugging:"
+                      docker compose logs --tail=50
+                      echo "📊 Container status:"
+                      docker compose ps
+                      exit 1
+                    else
+                      echo "⏳ Health check failed, retrying in ${RETRY_DELAY}s..."
+                      sleep $RETRY_DELAY
+                      RETRY_COUNT=$((RETRY_COUNT + 1))
+                    fi
                   fi
                 done
-                
-                if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-                  echo "❌ Deployment failed health checks"
-                  docker compose logs --tail=50
-                  exit 1
-                fi
               else
                 echo "🚀 First deployment..."
                 docker compose up -d
-                sleep 15
-                if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
-                  echo "✅ First deployment successful!"
-                else
-                  echo "⚠️ Health check failed but containers running"
-                fi
+                
+                # Health check for first deployment
+                echo "🏥 Starting health checks for first deployment..."
+                RETRY_COUNT=0
+                MAX_RETRIES=6
+                RETRY_DELAY=5
+                
+                while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                  echo "🔍 Health check attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+                  if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
+                    echo "✅ First deployment successful! Service is healthy."
+                    break
+                  else
+                    if [ $RETRY_COUNT -eq $((MAX_RETRIES - 1)) ]; then
+                      echo "❌ First deployment health check failed after $MAX_RETRIES attempts"
+                      echo "📋 Container logs for debugging:"
+                      docker compose logs --tail=50
+                      echo "📊 Container status:"
+                      docker compose ps
+                      exit 1
+                    else
+                      echo "⏳ Health check failed, retrying in ${RETRY_DELAY}s..."
+                      sleep $RETRY_DELAY
+                      RETRY_COUNT=$((RETRY_COUNT + 1))
+                    fi
+                  fi
+                done
               fi
               
               # Cleanup
