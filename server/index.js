@@ -190,6 +190,16 @@ app.get('/api/places/all', authenticateRequest, async (req, res) => {
   }
 })
 
+// Health check endpoint for deployment monitoring
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    version: process.env.npm_package_version || '1.0.0',
+    environment: process.env.NODE_ENV || 'development'
+  })
+})
+
 // Serve the Vue app for all other routes
 app.get('*', (req, res) => {
   res.sendFile(join(__dirname, '../dist/index.html'))
