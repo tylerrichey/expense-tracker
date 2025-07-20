@@ -45,50 +45,14 @@ jobs:
           script: |
             set -e  # Exit on any error
             
-            echo "🚀 Starting deployment..."
-            
             # Navigate to project directory
             cd ${{ secrets.DEPLOY_PATH || '/app/expense-tracker' }}
             
-            # Pull latest changes
-            echo "📥 Pulling latest code..."
-            git pull origin main
+            # Make deploy script executable
+            chmod +x scripts/deploy.sh
             
-            # Stop existing containers
-            echo "⏹️ Stopping containers..."
-            docker compose down
-            
-            # Build and start new containers
-            echo "🔨 Building and starting containers..."
-            docker compose up -d --build
-            
-            # Clean up old images
-            echo "🧹 Cleaning up old Docker images..."
-            docker image prune -af
-            
-            # Health check
-            echo "🏥 Waiting for application to start..."
-            sleep 15
-            
-            # Check if containers are running
-            if docker compose ps | grep -q "Up"; then
-              echo "✅ Containers are running"
-              
-              # Test health endpoint
-              echo "🏥 Testing application health..."
-              if curl -f http://localhost:3000/api/health > /dev/null 2>&1; then
-                echo "✅ Health check passed - Deployment successful!"
-              else
-                echo "⚠️ Health check failed but containers are running"
-                echo "Application may still be starting up..."
-              fi
-            else
-              echo "❌ Deployment failed - containers not running"
-              docker compose logs
-              exit 1
-            fi
-            
-            echo "🎉 Deployment completed successfully!"
+            # Run zero-downtime deployment
+            ./scripts/deploy.sh
 
   notify:
     name: Notify Deployment Status
