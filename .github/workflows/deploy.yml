@@ -48,9 +48,10 @@ jobs:
             # Navigate to project directory
             cd ${{ secrets.DEPLOY_PATH || '/app/expense-tracker' }}
             
-            # Pull latest changes first
+            # Pull latest changes first (force reset to avoid conflicts)
             echo "📥 Pulling latest code..."
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             
             # Now the deploy script should exist, make it executable
             if [ -f scripts/deploy.sh ]; then
