@@ -66,6 +66,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { databaseService } from '../services/database'
+import { calculateWeekdayDailyAverages } from '../utils/weekdayCalculations'
 
 interface LocationStat {
   place_name: string
@@ -156,31 +157,7 @@ function calculateTopLocations() {
 }
 
 function calculateWeekdayAverages() {
-  const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const weekdayTotals = new Array(7).fill(0)
-  const weekdayCounts = new Array(7).fill(0)
-  
-  expenses.value.forEach(expense => {
-    const date = new Date(expense.timestamp)
-    const weekday = date.getDay() // 0 = Sunday, 1 = Monday, etc.
-    weekdayTotals[weekday] += expense.amount
-    weekdayCounts[weekday] += 1
-  })
-  
-  // Calculate averages
-  const averages = weekdayTotals.map((total, index) => 
-    weekdayCounts[index] > 0 ? total / weekdayCounts[index] : 0
-  )
-  
-  // Find max average for percentage calculation
-  const maxAverage = Math.max(...averages)
-  
-  // Create chart data
-  weekdayAverages.value = weekdayNames.map((name, index) => ({
-    name,
-    average: averages[index],
-    percentage: maxAverage > 0 ? (averages[index] / maxAverage) * 100 : 0
-  }))
+  weekdayAverages.value = calculateWeekdayDailyAverages(expenses.value)
 }
 
 function downloadCSV() {
