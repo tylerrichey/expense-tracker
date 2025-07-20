@@ -91,7 +91,13 @@ jobs:
                 # Ensure data directory exists with proper permissions
                 echo "📁 Setting up data directory..."
                 mkdir -p data
-                chmod 755 data
+                
+                # Try to set permissions, but don't fail if we can't
+                if ! chmod 755 data 2>/dev/null; then
+                  echo "⚠️ Could not change data directory permissions (may not be needed)"
+                  echo "📋 Current data directory permissions:"
+                  ls -la data 2>/dev/null || echo "Directory listing not available"
+                fi
                 
                 # For SQLite, we need to temporarily stop old container to avoid database locks
                 # This provides "minimal downtime" rather than "zero downtime" due to SQLite limitations

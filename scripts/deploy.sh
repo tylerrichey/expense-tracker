@@ -84,7 +84,13 @@ docker compose build
 # Ensure data directory exists with proper permissions
 log_info "Setting up data directory..."
 mkdir -p data
-chmod 755 data
+
+# Try to set permissions, but don't fail if we can't
+if ! chmod 755 data 2>/dev/null; then
+    log_warning "Could not change data directory permissions (may not be needed)"
+    log_info "Current data directory permissions:"
+    ls -la data 2>/dev/null || echo "Directory listing not available"
+fi
 
 # For SQLite, we need minimal downtime to avoid database locks
 if [ "$OLD_RUNNING" = true ]; then
