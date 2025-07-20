@@ -3,12 +3,12 @@
 # Zero-downtime deployment script
 set -e
 
-echo "🚀 Starting zero-downtime deployment..."
+echo "🚀 Starting minimal-downtime deployment (SQLite-safe)..."
 
 # Configuration
 HEALTH_URL="http://localhost:3000/api/health"
-MAX_RETRIES=12
-RETRY_DELAY=10
+MAX_RETRIES=6
+RETRY_DELAY=5
 
 # Colors for output
 RED='\033[0;31m'
@@ -44,17 +44,24 @@ wait_for_health() {
     log_info "Waiting for $service_name to become healthy..."
     
     for i in $(seq 1 $MAX_RETRIES); do
+        log_info "Health check attempt $i/$MAX_RETRIES..."
         if check_health; then
             log_success "$service_name is healthy!"
             return 0
         else
-            log_warning "Health check attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}s..."
-            sleep $RETRY_DELAY
+            if [ $i -eq $MAX_RETRIES ]; then
+                log_error "$service_name failed to become healthy after $MAX_RETRIES attempts"
+                log_error "Container logs for debugging:"
+                docker compose logs --tail=50
+                log_error "Container status:"
+                docker compose ps
+                return 1
+            else
+                log_warning "Health check failed, retrying in ${RETRY_DELAY}s..."
+                sleep $RETRY_DELAY
+            fi
         fi
     done
-    
-    log_error "$service_name failed to become healthy after $MAX_RETRIES attempts"
-    return 1
 }
 
 # Check if old deployment is running
@@ -74,110 +81,23 @@ git pull origin main
 log_info "Building new Docker image..."
 docker compose build
 
-# If this is the first deployment
-if [ "$OLD_RUNNING" = false ]; then
-    log_info "First deployment - starting containers..."
-    docker compose up -d
-    wait_for_health "new deployment"
-    log_success "First deployment completed successfully!"
-    exit 0
+# Ensure data directory exists with proper permissions
+log_info "Setting up data directory..."
+mkdir -p data
+chmod 755 data
+
+# For SQLite, we need minimal downtime to avoid database locks
+if [ "$OLD_RUNNING" = true ]; then
+    log_warning "SQLite requires minimal downtime for database lock safety..."
+    log_info "Stopping old container..."
+    docker compose down
 fi
 
-# For existing deployments, use rolling update strategy
-log_info "Performing rolling update..."
-
-# Create a temporary compose file for new deployment
-TEMP_COMPOSE="docker-compose.temp.yml"
-cat > "$TEMP_COMPOSE" << 'EOF'
-services:
-  expense-tracker-new:
-    build: .
-    container_name: expense-tracker-new
-    ports:
-      - "3001:3000"
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - GOOGLE_PLACES_API_KEY=${GOOGLE_PLACES_API_KEY:-}
-      - AUTH_PASSWORD=${AUTH_PASSWORD:-}
-    volumes:
-      - ./data:/app/data
-    restart: "no"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-EOF
-
-# Start new container on different port
-log_info "Starting new container on port 3001..."
-docker compose -f "$TEMP_COMPOSE" up -d
-
-# Wait for new deployment to be healthy
-log_info "Testing new deployment on port 3001..."
-TEMP_HEALTH_URL="http://localhost:3001/api/health"
-for i in $(seq 1 $MAX_RETRIES); do
-    if curl -f "$TEMP_HEALTH_URL" > /dev/null 2>&1; then
-        log_success "New deployment is healthy!"
-        break
-    else
-        if [ $i -eq $MAX_RETRIES ]; then
-            log_error "New deployment failed health checks"
-            log_info "Cleaning up failed deployment..."
-            docker compose -f "$TEMP_COMPOSE" down
-            rm "$TEMP_COMPOSE"
-            exit 1
-        fi
-        log_warning "Health check attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}s..."
-        sleep $RETRY_DELAY
-    fi
-done
-
-# Switch ports (new container to 3000, stop old container)
-log_info "Switching to new deployment..."
-
-# Update the new container to use port 3000
-docker compose -f "$TEMP_COMPOSE" down
-cat > "$TEMP_COMPOSE" << EOF
-services:
-  app-new:
-    build: .
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - AUTH_PASSWORD=\${AUTH_PASSWORD}
-      - GOOGLE_PLACES_API_KEY=\${GOOGLE_PLACES_API_KEY}
-    volumes:
-      - ./data:/app/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-EOF
-
-# Stop old deployment and start new one on port 3000
-log_info "Stopping old deployment..."
-docker compose down
-
-log_info "Starting new deployment on port 3000..."
-docker compose -f "$TEMP_COMPOSE" up -d
-
-# Final health check
-wait_for_health "final deployment"
-
-# Clean up
-log_info "Cleaning up..."
-docker compose -f "$TEMP_COMPOSE" down
-rm "$TEMP_COMPOSE"
-
-# Start the regular deployment
+log_info "Starting new deployment..."
 docker compose up -d
+
+# Health check
+wait_for_health "deployment"
 
 # Clean up old images
 log_info "Cleaning up old Docker images..."
