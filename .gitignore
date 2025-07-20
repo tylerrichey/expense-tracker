@@ -250,3 +250,6 @@ firestore-debug.log
 
 # Application specific
 # Add any project-specific files here
+
+# Claude Code configuration
+.claude/
