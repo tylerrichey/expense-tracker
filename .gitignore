@@ -253,3 +253,6 @@ firestore-debug.log
 
 # Claude Code configuration
 .claude/
+
+# Build-generated files
+src/build-info.json

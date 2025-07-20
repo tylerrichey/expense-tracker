@@ -13,6 +13,7 @@
           @expense-deleted="handleExpenseDeleted"
         />
       </main>
+      <AppFooter />
     </div>
   </div>
 </template>
@@ -23,6 +24,7 @@ import LoginForm from './components/LoginForm.vue'
 import HorizontalNav from './components/HorizontalNav.vue'
 import Home from './components/Home.vue'
 import Reports from './components/Reports.vue'
+import AppFooter from './components/AppFooter.vue'
 import { AuthService } from './services/auth'
 
 const refreshTrigger = ref(0)
