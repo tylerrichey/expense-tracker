@@ -31,7 +31,14 @@ class PlacesService {
       includedTypes: [
         'restaurant',
         'bar',
-        'grocery_store'
+        'grocery_store',
+        'convenience_store',
+        'supermarket',
+        'brewery',
+        'cafe',
+        'bakery',
+        'meal_takeaway',
+        'food'
       ],
       maxResultCount: 20,
       locationRestriction: {
