@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execSync } from 'child_process'
-import { writeFileSync } from 'fs'
+import { writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -36,8 +36,12 @@ try {
     buildDate: new Date().toISOString()
   }
   
+  // Ensure directories exist
+  const publicDir = join(__dirname, '../public')
+  mkdirSync(publicDir, { recursive: true })
+  
   // Write to public directory so it's accessible at runtime
-  const publicBuildInfoPath = join(__dirname, '../public/build-info.json')
+  const publicBuildInfoPath = join(publicDir, 'build-info.json')
   writeFileSync(publicBuildInfoPath, JSON.stringify(buildInfo, null, 2))
   
   // Also write to src directory for development
@@ -57,7 +61,11 @@ try {
     buildDate: new Date().toISOString()
   }
   
-  const publicBuildInfoPath = join(__dirname, '../public/build-info.json')
+  // Ensure directories exist
+  const publicDir = join(__dirname, '../public')
+  mkdirSync(publicDir, { recursive: true })
+  
+  const publicBuildInfoPath = join(publicDir, 'build-info.json')
   writeFileSync(publicBuildInfoPath, JSON.stringify(fallbackInfo, null, 2))
   
   const srcBuildInfoPath = join(__dirname, '../src/build-info.json')
