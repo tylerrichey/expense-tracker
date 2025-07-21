@@ -74,6 +74,11 @@ export function calculateWeekdayDailyAverages(expenses: Expense[]): WeekdayData[
   const earliestDate = new Date(Math.min(...dates.map(d => d.getTime())))
   const latestDate = new Date(Math.max(...dates.map(d => d.getTime())))
   
+  // Normalize to start of day to avoid timezone/time issues
+  earliestDate.setHours(0, 0, 0, 0)
+  latestDate.setHours(0, 0, 0, 0)
+  
+  
   // Count total spending per weekday
   expenses.forEach(expense => {
     const date = new Date(expense.timestamp)
