@@ -16,9 +16,6 @@
         </span>
         <span class="build-date">{{ formattedBuildDate }}</span>
       </div>
-      <div class="app-info">
-        <span class="app-name">Expense Tracker</span>
-      </div>
     </div>
   </footer>
 </template>
@@ -34,10 +31,24 @@ const buildDate = ref(new Date().toISOString())
 // Load build info asynchronously
 onMounted(async () => {
   try {
-    const buildInfo = (await import('../build-info.json')).default
-    gitHash.value = buildInfo.gitHash
-    repoUrl.value = buildInfo.repoUrl
-    buildDate.value = buildInfo.buildDate
+    // Use explicit import with ?url to get the file path
+    const response = await fetch('/build-info.json')
+    if (response.ok) {
+      const buildInfo = await response.json()
+      gitHash.value = buildInfo.gitHash
+      repoUrl.value = buildInfo.repoUrl
+      buildDate.value = buildInfo.buildDate
+    } else {
+      // Try importing from src directory (for dev mode)
+      try {
+        const buildInfo = (await import('../build-info.json')).default
+        gitHash.value = buildInfo.gitHash
+        repoUrl.value = buildInfo.repoUrl
+        buildDate.value = buildInfo.buildDate
+      } catch (importError) {
+        console.warn('Build info not available, using defaults')
+      }
+    }
   } catch (e) {
     console.warn('Build info not available, using defaults')
     // Keep default values
@@ -76,7 +87,7 @@ const formattedBuildDate = computed(() => {
 
 .footer-content {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   max-width: 1200px;
   margin: 0 auto;
@@ -116,13 +127,6 @@ const formattedBuildDate = computed(() => {
   font-size: 11px;
 }
 
-.app-info {
-  color: #666;
-}
-
-.app-name {
-  font-weight: 500;
-}
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {

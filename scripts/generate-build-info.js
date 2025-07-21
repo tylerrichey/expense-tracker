@@ -36,9 +36,13 @@ try {
     buildDate: new Date().toISOString()
   }
   
-  // Write to src directory so Vite can import it
-  const buildInfoPath = join(__dirname, '../src/build-info.json')
-  writeFileSync(buildInfoPath, JSON.stringify(buildInfo, null, 2))
+  // Write to public directory so it's accessible at runtime
+  const publicBuildInfoPath = join(__dirname, '../public/build-info.json')
+  writeFileSync(publicBuildInfoPath, JSON.stringify(buildInfo, null, 2))
+  
+  // Also write to src directory for development
+  const srcBuildInfoPath = join(__dirname, '../src/build-info.json')
+  writeFileSync(srcBuildInfoPath, JSON.stringify(buildInfo, null, 2))
   
   console.log('✅ Build info generated:', buildInfo)
   
@@ -53,8 +57,11 @@ try {
     buildDate: new Date().toISOString()
   }
   
-  const buildInfoPath = join(__dirname, '../src/build-info.json')
-  writeFileSync(buildInfoPath, JSON.stringify(fallbackInfo, null, 2))
+  const publicBuildInfoPath = join(__dirname, '../public/build-info.json')
+  writeFileSync(publicBuildInfoPath, JSON.stringify(fallbackInfo, null, 2))
+  
+  const srcBuildInfoPath = join(__dirname, '../src/build-info.json')
+  writeFileSync(srcBuildInfoPath, JSON.stringify(fallbackInfo, null, 2))
   
   console.log('⚠️ Using fallback build info')
 }
