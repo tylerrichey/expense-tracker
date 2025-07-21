@@ -16,6 +16,16 @@ This file contains important instructions and reminders for Claude Code when wor
 
 3. **Run linting** (if available) - Check for any lint scripts in package.json
 
+## Post-Commit Checklist
+
+**ALWAYS monitor GitHub Actions after every commit and push:**
+
+1. **Check build status** - Use `gh run list --limit 3` to see recent runs
+2. **Monitor for failures** - Use `gh run view <run-id>` to get details if builds fail
+3. **Fix issues immediately** - Address CI failures while context is fresh
+4. **Verify deployment** - Confirm successful deployment to production
+5. **Don't leave broken builds** - Always follow through until green checkmarks
+
 ## Project Structure
 
 - **Frontend**: Vue 3 + TypeScript in `src/`
