@@ -206,8 +206,8 @@ describe('Weekday Calculations', () => {
       expect(dailyAverages[6].average).toBe(70) // Saturday
 
       // None should be 0
-      dailyAverages.forEach((day, index) => {
-        expect(day.average).toBeGreaterThan(0, `${day.name} should not be 0`)
+      dailyAverages.forEach(day => {
+        expect(day.average).toBeGreaterThan(0)
       })
     })
 
