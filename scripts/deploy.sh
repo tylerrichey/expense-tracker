@@ -79,17 +79,23 @@ git pull origin main
 
 # Generate build info with git history available
 log_info "Generating build info..."
-# Try different ways to run node, fallback gracefully
-if command -v node >/dev/null 2>&1; then
+# Try to source nvm and run node, with multiple fallback approaches
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+    log_info "Loading nvm from ~/.nvm/nvm.sh..."
+    source "$HOME/.nvm/nvm.sh"
+    node scripts/generate-build-info.js
+elif [ -f "/usr/local/nvm/nvm.sh" ]; then
+    log_info "Loading nvm from /usr/local/nvm/nvm.sh..."
+    source "/usr/local/nvm/nvm.sh"
+    node scripts/generate-build-info.js
+elif command -v node >/dev/null 2>&1; then
     node scripts/generate-build-info.js
 elif command -v nodejs >/dev/null 2>&1; then
     nodejs scripts/generate-build-info.js
 elif command -v /usr/bin/node >/dev/null 2>&1; then
     /usr/bin/node scripts/generate-build-info.js
-elif command -v npm >/dev/null 2>&1; then
-    npm run generate-build-info
 else
-    log_warning "Node.js not found in PATH, build info will use fallback values"
+    log_warning "Node.js not found, build info will use fallback values"
 fi
 
 # Build new image

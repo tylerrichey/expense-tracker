@@ -12,8 +12,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the Vue application (production build without tests)
-RUN npm run build:prod
+# Build the Vue application (skip build info generation since it's done on server)
+RUN npm run build:docker
 
 # Production stage
 FROM node:18-alpine AS production

@@ -9,6 +9,7 @@
     "dev:client": "vite",
     "build": "npm run test && npm run build:prod",
     "build:prod": "node scripts/generate-build-info.js && vue-tsc && vite build",
+    "build:docker": "vue-tsc && vite build",
     "preview": "vite preview",
     "start": "node server/index.js",
     "generate-test-data": "node scripts/generate-test-data.js",
