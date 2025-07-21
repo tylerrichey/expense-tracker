@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "start": "node server/index.js",
     "generate-test-data": "node scripts/generate-test-data.js",
+    "generate-build-info": "node scripts/generate-build-info.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
