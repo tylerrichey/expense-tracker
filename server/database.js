@@ -29,6 +29,7 @@ class DatabaseService {
     }
     
     console.log(`📁 Using database: ${dbPath}`)
+    this.dbPath = dbPath
     this.db = new Database(dbPath)
     this.initializeDatabase()
   }
@@ -55,6 +56,10 @@ class DatabaseService {
     } catch (err) {
       console.error('Error creating table:', err)
     }
+  }
+
+  getDatabasePath() {
+    return this.dbPath
   }
 
   addMissingColumns() {

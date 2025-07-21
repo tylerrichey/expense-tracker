@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { databaseService } from './database.js'
@@ -187,6 +188,44 @@ app.get('/api/places/all', authenticateRequest, async (req, res) => {
   } catch (error) {
     console.error('Error fetching all places:', error)
     res.status(500).json({ error: 'Failed to fetch places' })
+  }
+})
+
+// Database backup endpoint
+app.get('/api/backup/download', authenticateRequest, (req, res) => {
+  try {
+    const dbPath = databaseService.getDatabasePath()
+    
+    // Check if database file exists
+    if (!fs.existsSync(dbPath)) {
+      return res.status(404).json({ error: 'Database file not found' })
+    }
+    
+    // Get file stats for size
+    const stats = fs.statSync(dbPath)
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const filename = `expenses-backup-${timestamp}.db`
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', 'application/octet-stream')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.setHeader('Content-Length', stats.size)
+    
+    // Stream the database file
+    const readStream = fs.createReadStream(dbPath)
+    readStream.pipe(res)
+    
+    readStream.on('error', (error) => {
+      console.error('Error streaming backup file:', error)
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to download backup' })
+      }
+    })
+    
+    console.log(`📥 Database backup downloaded: ${filename} (${stats.size} bytes)`)
+  } catch (error) {
+    console.error('Error creating backup:', error)
+    res.status(500).json({ error: 'Failed to create backup' })
   }
 })
 

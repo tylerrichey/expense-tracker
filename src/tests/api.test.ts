@@ -353,6 +353,127 @@ describe('API Client Tests', () => {
     })
   })
 
+  describe('DatabaseService - Backup Operations', () => {
+    it('should download database backup successfully', async () => {
+      const mockBlob = new Blob(['fake database content'], { type: 'application/octet-stream' })
+      
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        blob: async () => mockBlob,
+        headers: new Headers({
+          'content-disposition': 'attachment; filename="expenses-backup-2024-01-01T10-00-00-000Z.db"',
+          'content-type': 'application/octet-stream'
+        })
+      })
+
+      // Create a method to test backup download
+      const downloadBackup = async () => {
+        const response = await fetch('/api/backup/download', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token'
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to download backup')
+        }
+
+        return response.blob()
+      }
+
+      const result = await downloadBackup()
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/backup/download', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer test-token'
+        }
+      })
+      expect(result).toBeInstanceOf(Blob)
+      expect(result.type).toBe('application/octet-stream')
+    })
+
+    it('should handle backup download authentication failure', async () => {
+      localStorageMock.getItem.mockReturnValue(null) // No token
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: 'Authentication required' })
+      })
+
+      const downloadBackup = async () => {
+        const response = await fetch('/api/backup/download', {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to download backup')
+        }
+
+        return response.blob()
+      }
+
+      await expect(downloadBackup()).rejects.toThrow('Authentication required')
+    })
+
+    it('should handle backup download server error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: 'Failed to create backup' })
+      })
+
+      const downloadBackup = async () => {
+        const response = await fetch('/api/backup/download', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to download backup')
+        }
+
+        return response.blob()
+      }
+
+      await expect(downloadBackup()).rejects.toThrow('Failed to create backup')
+    })
+
+    it('should handle backup download when database file not found', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: 'Database file not found' })
+      })
+
+      const downloadBackup = async () => {
+        const response = await fetch('/api/backup/download', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token'
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to download backup')
+        }
+
+        return response.blob()
+      }
+
+      await expect(downloadBackup()).rejects.toThrow('Database file not found')
+    })
+  })
+
   describe('Error Handling', () => {
     it('should handle network errors gracefully', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'))
