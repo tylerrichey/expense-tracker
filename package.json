@@ -14,8 +14,9 @@
     "start": "node server/index.js",
     "generate-test-data": "node scripts/generate-test-data.js",
     "generate-build-info": "node scripts/generate-build-info.js",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "npm run typecheck && vitest run",
+    "test:watch": "vitest",
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "axios": "^1.6.8",
