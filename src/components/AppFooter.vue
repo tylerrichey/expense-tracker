@@ -41,7 +41,9 @@ onMounted(async () => {
     } else {
       // Try importing from src directory (for dev mode)
       try {
-        const buildInfo = (await import('../build-info.json')).default
+        // Use dynamic import with string to avoid TypeScript static analysis
+        const buildInfoModule = await import(/* @vite-ignore */ '../build-info.json')
+        const buildInfo = buildInfoModule.default
         gitHash.value = buildInfo.gitHash
         repoUrl.value = buildInfo.repoUrl
         buildDate.value = buildInfo.buildDate
