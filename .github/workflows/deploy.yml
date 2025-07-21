@@ -75,6 +75,10 @@ jobs:
                 echo "ℹ️ No existing deployment found"
               fi
               
+              # Generate build info with git history available
+              echo "📝 Generating build info..."
+              node scripts/generate-build-info.js
+              
               # Build new image
               echo "🔨 Building new Docker image..."
               docker compose build

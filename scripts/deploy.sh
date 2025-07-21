@@ -77,6 +77,10 @@ fi
 log_info "Pulling latest code..."
 git pull origin main
 
+# Generate build info with git history available
+log_info "Generating build info..."
+node scripts/generate-build-info.js
+
 # Build new image
 log_info "Building new Docker image..."
 docker compose build
