@@ -1,7 +1,7 @@
 <template>
   <div class="expense-form">
     <h2>Add Expense</h2>
-    <form @submit.prevent="submitExpense">
+    <form @submit.prevent="submitExpense" @keydown.enter="handleFormKeydown">
       <div class="form-group">
         <label for="amount">Amount ($):</label>
         <input
@@ -128,6 +128,7 @@
       ref="fileInput"
       type="file"
       accept="image/*"
+      :capture="isMobile ? 'environment' : undefined"
       @change="handleImageUpload"
       style="display: none;"
     />
@@ -138,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { databaseService } from '../services/database'
 import { getCurrentLocation, getFreshLocation } from '../services/geolocation'
 import { Place } from '../types/expense'
@@ -159,6 +160,14 @@ const showSuggestions = ref(false)
 const selectedSuggestionIndex = ref(-1)
 const receiptImage = ref<File | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
+
+// Detect if we're on mobile for better camera handling
+const isMobile = computed(() => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+})
+
+// Reference to the beforeunload handler for cleanup
+let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null
 
 const emit = defineEmits<{
   expenseAdded: []
@@ -256,10 +265,47 @@ function toggleInputMode() {
 }
 
 function triggerImageUpload() {
-  fileInput.value?.click()
+  // Ensure the file input is properly reset before opening
+  if (fileInput.value) {
+    fileInput.value.value = ''
+    
+    // Remove any existing handler first
+    if (beforeUnloadHandler) {
+      window.removeEventListener('beforeunload', beforeUnloadHandler)
+    }
+    
+    // Add a temporary beforeunload handler to prevent page refreshes during camera capture
+    beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    
+    // Add the handler when opening camera
+    window.addEventListener('beforeunload', beforeUnloadHandler)
+    
+    // Remove the handler after a delay (camera should be done by then)
+    setTimeout(() => {
+      if (beforeUnloadHandler) {
+        window.removeEventListener('beforeunload', beforeUnloadHandler)
+        beforeUnloadHandler = null
+      }
+    }, 30000) // Remove after 30 seconds
+    
+    fileInput.value.click()
+  }
 }
 
 async function handleImageUpload(event: Event) {
+  // Prevent any default behavior that might cause page navigation
+  event.preventDefault()
+  event.stopPropagation()
+  
+  // Remove any beforeunload handlers that might have been added
+  if (beforeUnloadHandler) {
+    window.removeEventListener('beforeunload', beforeUnloadHandler)
+    beforeUnloadHandler = null
+  }
+  
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   
@@ -267,6 +313,8 @@ async function handleImageUpload(event: Event) {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       showMessage('Please select an image file', 'error')
+      // Clear the file input to prevent any lingering state
+      target.value = ''
       return
     }
     
@@ -274,11 +322,19 @@ async function handleImageUpload(event: Event) {
     const maxSize = 5 * 1024 * 1024 // 5MB
     if (file.size > maxSize) {
       showMessage('Image file too large. Please select a file smaller than 5MB', 'error')
+      // Clear the file input to prevent any lingering state
+      target.value = ''
       return
     }
     
     receiptImage.value = file
     showMessage(`Receipt image attached: ${file.name}`, 'success')
+    
+    // Keep the file input value to maintain the file reference
+    // but ensure we don't trigger any unwanted behavior
+  } else {
+    // If no file was selected (user cancelled), clear the input
+    target.value = ''
   }
 }
 
@@ -443,6 +499,16 @@ function selectSuggestion(place: string) {
   manualPlaceName.value = place
   showSuggestions.value = false
   selectedSuggestionIndex.value = -1
+}
+
+function handleFormKeydown(event: KeyboardEvent) {
+  // Prevent Enter key from submitting the form when not intended
+  // especially important for mobile browsers
+  const target = event.target as HTMLElement
+  if (target.tagName === 'INPUT' && target.getAttribute('type') === 'file') {
+    event.preventDefault()
+    event.stopPropagation()
+  }
 }
 
 onMounted(() => {

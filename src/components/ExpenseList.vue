@@ -437,12 +437,15 @@ h3 {
 
 .image-modal {
   position: relative;
+  width: auto;
+  height: auto;
   max-width: 90vw;
   max-height: 90vh;
   background: #2a2a2a;
   border-radius: 8px;
-  overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .modal-close-button {
@@ -469,9 +472,34 @@ h3 {
 }
 
 .modal-image {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: calc(90vw - 40px);
+  max-height: calc(90vh - 40px);
+  width: auto;
+  height: auto;
   display: block;
   object-fit: contain;
+  border-radius: 4px;
+}
+
+/* Mobile modal adjustments */
+@media (max-width: 768px) {
+  .image-modal {
+    max-width: 95vw;
+    max-height: 95vh;
+    padding: 10px;
+  }
+  
+  .modal-image {
+    max-width: calc(95vw - 20px);
+    max-height: calc(95vh - 20px);
+  }
+  
+  .modal-close-button {
+    top: 5px;
+    right: 5px;
+    width: 25px;
+    height: 25px;
+    font-size: 16px;
+  }
 }
 </style>
