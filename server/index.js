@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { databaseService } from './database.js'
 import { placesService } from './places.js'
+import { budgetScheduler } from './budget-scheduler.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -353,4 +354,7 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
+  
+  // Start budget scheduler
+  budgetScheduler.start()
 })
