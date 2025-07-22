@@ -117,11 +117,21 @@ app.post('/api/expenses/upload-image', authenticateRequest, upload.single('image
     const { expenseId } = req.body
     const imageFile = req.file
 
+    console.log('📷 Image upload request received:', {
+      expenseId,
+      hasFile: !!imageFile,
+      fileSize: imageFile?.size,
+      fileName: imageFile?.originalname,
+      mimeType: imageFile?.mimetype
+    })
+
     if (!expenseId) {
+      console.error('Image upload failed: Missing expense ID')
       return res.status(400).json({ error: 'Expense ID is required' })
     }
 
     if (!imageFile) {
+      console.error('Image upload failed: Missing image file')
       return res.status(400).json({ error: 'Image file is required' })
     }
 
@@ -132,16 +142,18 @@ app.post('/api/expenses/upload-image', authenticateRequest, upload.single('image
     const success = await databaseService.updateExpenseImage(expenseIdNum, imageFile.buffer)
     
     if (!success) {
+      console.error(`Image upload failed: Expense ${expenseId} not found`)
       return res.status(404).json({ error: 'Expense not found' })
     }
 
+    console.log(`✅ Image uploaded successfully for expense ${expenseId}`)
     res.json({ message: 'Image uploaded successfully' })
   } catch (error) {
     console.error('Error uploading image:', error)
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(413).json({ error: 'File too large. Maximum size is 5MB' })
     }
-    res.status(500).json({ error: 'Failed to upload image' })
+    res.status(500).json({ error: 'Failed to upload image: ' + error.message })
   }
 })
 

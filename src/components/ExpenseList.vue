@@ -255,6 +255,7 @@ h3 {
   gap: 8px;
   align-items: center;
   flex-shrink: 0;
+  margin-left: 12px;
 }
 
 .image-button {

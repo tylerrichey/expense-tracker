@@ -38,6 +38,8 @@ class DatabaseService {
     formData.append('image', imageFile)
     formData.append('expenseId', expenseId.toString())
 
+    console.log(`Uploading image for expense ${expenseId}: ${imageFile.name} (${(imageFile.size / 1024).toFixed(1)}KB)`)
+
     const response = await fetch(`${this.baseURL}/expenses/upload-image`, {
       method: 'POST',
       headers: {
@@ -47,8 +49,21 @@ class DatabaseService {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to upload image')
+      let errorMessage = `Failed to upload image (${response.status} ${response.statusText})`
+      try {
+        const errorData = await response.json()
+        if (errorData.error) {
+          errorMessage = `Failed to upload image: ${errorData.error}`
+        }
+      } catch (e) {
+        // If response isn't JSON, use the status text
+        errorMessage = `Failed to upload image: ${response.status} ${response.statusText}`
+      }
+      console.error('Image upload failed:', errorMessage)
+      throw new Error(errorMessage)
     }
+
+    console.log(`Image uploaded successfully for expense ${expenseId}`)
   }
 
   async getExpenseImage(expenseId: number): Promise<string> {
