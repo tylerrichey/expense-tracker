@@ -43,7 +43,7 @@ onMounted(async () => {
       try {
         // Use completely dynamic import to avoid TypeScript static analysis
         const buildInfoPath = '../build-info.json'
-        const buildInfoModule = await import(buildInfoPath)
+        const buildInfoModule = await import(/* @vite-ignore */ buildInfoPath)
         const buildInfo = buildInfoModule.default
         gitHash.value = buildInfo.gitHash
         repoUrl.value = buildInfo.repoUrl

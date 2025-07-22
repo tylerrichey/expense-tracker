@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import fs from 'fs'
+import multer from 'multer'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { databaseService } from './database.js'
@@ -20,7 +21,25 @@ if (!AUTH_PASSWORD) {
 }
 
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '10mb' }))
+app.use(express.raw({ limit: '10mb' }))
+app.use(express.urlencoded({ limit: '10mb', extended: true }))
+
+// Configure multer for image uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only image files are allowed'), false)
+    }
+  }
+})
 
 // Authentication middleware
 const authenticateRequest = (req, res, next) => {
@@ -89,6 +108,40 @@ app.post('/api/expenses', authenticateRequest, async (req, res) => {
   } catch (error) {
     console.error('Error saving expense:', error)
     res.status(500).json({ error: 'Failed to save expense' })
+  }
+})
+
+// Image upload endpoint for expenses
+app.post('/api/expenses/upload-image', authenticateRequest, upload.single('image'), async (req, res) => {
+  try {
+    const { expenseId } = req.body
+    const imageFile = req.file
+
+    if (!expenseId) {
+      return res.status(400).json({ error: 'Expense ID is required' })
+    }
+
+    if (!imageFile) {
+      return res.status(400).json({ error: 'Image file is required' })
+    }
+
+    console.log(`📷 Uploading image for expense ${expenseId}: ${imageFile.originalname} (${(imageFile.size / 1024).toFixed(1)}KB)`)
+
+    // Update the expense with the image data
+    const expenseIdNum = parseInt(expenseId)
+    const success = await databaseService.updateExpenseImage(expenseIdNum, imageFile.buffer)
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Expense not found' })
+    }
+
+    res.json({ message: 'Image uploaded successfully' })
+  } catch (error) {
+    console.error('Error uploading image:', error)
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'File too large. Maximum size is 5MB' })
+    }
+    res.status(500).json({ error: 'Failed to upload image' })
   }
 })
 

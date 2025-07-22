@@ -21,7 +21,8 @@ class DatabaseService {
         longitude: expense.longitude,
         place_id: expense.place_id,
         place_name: expense.place_name,
-        place_address: expense.place_address
+        place_address: expense.place_address,
+        // receipt_image handled separately via file upload API
       })
     })
 
@@ -30,6 +31,24 @@ class DatabaseService {
     }
 
     return await response.json()
+  }
+
+  async uploadExpenseImage(expenseId: number, imageFile: File): Promise<void> {
+    const formData = new FormData()
+    formData.append('image', imageFile)
+    formData.append('expenseId', expenseId.toString())
+
+    const response = await fetch(`${this.baseURL}/expenses/upload-image`, {
+      method: 'POST',
+      headers: {
+        ...AuthService.getAuthHeaders() // Don't include Content-Type, let browser set it for FormData
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to upload image')
+    }
   }
 
   async getAllExpenses(): Promise<Expense[]> {

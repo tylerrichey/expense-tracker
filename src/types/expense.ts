@@ -6,6 +6,7 @@ export interface Expense {
   place_id?: string
   place_name?: string
   place_address?: string
+  receipt_image?: Uint8Array | null
   timestamp: Date
 }
 

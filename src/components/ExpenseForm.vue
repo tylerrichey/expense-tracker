@@ -61,6 +61,14 @@
           >
             📍
           </button>
+          <button
+            type="button"
+            @click="triggerImageUpload"
+            class="image-button"
+            :title="receiptImage ? 'Receipt attached ✓' : 'Attach receipt image'"
+          >
+            {{ receiptImage ? '📄' : '📷' }}
+          </button>
         </div>
         <div v-else class="location-container">
           <select
@@ -96,6 +104,14 @@
           >
             ✏️
           </button>
+          <button
+            type="button"
+            @click="triggerImageUpload"
+            class="image-button"
+            :title="receiptImage ? 'Receipt attached ✓' : 'Attach receipt image'"
+          >
+            {{ receiptImage ? '📄' : '📷' }}
+          </button>
         </div>
         <div v-if="selectedPlace && typeof selectedPlace === 'object'" class="selected-place-info">
           📍 {{ selectedPlace.address }}
@@ -108,6 +124,13 @@
         {{ isSubmitting ? 'Adding...' : 'Add Expense' }}
       </button>
     </form>
+    <input
+      ref="fileInput"
+      type="file"
+      accept="image/*"
+      @change="handleImageUpload"
+      style="display: none;"
+    />
     <div v-if="message" class="message" :class="messageType">
       {{ message }}
     </div>
@@ -134,6 +157,8 @@ const allPlaces = ref<string[]>([])
 const filteredPlaces = ref<string[]>([])
 const showSuggestions = ref(false)
 const selectedSuggestionIndex = ref(-1)
+const receiptImage = ref<File | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const emit = defineEmits<{
   expenseAdded: []
@@ -230,6 +255,33 @@ function toggleInputMode() {
   }
 }
 
+function triggerImageUpload() {
+  fileInput.value?.click()
+}
+
+async function handleImageUpload(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  
+  if (file) {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showMessage('Please select an image file', 'error')
+      return
+    }
+    
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    if (file.size > maxSize) {
+      showMessage('Image file too large. Please select a file smaller than 5MB', 'error')
+      return
+    }
+    
+    receiptImage.value = file
+    showMessage(`Receipt image attached: ${file.name}`, 'success')
+  }
+}
+
 async function submitExpense() {
   if (amount.value <= 0) {
     showMessage('Please enter a valid amount', 'error')
@@ -269,9 +321,25 @@ async function submitExpense() {
     if (import.meta.env.DEV) {
       console.log('Saving expense with data:', JSON.stringify(expenseData, null, 2))
     }
-    await databaseService.addExpense(expenseData)
+    
+    // Step 1: Save the expense and get the ID
+    const savedExpense = await databaseService.addExpense(expenseData)
+    
+    // Step 2: If there's an image, upload it separately
+    if (receiptImage.value && savedExpense.id) {
+      try {
+        await databaseService.uploadExpenseImage(savedExpense.id, receiptImage.value)
+        console.log('Image uploaded successfully for expense', savedExpense.id)
+      } catch (imageError) {
+        console.error('Failed to upload image:', imageError)
+        // Show a warning but don't fail the whole operation
+        showMessage('Expense saved but image upload failed. Please try uploading the image again.', 'error')
+        return // Exit early to avoid showing success message
+      }
+    }
 
-    showMessage('Expense added successfully!', 'success')
+    const message = receiptImage.value ? 'Expense and receipt image added successfully!' : 'Expense added successfully!'
+    showMessage(message, 'success')
     amount.value = 0
     
     // Reset location fields based on current mode
@@ -280,6 +348,12 @@ async function submitExpense() {
     } else {
       // Reset dropdown to empty selection
       selectedPlace.value = ""
+    }
+    
+    // Reset image
+    receiptImage.value = null
+    if (fileInput.value) {
+      fileInput.value.value = ''
     }
     
     emit('expenseAdded')
@@ -555,6 +629,34 @@ input[type="number"]:focus, .location-select:focus, .location-input:focus {
 }
 
 .toggle-button:active {
+  transform: scale(0.95);
+}
+
+.image-button {
+  background: transparent;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #b0b0b0;
+  padding: 12px;
+  cursor: pointer;
+  font-size: 16px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+  flex-shrink: 0;
+}
+
+.image-button:hover {
+  background: #3a3a3a;
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.image-button:active {
   transform: scale(0.95);
 }
 

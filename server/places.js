@@ -34,11 +34,11 @@ class PlacesService {
         'grocery_store',
         'convenience_store',
         'supermarket',
-        'brewery',
+        'pub',
         'cafe',
         'bakery',
         'meal_takeaway',
-        'food'
+        'coffee_shop'
       ],
       maxResultCount: 20,
       locationRestriction: {

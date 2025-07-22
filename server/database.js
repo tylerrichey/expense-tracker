@@ -44,6 +44,7 @@ class DatabaseService {
         place_id TEXT,
         place_name TEXT,
         place_address TEXT,
+        receipt_image BLOB,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `
@@ -66,7 +67,8 @@ class DatabaseService {
     const columns = [
       'ALTER TABLE expenses ADD COLUMN place_id TEXT',
       'ALTER TABLE expenses ADD COLUMN place_name TEXT', 
-      'ALTER TABLE expenses ADD COLUMN place_address TEXT'
+      'ALTER TABLE expenses ADD COLUMN place_address TEXT',
+      'ALTER TABLE expenses ADD COLUMN receipt_image BLOB'
     ]
     
     columns.forEach(query => {
@@ -225,6 +227,28 @@ class DatabaseService {
       
       return Promise.resolve(places)
     } catch (err) {
+      return Promise.reject(err)
+    }
+  }
+
+  updateExpenseImage(expenseId, imageBuffer) {
+    try {
+      const stmt = this.db.prepare(`
+        UPDATE expenses 
+        SET receipt_image = ?
+        WHERE id = ?
+      `)
+      
+      const result = stmt.run(imageBuffer, expenseId)
+      
+      if (result.changes === 0) {
+        return Promise.resolve(false) // Expense not found
+      }
+      
+      console.log(`Database: Updated expense ${expenseId} with image (${imageBuffer.length} bytes)`)
+      return Promise.resolve(true)
+    } catch (err) {
+      console.error('Database: Error updating expense image:', err)
       return Promise.reject(err)
     }
   }
