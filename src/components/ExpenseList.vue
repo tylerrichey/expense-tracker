@@ -26,15 +26,34 @@
             </div>
           </div>
         </div>
-        <button 
-          class="delete-button"
-          @click="deleteExpense(expense.id!)"
-          :disabled="deletingId === expense.id"
-          title="Delete expense"
-        >
-          {{ deletingId === expense.id ? '...' : '🗑️' }}
-        </button>
+        <div class="expense-actions">
+          <button 
+            v-if="expense.has_image"
+            class="image-button"
+            @click="viewImage(expense.id!)"
+            :disabled="loadingImageId === expense.id"
+            title="View receipt image"
+          >
+            {{ loadingImageId === expense.id ? '...' : '📷' }}
+          </button>
+          <button 
+            class="delete-button"
+            @click="deleteExpense(expense.id!)"
+            :disabled="deletingId === expense.id"
+            title="Delete expense"
+          >
+            {{ deletingId === expense.id ? '...' : '🗑️' }}
+          </button>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Image Modal -->
+  <div v-if="showImageModal" class="image-modal-overlay" @click="closeImageModal">
+    <div class="image-modal" @click.stop>
+      <button class="modal-close-button" @click="closeImageModal" title="Close">×</button>
+      <img :src="currentImageUrl" alt="Receipt image" class="modal-image" />
     </div>
   </div>
 </template>
@@ -48,6 +67,9 @@ const expenses = ref<Expense[]>([])
 const loading = ref(false)
 const error = ref('')
 const deletingId = ref<number | null>(null)
+const loadingImageId = ref<number | null>(null)
+const showImageModal = ref(false)
+const currentImageUrl = ref('')
 
 const props = defineProps<{
   refreshTrigger?: number
@@ -93,6 +115,32 @@ async function deleteExpense(id: number) {
     }, 3000)
   } finally {
     deletingId.value = null
+  }
+}
+
+async function viewImage(expenseId: number) {
+  loadingImageId.value = expenseId
+  
+  try {
+    const imageUrl = await databaseService.getExpenseImage(expenseId)
+    currentImageUrl.value = imageUrl
+    showImageModal.value = true
+  } catch (err) {
+    console.error('Error loading image:', err)
+    error.value = 'Failed to load image'
+    setTimeout(() => {
+      error.value = ''
+    }, 3000)
+  } finally {
+    loadingImageId.value = null
+  }
+}
+
+function closeImageModal() {
+  showImageModal.value = false
+  if (currentImageUrl.value) {
+    URL.revokeObjectURL(currentImageUrl.value) // Clean up object URL
+    currentImageUrl.value = ''
   }
 }
 
@@ -202,13 +250,19 @@ h3 {
   margin-left: 10px;
 }
 
-.delete-button {
-  background: #dc3545;
+.expense-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.image-button {
+  background: #007bff;
   border: none;
   border-radius: 4px;
   color: white;
   padding: 6px 8px;
-  margin-left: 10px;
   cursor: pointer;
   font-size: 14px;
   min-width: 32px;
@@ -218,7 +272,36 @@ h3 {
   justify-content: center;
   transition: background-color 0.2s;
   touch-action: manipulation;
-  flex-shrink: 0;
+}
+
+.image-button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.image-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.image-button:active {
+  transform: scale(0.95);
+}
+
+.delete-button {
+  background: #dc3545;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  touch-action: manipulation;
 }
 
 .delete-button:hover:not(:disabled) {
@@ -286,15 +369,17 @@ h3 {
     margin-left: 0;
   }
   
-  .delete-button {
-    /* Keep button on the right side */
-    margin-left: 8px;
-    margin-top: 0;
+  .expense-actions {
+    gap: 6px;
     flex-shrink: 0;
+    align-self: center;
+  }
+
+  .image-button,
+  .delete-button {
     width: 28px;
     height: 28px;
     font-size: 12px;
-    align-self: center;
   }
   
   .expense-date {
@@ -332,5 +417,60 @@ h3 {
   .expense-location {
     font-size: 10px;
   }
+}
+
+/* Image Modal Styles */
+.image-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.image-modal {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  background: #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.modal-close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  z-index: 1001;
+  transition: background-color 0.2s;
+}
+
+.modal-close-button:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.modal-image {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  object-fit: contain;
 }
 </style>

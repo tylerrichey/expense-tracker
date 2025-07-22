@@ -145,6 +145,48 @@ app.post('/api/expenses/upload-image', authenticateRequest, upload.single('image
   }
 })
 
+// Get expense image endpoint
+app.get('/api/expenses/:id/image', authenticateRequest, async (req, res) => {
+  try {
+    const expenseId = parseInt(req.params.id)
+    
+    if (!expenseId || isNaN(expenseId)) {
+      return res.status(400).json({ error: 'Valid expense ID is required' })
+    }
+
+    const imageBuffer = await databaseService.getExpenseImage(expenseId)
+    
+    if (!imageBuffer) {
+      return res.status(404).json({ error: 'Image not found for this expense' })
+    }
+
+    // Detect image format from binary data
+    let contentType = 'image/jpeg' // default fallback
+    if (imageBuffer.length >= 8) {
+      const header = imageBuffer.slice(0, 8)
+      if (header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF) {
+        contentType = 'image/jpeg'
+      } else if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47) {
+        contentType = 'image/png'
+      } else if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46) {
+        contentType = 'image/gif'
+      } else if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46) {
+        contentType = 'image/webp'
+      }
+    }
+
+    // Set appropriate headers for image response
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Length', imageBuffer.length)
+    res.setHeader('Cache-Control', 'public, max-age=86400') // Cache for 24 hours
+    
+    res.send(imageBuffer)
+  } catch (error) {
+    console.error('Error retrieving expense image:', error)
+    res.status(500).json({ error: 'Failed to retrieve image' })
+  }
+})
+
 app.get('/api/expenses', authenticateRequest, async (req, res) => {
   try {
     const expenses = await databaseService.getAllExpenses()

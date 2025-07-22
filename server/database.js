@@ -116,7 +116,7 @@ class DatabaseService {
 
   getAllExpenses() {
     try {
-      const stmt = this.db.prepare('SELECT * FROM expenses ORDER BY timestamp DESC')
+      const stmt = this.db.prepare('SELECT *, (receipt_image IS NOT NULL) as has_image FROM expenses ORDER BY timestamp DESC')
       const rows = stmt.all()
       
       const expenses = rows.map(row => ({
@@ -127,6 +127,7 @@ class DatabaseService {
         place_id: row.place_id,
         place_name: row.place_name,
         place_address: row.place_address,
+        has_image: Boolean(row.has_image),
         timestamp: new Date(row.timestamp)
       }))
       
@@ -139,7 +140,7 @@ class DatabaseService {
   getRecentExpenses(days = 7) {
     try {
       const stmt = this.db.prepare(`
-        SELECT * FROM expenses 
+        SELECT *, (receipt_image IS NOT NULL) as has_image FROM expenses 
         WHERE timestamp >= datetime('now', '-${days} days')
         ORDER BY timestamp DESC
       `)
@@ -153,6 +154,7 @@ class DatabaseService {
         place_id: row.place_id,
         place_name: row.place_name,
         place_address: row.place_address,
+        has_image: Boolean(row.has_image),
         timestamp: new Date(row.timestamp)
       }))
       
@@ -249,6 +251,27 @@ class DatabaseService {
       return Promise.resolve(true)
     } catch (err) {
       console.error('Database: Error updating expense image:', err)
+      return Promise.reject(err)
+    }
+  }
+
+  getExpenseImage(expenseId) {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT receipt_image 
+        FROM expenses 
+        WHERE id = ? AND receipt_image IS NOT NULL
+      `)
+      
+      const result = stmt.get(expenseId)
+      
+      if (!result || !result.receipt_image) {
+        return Promise.resolve(null)
+      }
+      
+      return Promise.resolve(result.receipt_image)
+    } catch (err) {
+      console.error('Database: Error retrieving expense image:', err)
       return Promise.reject(err)
     }
   }

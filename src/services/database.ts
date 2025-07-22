@@ -51,6 +51,22 @@ class DatabaseService {
     }
   }
 
+  async getExpenseImage(expenseId: number): Promise<string> {
+    const response = await fetch(`${this.baseURL}/expenses/${expenseId}/image`, {
+      headers: {
+        ...AuthService.getAuthHeaders()
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch expense image')
+    }
+
+    // Convert response to blob and create object URL
+    const blob = await response.blob()
+    return URL.createObjectURL(blob)
+  }
+
   async getAllExpenses(): Promise<Expense[]> {
     const response = await fetch(`${this.baseURL}/expenses`, {
       headers: this.getAuthHeaders()
