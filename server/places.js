@@ -38,7 +38,8 @@ class PlacesService {
         'cafe',
         'bakery',
         'meal_takeaway',
-        'coffee_shop'
+        'coffee_shop',
+		'golf_course'
       ],
       maxResultCount: 20,
       locationRestriction: {
