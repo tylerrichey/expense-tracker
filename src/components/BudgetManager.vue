@@ -284,7 +284,8 @@ function editBudget(budget) {
 async function handleBudgetSubmit(budgetData) {
   try {
     if (editingBudget.value) {
-      await emit('update-budget', editingBudget.value.id, budgetData)
+      const isActive = activeBudget.value?.id === editingBudget.value.id
+      await emit('update-budget', editingBudget.value.id, budgetData, isActive)
     } else {
       await emit('create-budget', budgetData)
     }
