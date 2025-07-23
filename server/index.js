@@ -9,6 +9,11 @@ import { databaseService } from './database.js'
 import { placesService } from './places.js'
 import { budgetScheduler } from './budget-scheduler.js'
 
+// Set NODE_ENV to development if not set (for dev server)
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'development'
+}
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
@@ -334,6 +339,326 @@ app.get('/api/backup/download', authenticateRequest, (req, res) => {
   } catch (error) {
     console.error('Error creating backup:', error)
     res.status(500).json({ error: 'Failed to create backup' })
+  }
+})
+
+// Budget API Endpoints
+// ====================
+
+// Create a new budget
+app.post('/api/budgets', authenticateRequest, async (req, res) => {
+  try {
+    const { name, amount, start_weekday, duration_days } = req.body
+    
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Budget name is required' })
+    }
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Budget amount must be greater than 0' })
+    }
+    
+    if (start_weekday < 0 || start_weekday > 6) {
+      return res.status(400).json({ error: 'Start weekday must be between 0 (Sunday) and 6 (Saturday)' })
+    }
+    
+    if (duration_days < 7 || duration_days > 28) {
+      return res.status(400).json({ error: 'Duration must be between 7 and 28 days' })
+    }
+    
+    const budget = await databaseService.createBudget({
+      name: name.trim(),
+      amount,
+      start_weekday,
+      duration_days
+    })
+    
+    res.json(budget)
+  } catch (error) {
+    console.error('Error creating budget:', error)
+    res.status(500).json({ error: error.message || 'Failed to create budget' })
+  }
+})
+
+// Get all budgets
+app.get('/api/budgets', authenticateRequest, async (req, res) => {
+  try {
+    const budgets = await databaseService.getAllBudgets()
+    res.json(budgets)
+  } catch (error) {
+    console.error('Error fetching budgets:', error)
+    res.status(500).json({ error: 'Failed to fetch budgets' })
+  }
+})
+
+// Get budget by ID
+app.get('/api/budgets/:id', authenticateRequest, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id)
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid budget ID' })
+    }
+    
+    const budget = await databaseService.getBudgetById(id)
+    
+    if (!budget) {
+      return res.status(404).json({ error: 'Budget not found' })
+    }
+    
+    res.json(budget)
+  } catch (error) {
+    console.error('Error fetching budget:', error)
+    res.status(500).json({ error: 'Failed to fetch budget' })
+  }
+})
+
+// Update budget
+app.put('/api/budgets/:id', authenticateRequest, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id)
+    const { name, amount } = req.body
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid budget ID' })
+    }
+    
+    const updateData = {}
+    
+    if (name !== undefined) {
+      if (!name.trim()) {
+        return res.status(400).json({ error: 'Budget name cannot be empty' })
+      }
+      updateData.name = name.trim()
+    }
+    
+    if (amount !== undefined) {
+      if (amount <= 0) {
+        return res.status(400).json({ error: 'Budget amount must be greater than 0' })
+      }
+      updateData.amount = amount
+    }
+    
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' })
+    }
+    
+    const budget = await databaseService.updateBudget(id, updateData)
+    
+    if (!budget) {
+      return res.status(404).json({ error: 'Budget not found' })
+    }
+    
+    res.json(budget)
+  } catch (error) {
+    console.error('Error updating budget:', error)
+    res.status(500).json({ error: error.message || 'Failed to update budget' })
+  }
+})
+
+// Delete budget
+app.delete('/api/budgets/:id', authenticateRequest, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id)
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid budget ID' })
+    }
+    
+    const success = await databaseService.deleteBudget(id)
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Budget not found' })
+    }
+    
+    res.json({ message: 'Budget deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting budget:', error)
+    res.status(500).json({ error: error.message || 'Failed to delete budget' })
+  }
+})
+
+// Activate budget
+app.post('/api/budgets/:id/activate', authenticateRequest, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id)
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid budget ID' })
+    }
+    
+    const budget = await databaseService.activateBudget(id)
+    
+    if (!budget) {
+      return res.status(404).json({ error: 'Budget not found' })
+    }
+    
+    res.json(budget)
+  } catch (error) {
+    console.error('Error activating budget:', error)
+    res.status(500).json({ error: error.message || 'Failed to activate budget' })
+  }
+})
+
+// Schedule budget as upcoming
+app.post('/api/budgets/:id/schedule', authenticateRequest, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id)
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid budget ID' })
+    }
+    
+    const budget = await databaseService.scheduleUpcomingBudget(id)
+    
+    if (!budget) {
+      return res.status(404).json({ error: 'Budget not found' })
+    }
+    
+    res.json(budget)
+  } catch (error) {
+    console.error('Error scheduling budget:', error)
+    res.status(500).json({ error: error.message || 'Failed to schedule budget' })
+  }
+})
+
+// Toggle vacation mode
+app.post('/api/budgets/:id/vacation-mode', authenticateRequest, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id)
+    const { vacation_mode } = req.body
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid budget ID' })
+    }
+    
+    if (typeof vacation_mode !== 'boolean') {
+      return res.status(400).json({ error: 'vacation_mode must be a boolean' })
+    }
+    
+    const budget = await databaseService.updateBudget(id, { vacation_mode })
+    
+    if (!budget) {
+      return res.status(404).json({ error: 'Budget not found' })
+    }
+    
+    res.json(budget)
+  } catch (error) {
+    console.error('Error toggling vacation mode:', error)
+    res.status(500).json({ error: error.message || 'Failed to toggle vacation mode' })
+  }
+})
+
+// Get budget periods
+app.get('/api/budget-periods', authenticateRequest, async (req, res) => {
+  try {
+    const { budget_id } = req.query
+    
+    let periods
+    if (budget_id) {
+      const budgetId = parseInt(budget_id)
+      if (isNaN(budgetId)) {
+        return res.status(400).json({ error: 'Invalid budget ID' })
+      }
+      periods = await databaseService.getBudgetPeriods(budgetId)
+    } else {
+      periods = await databaseService.getBudgetPeriods()
+    }
+    
+    res.json(periods)
+  } catch (error) {
+    console.error('Error fetching budget periods:', error)
+    res.status(500).json({ error: 'Failed to fetch budget periods' })
+  }
+})
+
+// Get current budget period
+app.get('/api/budget-periods/current', authenticateRequest, async (req, res) => {
+  try {
+    const period = await databaseService.getCurrentBudgetPeriod()
+    
+    if (!period) {
+      return res.status(404).json({ error: 'No current budget period found' })
+    }
+    
+    res.json(period)
+  } catch (error) {
+    console.error('Error fetching current budget period:', error)
+    res.status(500).json({ error: 'Failed to fetch current budget period' })
+  }
+})
+
+// Get budget period by ID
+app.get('/api/budget-periods/:id', authenticateRequest, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id)
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid period ID' })
+    }
+    
+    const period = await databaseService.getBudgetPeriodById(id)
+    
+    if (!period) {
+      return res.status(404).json({ error: 'Budget period not found' })
+    }
+    
+    res.json(period)
+  } catch (error) {
+    console.error('Error fetching budget period:', error)
+    res.status(500).json({ error: 'Failed to fetch budget period' })
+  }
+})
+
+// Get current budget analytics
+app.get('/api/budget-analytics/current', authenticateRequest, async (req, res) => {
+  try {
+    const analytics = await databaseService.getCurrentBudgetAnalytics()
+    
+    if (!analytics) {
+      return res.status(404).json({ error: 'No current budget analytics available' })
+    }
+    
+    res.json(analytics)
+  } catch (error) {
+    console.error('Error fetching current budget analytics:', error)
+    res.status(500).json({ error: 'Failed to fetch budget analytics' })
+  }
+})
+
+// Get budget history
+app.get('/api/budget-analytics/history', authenticateRequest, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10
+    const history = await databaseService.getBudgetHistory(limit)
+    
+    res.json(history)
+  } catch (error) {
+    console.error('Error fetching budget history:', error)
+    res.status(500).json({ error: 'Failed to fetch budget history' })
+  }
+})
+
+// Get budget trends
+app.get('/api/budget-analytics/trends', authenticateRequest, async (req, res) => {
+  try {
+    const trends = await databaseService.getBudgetTrends()
+    
+    res.json(trends)
+  } catch (error) {
+    console.error('Error fetching budget trends:', error)
+    res.status(500).json({ error: 'Failed to fetch budget trends' })
+  }
+})
+
+// Trigger auto-continuation (for manual testing)
+app.post('/api/budgets/auto-continue', authenticateRequest, async (req, res) => {
+  try {
+    await budgetScheduler.performScheduledTasks()
+    res.json({ message: 'Auto-continuation triggered successfully' })
+  } catch (error) {
+    console.error('Error triggering auto-continuation:', error)
+    res.status(500).json({ error: 'Failed to trigger auto-continuation' })
   }
 })
 

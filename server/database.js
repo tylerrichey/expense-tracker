@@ -145,15 +145,40 @@ class DatabaseService {
     }
   }
 
-  addExpense(expense) {
+  async addExpense(expense) {
     try {
       if (process.env.NODE_ENV !== 'production') {
         console.log('Database: Adding expense with data:', JSON.stringify(expense, null, 2))
       }
       
+      // Get current active budget period for immediate association
+      let budgetPeriodId = null
+      try {
+        const currentPeriod = await this.getCurrentBudgetPeriod()
+        if (currentPeriod) {
+          // Check if budget is in vacation mode
+          if (currentPeriod.vacation_mode) {
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('Database: Budget is in vacation mode, creating orphan expense')
+            }
+            budgetPeriodId = null // Don't associate with budget period during vacation
+          } else {
+            budgetPeriodId = currentPeriod.id
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('Database: Associating expense with budget period:', budgetPeriodId)
+            }
+          }
+        }
+      } catch (err) {
+        // If no current period exists, expense will be created as orphan
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('Database: No active budget period found, creating orphan expense')
+        }
+      }
+      
       const stmt = this.db.prepare(`
-        INSERT INTO expenses (amount, latitude, longitude, place_id, place_name, place_address, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO expenses (amount, latitude, longitude, place_id, place_name, place_address, timestamp, budget_period_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `)
       
       const result = stmt.run(
@@ -163,7 +188,8 @@ class DatabaseService {
         expense.place_id,
         expense.place_name,
         expense.place_address,
-        expense.timestamp
+        expense.timestamp,
+        budgetPeriodId
       )
       
       if (process.env.NODE_ENV !== 'production') {
@@ -352,9 +378,9 @@ class DatabaseService {
         budget.amount,
         budget.start_weekday,
         budget.duration_days,
-        budget.is_active || false,
-        budget.is_upcoming || false,
-        budget.vacation_mode || false
+        budget.is_active ? 1 : 0,
+        budget.is_upcoming ? 1 : 0,
+        budget.vacation_mode ? 1 : 0
       )
       
       const newBudget = { id: result.lastInsertRowid, ...budget }
@@ -423,7 +449,14 @@ class DatabaseService {
       }
       
       const setClause = updateFields.map(field => `${field} = ?`).join(', ')
-      const values = updateFields.map(field => updates[field])
+      const values = updateFields.map(field => {
+        const value = updates[field]
+        // Convert boolean values to integers for SQLite
+        if (typeof value === 'boolean') {
+          return value ? 1 : 0
+        }
+        return value
+      })
       values.push(new Date().toISOString()) // updated_at
       values.push(id)
       
@@ -448,18 +481,27 @@ class DatabaseService {
 
   deleteBudget(id) {
     try {
-      // Check if budget has associated periods with expenses
-      const periodsStmt = this.db.prepare(`
-        SELECT COUNT(*) as count 
-        FROM budget_periods bp
-        JOIN expenses e ON e.budget_period_id = bp.id
-        WHERE bp.budget_id = ?
-      `)
-      const periodsResult = periodsStmt.get(id)
+      // Check if budget is currently active
+      const budgetStmt = this.db.prepare('SELECT is_active FROM budgets WHERE id = ?')
+      const budget = budgetStmt.get(id)
       
-      if (periodsResult.count > 0) {
-        return Promise.reject(new Error('Cannot delete budget with associated expenses'))
+      if (!budget) {
+        return Promise.reject(new Error('Budget not found'))
       }
+      
+      if (budget.is_active) {
+        return Promise.reject(new Error('Cannot delete active budget. Deactivate it first.'))
+      }
+      
+      // For inactive budgets, orphan the associated expenses before deletion
+      const orphanExpensesStmt = this.db.prepare(`
+        UPDATE expenses 
+        SET budget_period_id = NULL 
+        WHERE budget_period_id IN (
+          SELECT id FROM budget_periods WHERE budget_id = ?
+        )
+      `)
+      orphanExpensesStmt.run(id)
       
       const stmt = this.db.prepare('DELETE FROM budgets WHERE id = ?')
       const result = stmt.run(id)
@@ -527,7 +569,7 @@ class DatabaseService {
   getCurrentBudgetPeriod() {
     try {
       const stmt = this.db.prepare(`
-        SELECT bp.*, b.name as budget_name,
+        SELECT bp.*, b.name as budget_name, b.vacation_mode,
                COALESCE(SUM(e.amount), 0) as actual_spent
         FROM budget_periods bp
         JOIN budgets b ON b.id = bp.budget_id
@@ -779,6 +821,94 @@ class DatabaseService {
       this.db.exec('ROLLBACK')
       console.error('Database: Error scheduling upcoming budget:', err)
       return Promise.reject(err)
+    }
+  }
+
+  // Budget Analytics Methods
+  getCurrentBudgetAnalytics() {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT 
+          b.name as budget_name,
+          b.amount as target_amount,
+          bp.id as period_id,
+          bp.start_date,
+          bp.end_date,
+          bp.target_amount as period_target,
+          bp.status,
+          COALESCE(SUM(e.amount), 0) as actual_spent,
+          COUNT(e.id) as expense_count
+        FROM budgets b
+        JOIN budget_periods bp ON b.id = bp.budget_id
+        LEFT JOIN expenses e ON e.budget_period_id = bp.id
+        WHERE b.is_active = true AND bp.status = 'active'
+        GROUP BY b.id, bp.id
+        LIMIT 1
+      `)
+      
+      return stmt.get()
+    } catch (err) {
+      console.error('Database: Error getting current budget analytics:', err)
+      return null
+    }
+  }
+
+  getBudgetHistory(limit = 10) {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT 
+          bp.id,
+          bp.start_date,
+          bp.end_date,
+          bp.target_amount,
+          bp.status,
+          bp.created_at,
+          b.name as budget_name,
+          COALESCE(SUM(e.amount), 0) as actual_spent,
+          COUNT(e.id) as expense_count
+        FROM budget_periods bp
+        JOIN budgets b ON b.id = bp.budget_id
+        LEFT JOIN expenses e ON e.budget_period_id = bp.id
+        WHERE bp.status = 'completed'
+        GROUP BY bp.id
+        ORDER BY bp.end_date DESC
+        LIMIT ?
+      `)
+      
+      return stmt.all(limit)
+    } catch (err) {
+      console.error('Database: Error getting budget history:', err)
+      return []
+    }
+  }
+
+  getBudgetTrends() {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT 
+          DATE(bp.start_date) as period_start,
+          bp.target_amount,
+          COALESCE(SUM(e.amount), 0) as actual_spent,
+          COUNT(e.id) as expense_count,
+          b.name as budget_name,
+          CASE 
+            WHEN COALESCE(SUM(e.amount), 0) > bp.target_amount THEN 'over'
+            WHEN COALESCE(SUM(e.amount), 0) > bp.target_amount * 0.8 THEN 'warning'
+            ELSE 'good'
+          END as performance
+        FROM budget_periods bp
+        JOIN budgets b ON b.id = bp.budget_id
+        LEFT JOIN expenses e ON e.budget_period_id = bp.id
+        WHERE bp.status IN ('completed', 'active')
+        GROUP BY bp.id
+        ORDER BY bp.start_date DESC
+        LIMIT 12
+      `)
+      
+      return stmt.all()
+    } catch (err) {
+      console.error('Database: Error getting budget trends:', err)
+      return []
     }
   }
 }

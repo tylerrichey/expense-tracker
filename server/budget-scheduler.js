@@ -107,7 +107,7 @@ class BudgetScheduler {
       }
 
       // Check if this budget is active and should continue
-      if (budget.is_active && !budget.vacation_mode) {
+      if (budget.is_active) {
         // Check if there's an upcoming budget scheduled
         const upcomingBudget = await databaseService.getUpcomingBudget()
         
@@ -115,11 +115,21 @@ class BudgetScheduler {
           console.log(`  🔄 Transitioning to upcoming budget: ${upcomingBudget.name}`)
           await this.transitionToUpcomingBudget(budget, upcomingBudget)
         } else {
-          console.log(`  🔄 Auto-continuing budget: ${budget.name}`)
-          await this.continueBudget(budget, completedPeriod)
+          const periods = await databaseService.getBudgetPeriods(budget.id)
+          const hasActivePeriod = periods.some(p => p.status === 'active')
+          const hasUpcomingPeriod = periods.some(p => p.status === 'upcoming')
+
+          if (!hasActivePeriod && !hasUpcomingPeriod) {
+            if (budget.vacation_mode) {
+              console.log(`  🏖️ Auto-continuing budget in vacation mode: ${budget.name}`)
+            } else {
+              console.log(`  🔄 Auto-continuing budget: ${budget.name}`)
+            }
+            await this.continueBudget(budget, completedPeriod)
+          }
         }
       } else {
-        console.log(`  ⏸️ Budget ${budget.name} is inactive or in vacation mode, not continuing`)
+        console.log(`  ⏸️ Budget ${budget.name} is inactive, not continuing`)
       }
     } catch (err) {
       console.error('  ❌ Error handling period completion:', err)
@@ -170,9 +180,9 @@ class BudgetScheduler {
 
   async autoContinueBudgets() {
     try {
-      // Find active budgets that have no upcoming periods
+      // Find active budgets that have no upcoming periods (including those in vacation mode)
       const activeBudget = await databaseService.getActiveBudget()
-      if (!activeBudget || activeBudget.vacation_mode) {
+      if (!activeBudget) {
         return
       }
 
@@ -182,7 +192,11 @@ class BudgetScheduler {
       const hasUpcomingPeriod = periods.some(p => p.status === 'upcoming')
 
       if (!hasActivePeriod && !hasUpcomingPeriod) {
-        console.log(`  🔄 Auto-continuing budget ${activeBudget.name} - no active/upcoming periods`)
+        if (activeBudget.vacation_mode) {
+          console.log(`  🏖️ Auto-continuing budget in vacation mode ${activeBudget.name} - no active/upcoming periods`)
+        } else {
+          console.log(`  🔄 Auto-continuing budget ${activeBudget.name} - no active/upcoming periods`)
+        }
         
         // Create a new period starting now
         const newPeriods = generateBudgetPeriods(activeBudget, new Date(), 1)
@@ -214,6 +228,13 @@ class BudgetScheduler {
       for (const expense of orphanExpenses) {
         const matchingPeriod = await databaseService.findPeriodForExpense(expense.timestamp)
         if (matchingPeriod) {
+          // Get the budget for this period to check vacation mode
+          const budget = await databaseService.getBudgetById(matchingPeriod.budget_id)
+          if (budget && budget.vacation_mode) {
+            // Skip association during vacation mode
+            continue
+          }
+          
           // Associate the expense with the period
           await databaseService.associateExpenseWithPeriod(expense.id, matchingPeriod.id)
           associatedCount++

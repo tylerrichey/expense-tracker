@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 
 // Import the actual migration
+// @ts-ignore
 import { up as budgetMigrationUp, down as budgetMigrationDown } from '../../server/migrations/001-budget-system.js'
 
 describe('Budget Migration Tests', () => {
@@ -161,9 +162,9 @@ describe('Budget Migration Tests', () => {
       // Read budget
       const selectBudget = db.prepare('SELECT * FROM budgets WHERE id = ?')
       const budget = selectBudget.get(budgetResult.lastInsertRowid)
-      expect(budget.name).toBe('CRUD Test Budget')
-      expect(budget.amount).toBe(250)
-      expect(budget.is_active).toBe(1) // SQLite returns 1 for true
+      expect((budget as any).name).toBe('CRUD Test Budget')
+      expect((budget as any).amount).toBe(250)
+      expect((budget as any).is_active).toBe(1) // SQLite returns 1 for true
 
       // Update budget
       const updateBudget = db.prepare(`
@@ -172,7 +173,7 @@ describe('Budget Migration Tests', () => {
       updateBudget.run(budgetResult.lastInsertRowid)
 
       const updatedBudget = selectBudget.get(budgetResult.lastInsertRowid)
-      expect(updatedBudget.amount).toBe(300)
+      expect((updatedBudget as any).amount).toBe(300)
 
       // Delete budget
       const deleteBudget = db.prepare('DELETE FROM budgets WHERE id = ?')
@@ -197,9 +198,9 @@ describe('Budget Migration Tests', () => {
       // Verify period was created
       const selectPeriod = db.prepare('SELECT * FROM budget_periods WHERE id = ?')
       const period = selectPeriod.get(periodResult.lastInsertRowid)
-      expect(period.budget_id).toBe(budgetId)
-      expect(period.status).toBe('active')
-      expect(period.target_amount).toBe(400)
+      expect((period as any).budget_id).toBe(budgetId)
+      expect((period as any).status).toBe('active')
+      expect((period as any).target_amount).toBe(400)
     })
 
     it('should support expense-period association', () => {
@@ -222,7 +223,7 @@ describe('Budget Migration Tests', () => {
 
       // Verify association
       const expense = db.prepare('SELECT * FROM expenses WHERE id = ?').get(expenseId)
-      expect(expense.budget_period_id).toBe(periodId)
+      expect((expense as any).budget_period_id).toBe(periodId)
 
       // Test join query
       const joinQuery = db.prepare(`
@@ -233,9 +234,9 @@ describe('Budget Migration Tests', () => {
         WHERE e.id = ?
       `)
       const joinResult = joinQuery.get(expenseId)
-      expect(joinResult.amount).toBe(35.50)
-      expect(joinResult.target_amount).toBe(150)
-      expect(joinResult.name).toBe('Expense Test Budget')
+      expect((joinResult as any).amount).toBe(35.50)
+      expect((joinResult as any).target_amount).toBe(150)
+      expect((joinResult as any).name).toBe('Expense Test Budget')
     })
   })
 
@@ -247,21 +248,21 @@ describe('Budget Migration Tests', () => {
         VALUES ('Cascade Test Budget', 100, 1, 7)
       `).run().lastInsertRowid
 
-      const periodId = db.prepare(`
+      db.prepare(`
         INSERT INTO budget_periods (budget_id, start_date, end_date, target_amount)
         VALUES (?, '2025-07-21', '2025-07-27', 100)
       `).run(budgetId).lastInsertRowid
 
       // Verify period exists
       const periodsBefore = db.prepare('SELECT COUNT(*) as count FROM budget_periods WHERE budget_id = ?').get(budgetId)
-      expect(periodsBefore.count).toBe(1)
+      expect((periodsBefore as any).count).toBe(1)
 
       // Delete budget (should cascade to periods)
       db.prepare('DELETE FROM budgets WHERE id = ?').run(budgetId)
 
       // Verify period was deleted
       const periodsAfter = db.prepare('SELECT COUNT(*) as count FROM budget_periods WHERE budget_id = ?').get(budgetId)
-      expect(periodsAfter.count).toBe(0)
+      expect((periodsAfter as any).count).toBe(0)
     })
 
     it('should set expense budget_period_id to NULL when period is deleted', () => {
@@ -283,14 +284,14 @@ describe('Budget Migration Tests', () => {
 
       // Verify expense is associated
       const expenseBefore = db.prepare('SELECT budget_period_id FROM expenses WHERE id = ?').get(expenseId)
-      expect(expenseBefore.budget_period_id).toBe(periodId)
+      expect((expenseBefore as any).budget_period_id).toBe(periodId)
 
       // Delete budget (cascades to period)
       db.prepare('DELETE FROM budgets WHERE id = ?').run(budgetId)
 
       // Verify expense budget_period_id is now NULL
       const expenseAfter = db.prepare('SELECT budget_period_id FROM expenses WHERE id = ?').get(expenseId)
-      expect(expenseAfter.budget_period_id).toBeNull()
+      expect((expenseAfter as any).budget_period_id).toBeNull()
     })
   })
 

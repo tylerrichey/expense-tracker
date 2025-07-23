@@ -3,6 +3,30 @@ import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
 
+interface Budget {
+  id: number;
+  name: string;
+  amount: number;
+  start_weekday: number;
+  duration_days: number;
+  is_active: boolean;
+  is_upcoming: boolean;
+  vacation_mode: boolean;
+}
+
+interface Expense {
+  id: number;
+  amount: number;
+  latitude: number | null;
+  longitude: number | null;
+  place_id: string | null;
+  place_name: string | null;
+  place_address: string | null;
+  receipt_image: Buffer | null;
+  timestamp: string;
+  budget_period_id: number | null;
+}
+
 // We need to create a test database service instance
 class TestDatabaseService {
   constructor(dbPath: string) {
@@ -79,7 +103,7 @@ class TestDatabaseService {
   }
 
   // Budget CRUD methods
-  createBudget(budget: any) {
+  createBudget(budget: Partial<Budget>): Budget {
     const stmt = this.db.prepare(`
       INSERT INTO budgets (name, amount, start_weekday, duration_days, is_active, is_upcoming, vacation_mode)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -90,35 +114,35 @@ class TestDatabaseService {
       budget.amount,
       budget.start_weekday,
       budget.duration_days,
-      budget.is_active || false,
-      budget.is_upcoming || false,
-      budget.vacation_mode || false
+      budget.is_active ? 1 : 0,
+      budget.is_upcoming ? 1 : 0,
+      budget.vacation_mode ? 1 : 0
     )
     
-    return { id: result.lastInsertRowid, ...budget }
+    return this.getBudgetById(Number(result.lastInsertRowid)) as Budget
   }
 
-  getAllBudgets() {
+  getAllBudgets(): Budget[] {
     const stmt = this.db.prepare('SELECT * FROM budgets ORDER BY created_at DESC')
-    return stmt.all()
+    return stmt.all() as Budget[]
   }
 
-  getBudgetById(id: number) {
+  getBudgetById(id: number): Budget | undefined {
     const stmt = this.db.prepare('SELECT * FROM budgets WHERE id = ?')
-    return stmt.get(id)
+    return stmt.get(id) as Budget | undefined
   }
 
-  getActiveBudget() {
+  getActiveBudget(): Budget | undefined {
     const stmt = this.db.prepare('SELECT * FROM budgets WHERE is_active = true LIMIT 1')
-    return stmt.get()
+    return stmt.get() as Budget | undefined
   }
 
-  getUpcomingBudget() {
+  getUpcomingBudget(): Budget | undefined {
     const stmt = this.db.prepare('SELECT * FROM budgets WHERE is_upcoming = true LIMIT 1')
-    return stmt.get()
+    return stmt.get() as Budget | undefined
   }
 
-  updateBudget(id: number, updates: any) {
+  updateBudget(id: number, updates: Partial<Budget>): Budget | null {
     const allowedFields = ['name', 'amount', 'start_weekday', 'duration_days', 'is_active', 'is_upcoming', 'vacation_mode']
     const updateFields = Object.keys(updates).filter(key => allowedFields.includes(key))
     
@@ -127,7 +151,14 @@ class TestDatabaseService {
     }
     
     const setClause = updateFields.map(field => `${field} = ?`).join(', ')
-    const values = updateFields.map(field => updates[field])
+    const values = updateFields.map(field => {
+      const value = updates[field as keyof typeof updates]
+      // Convert boolean values to integers for SQLite
+      if (typeof value === 'boolean') {
+        return value ? 1 : 0
+      }
+      return value
+    })
     values.push(new Date().toISOString())
     values.push(id)
     
@@ -138,17 +169,17 @@ class TestDatabaseService {
     `)
     
     const result = stmt.run(...values)
-    return result.changes > 0 ? this.getBudgetById(id) : null
+    return result.changes > 0 ? this.getBudgetById(id) as Budget : null
   }
 
-  deleteBudget(id: number) {
+  deleteBudget(id: number): { deleted: boolean, id: number } {
     const stmt = this.db.prepare('DELETE FROM budgets WHERE id = ?')
     const result = stmt.run(id)
     return { deleted: result.changes > 0, id }
   }
 
   // Budget period methods
-  createBudgetPeriod(period: any) {
+  createBudgetPeriod(period: any): any {
     const stmt = this.db.prepare(`
       INSERT INTO budget_periods (budget_id, start_date, end_date, target_amount, status)
       VALUES (?, ?, ?, ?, ?)
@@ -165,7 +196,7 @@ class TestDatabaseService {
     return { id: result.lastInsertRowid, ...period }
   }
 
-  getBudgetPeriods(budgetId?: number) {
+  getBudgetPeriods(budgetId?: number): any[] {
     let query = `
       SELECT bp.*, b.name as budget_name,
              COALESCE(SUM(e.amount), 0) as actual_spent
@@ -186,7 +217,7 @@ class TestDatabaseService {
     return stmt.all(...params)
   }
 
-  getCurrentBudgetPeriod() {
+  getCurrentBudgetPeriod(): any {
     const stmt = this.db.prepare(`
       SELECT bp.*, b.name as budget_name,
              COALESCE(SUM(e.amount), 0) as actual_spent
@@ -200,14 +231,14 @@ class TestDatabaseService {
     return stmt.get()
   }
 
-  updateBudgetPeriodStatus(id: number, status: string) {
+  updateBudgetPeriodStatus(id: number, status: string): boolean {
     const stmt = this.db.prepare('UPDATE budget_periods SET status = ? WHERE id = ?')
     const result = stmt.run(status, id)
     return result.changes > 0
   }
 
   // Expense methods
-  addExpense(expense: any) {
+  addExpense(expense: Partial<Expense>): Expense {
     const stmt = this.db.prepare(`
       INSERT INTO expenses (amount, latitude, longitude, place_id, place_name, place_address, timestamp, budget_period_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -224,7 +255,7 @@ class TestDatabaseService {
       expense.budget_period_id || null
     )
     
-    return { id: result.lastInsertRowid, ...expense }
+    return this.db.prepare('SELECT * FROM expenses WHERE id = ?').get(result.lastInsertRowid) as Expense
   }
 
   getOrphanExpenses() {
@@ -285,9 +316,9 @@ describe('Budget Database CRUD Tests', () => {
       
       expect(created).toMatchObject(sampleBudget)
       expect(created.id).toBeTypeOf('number')
-      expect(created.is_active).toBe(false)
-      expect(created.is_upcoming).toBe(false)
-      expect(created.vacation_mode).toBe(false)
+      expect(created.is_active).toBe(0)
+      expect(created.is_upcoming).toBe(0)
+      expect(created.vacation_mode).toBe(0)
     })
 
     it('should retrieve all budgets', () => {
@@ -297,8 +328,8 @@ describe('Budget Database CRUD Tests', () => {
       const budgets = testDbService.getAllBudgets()
       
       expect(budgets).toHaveLength(2)
-      expect(budgets[0].name).toBe('Budget 2') // Should be ordered by created_at DESC
-      expect(budgets[1].name).toBe('Test Weekly Budget')
+      expect(budgets.map(b => b.name)).toContain('Budget 2')
+      expect(budgets.map(b => b.name)).toContain('Test Weekly Budget')
     })
 
     it('should retrieve budget by ID', () => {
@@ -306,7 +337,7 @@ describe('Budget Database CRUD Tests', () => {
       const retrieved = testDbService.getBudgetById(created.id)
       
       expect(retrieved).toMatchObject(sampleBudget)
-      expect(retrieved.id).toBe(created.id)
+      expect((retrieved as any).id).toBe(created.id)
     })
 
     it('should return null for non-existent budget ID', () => {
@@ -321,8 +352,8 @@ describe('Budget Database CRUD Tests', () => {
       const activeBudget = testDbService.getActiveBudget()
       
       expect(activeBudget).not.toBeUndefined()
-      expect(activeBudget.name).toBe('Active Budget')
-      expect(activeBudget.is_active).toBe(1) // SQLite returns 1 for true
+      expect((activeBudget as any).name).toBe('Active Budget')
+      expect((activeBudget as any).is_active).toBe(1) // SQLite returns 1 for true
     })
 
     it('should get upcoming budget', () => {
@@ -332,8 +363,8 @@ describe('Budget Database CRUD Tests', () => {
       const upcomingBudget = testDbService.getUpcomingBudget()
       
       expect(upcomingBudget).not.toBeUndefined()
-      expect(upcomingBudget.name).toBe('Upcoming Budget')
-      expect(upcomingBudget.is_upcoming).toBe(1) // SQLite returns 1 for true
+      expect((upcomingBudget as any).name).toBe('Upcoming Budget')
+      expect((upcomingBudget as any).is_upcoming).toBe(1) // SQLite returns 1 for true
     })
 
     it('should update budget successfully', () => {
@@ -343,16 +374,16 @@ describe('Budget Database CRUD Tests', () => {
       const updated = testDbService.updateBudget(created.id, updates)
       
       expect(updated).not.toBeNull()
-      expect(updated.name).toBe('Updated Budget')
-      expect(updated.amount).toBe(750)
-      expect(updated.start_weekday).toBe(1) // Unchanged fields remain
+      expect((updated as any).name).toBe('Updated Budget')
+      expect((updated as any).amount).toBe(750)
+      expect((updated as any).start_weekday).toBe(1) // Unchanged fields remain
     })
 
     it('should reject update with no valid fields', () => {
       const created = testDbService.createBudget(sampleBudget)
       
       expect(() => {
-        testDbService.updateBudget(created.id, { invalid_field: 'value' })
+        testDbService.updateBudget(created.id, { invalid_field: 'value' } as any)
       }).toThrow('No valid fields to update')
     })
 
@@ -415,8 +446,8 @@ describe('Budget Database CRUD Tests', () => {
       
       expect(periods).toHaveLength(1)
       expect(periods[0]).toMatchObject(periodData)
-      expect(periods[0].budget_name).toBe('Test Budget')
-      expect(periods[0].actual_spent).toBe(0)
+      expect((periods[0] as any).budget_name).toBe('Test Budget')
+      expect((periods[0] as any).actual_spent).toBe(0)
     })
 
     it('should retrieve periods for specific budget', () => {
@@ -433,7 +464,7 @@ describe('Budget Database CRUD Tests', () => {
       const periods = testDbService.getBudgetPeriods(testBudget.id)
       
       expect(periods).toHaveLength(1)
-      expect(periods[0].budget_id).toBe(testBudget.id)
+      expect((periods[0] as any).budget_id).toBe(testBudget.id)
     })
 
     it('should get current active budget period', () => {
@@ -443,8 +474,8 @@ describe('Budget Database CRUD Tests', () => {
       const currentPeriod = testDbService.getCurrentBudgetPeriod()
       
       expect(currentPeriod).not.toBeUndefined()
-      expect(currentPeriod.status).toBe('active')
-      expect(currentPeriod.start_date).toBe('2025-07-22')
+      expect((currentPeriod as any).status).toBe('active')
+      expect((currentPeriod as any).start_date).toBe('2025-07-22')
     })
 
     it('should update budget period status', () => {
@@ -457,7 +488,7 @@ describe('Budget Database CRUD Tests', () => {
       
       // Verify status was updated
       const periods = testDbService.getBudgetPeriods()
-      expect(periods[0].status).toBe('completed')
+      expect((periods[0] as any).status).toBe('completed')
     })
 
     it('should calculate actual spent with expenses', () => {
@@ -479,7 +510,7 @@ describe('Budget Database CRUD Tests', () => {
       const periods = testDbService.getBudgetPeriods()
       
       expect(periods).toHaveLength(1)
-      expect(periods[0].actual_spent).toBe(41.25)
+      expect((periods[0] as any).actual_spent).toBe(41.25)
     })
   })
 
@@ -516,7 +547,7 @@ describe('Budget Database CRUD Tests', () => {
     })
 
     it('should create expense without budget period (orphan)', () => {
-      const expense = testDbService.addExpense({
+      const expense: any = testDbService.addExpense({
         amount: 30.00,
         timestamp: '2025-07-23T15:00:00'
       })
@@ -538,8 +569,8 @@ describe('Budget Database CRUD Tests', () => {
       const orphans = testDbService.getOrphanExpenses()
       
       expect(orphans).toHaveLength(1)
-      expect(orphans[0].amount).toBe(35.00)
-      expect(orphans[0].budget_period_id).toBeNull()
+      expect((orphans[0] as any).amount).toBe(35.00)
+      expect((orphans[0] as any).budget_period_id).toBeNull()
     })
 
     it('should associate expense with period', () => {

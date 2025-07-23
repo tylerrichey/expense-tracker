@@ -12,6 +12,7 @@ import {
   formatDateForDB,
   getWeekdayName,
   validateBudget
+// @ts-expect-error
 } from '../../server/budget-utils.js'
 
 describe('Budget Utilities Tests', () => {
@@ -59,9 +60,9 @@ describe('Budget Utilities Tests', () => {
       const endDate = calculateBudgetPeriodEnd(startDate, 7)
       
       expect(endDate.toISOString().split('T')[0]).toBe('2025-07-27') // 6 days later
-      expect(endDate.getHours()).toBe(23)
-      expect(endDate.getMinutes()).toBe(59)
-      expect(endDate.getSeconds()).toBe(59)
+      expect(endDate.getUTCHours()).toBe(23)
+      expect(endDate.getUTCMinutes()).toBe(59)
+      expect(endDate.getUTCSeconds()).toBe(59)
     })
     
     it('should calculate correct end date for 14-day period', () => {
@@ -137,27 +138,27 @@ describe('Budget Utilities Tests', () => {
     }
 
     it('should return true for date within period', () => {
-      const testDate = new Date('2025-07-23T15:30:00') // Wednesday
+      const testDate = new Date('2025-07-23T15:30:00Z') // Wednesday in UTC
       expect(isDateInPeriod(testDate, testPeriod)).toBe(true)
     })
 
     it('should return true for start date', () => {
-      const testDate = new Date('2025-07-21T08:00:00') // Monday
+      const testDate = new Date('2025-07-21T08:00:00Z') // Monday in UTC
       expect(isDateInPeriod(testDate, testPeriod)).toBe(true)
     })
 
     it('should return true for end date', () => {
-      const testDate = new Date('2025-07-27T20:00:00') // Sunday
+      const testDate = new Date('2025-07-27T20:00:00Z') // Sunday in UTC
       expect(isDateInPeriod(testDate, testPeriod)).toBe(true)
     })
 
     it('should return false for date before period', () => {
-      const testDate = new Date('2025-07-20T12:00:00') // Sunday before
+      const testDate = new Date('2025-07-20T12:00:00Z') // Sunday before in UTC
       expect(isDateInPeriod(testDate, testPeriod)).toBe(false)
     })
 
     it('should return false for date after period', () => {
-      const testDate = new Date('2025-07-28T12:00:00') // Monday after
+      const testDate = new Date('2025-07-28T12:00:00Z') // Monday after in UTC
       expect(isDateInPeriod(testDate, testPeriod)).toBe(false)
     })
   })

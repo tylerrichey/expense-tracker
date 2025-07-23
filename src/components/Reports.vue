@@ -48,7 +48,7 @@
         <div v-for="location in topLocations" :key="location.place_name" class="location-item">
           <div class="location-info">
             <div class="location-name">{{ location.place_name }}</div>
-            <div class="location-count">{{ location.count }} visits</div>
+            <div class="location-count">{{ location.count }} expenses</div>
           </div>
           <div class="location-amount">${{ location.total.toFixed(2) }}</div>
         </div>

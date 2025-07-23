@@ -40,7 +40,8 @@ export function calculateBudgetPeriodStart(targetWeekday, durationDays, fromDate
 export function calculateBudgetPeriodEnd(startDate, durationDays) {
   const endDate = new Date(startDate)
   endDate.setDate(startDate.getDate() + durationDays - 1)
-  endDate.setHours(23, 59, 59, 999) // End of day
+  // Use UTC methods to avoid timezone conversion issues
+  endDate.setUTCHours(23, 59, 59, 999) // End of day in UTC
   return endDate
 }
 
@@ -54,7 +55,14 @@ export function calculateBudgetPeriodEnd(startDate, durationDays) {
 export function generateBudgetPeriods(budget, fromDate = new Date(), periodCount = 1) {
   const periods = []
   let currentStart = calculateBudgetPeriodStart(budget.start_weekday, budget.duration_days, fromDate)
-  
+
+  // If fromDate is within the first calculated period, we might need to adjust.
+  const firstEndDate = calculateBudgetPeriodEnd(currentStart, budget.duration_days);
+  if (fromDate > firstEndDate) {
+    // If fromDate is past the end of the first period, start the next period from there.
+    currentStart.setDate(currentStart.getDate() + budget.duration_days);
+  }
+
   for (let i = 0; i < periodCount; i++) {
     const endDate = calculateBudgetPeriodEnd(currentStart, budget.duration_days)
     
@@ -87,10 +95,10 @@ export function isDateInPeriod(date, period) {
   const startDate = new Date(period.start_date)
   const endDate = new Date(period.end_date)
   
-  // Set times for proper comparison
-  checkDate.setHours(12, 0, 0, 0) // Noon to avoid timezone issues
-  startDate.setHours(0, 0, 0, 0)
-  endDate.setHours(23, 59, 59, 999)
+  // Use UTC methods for consistent timezone handling
+  checkDate.setUTCHours(12, 0, 0, 0) // Noon UTC to avoid timezone issues
+  startDate.setUTCHours(0, 0, 0, 0)
+  endDate.setUTCHours(23, 59, 59, 999)
   
   return checkDate >= startDate && checkDate <= endDate
 }

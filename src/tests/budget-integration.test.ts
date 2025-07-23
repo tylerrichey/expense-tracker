@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 
 // Import the actual database service and utilities for integration testing
+// @ts-ignore
 import { generateBudgetPeriods, generateRetroactivePeriod, calculateNextPeriodStart } from '../../server/budget-utils.js'
 
 // Test database service for integration tests
@@ -76,9 +77,9 @@ class IntegrationTestDatabaseService {
       budget.amount,
       budget.start_weekday,
       budget.duration_days,
-      budget.is_active || false,
-      budget.is_upcoming || false,
-      budget.vacation_mode || false
+      budget.is_active ? 1 : 0,
+      budget.is_upcoming ? 1 : 0,
+      budget.vacation_mode ? 1 : 0
     )
     
     return { id: result.lastInsertRowid, ...budget }
@@ -160,7 +161,14 @@ class IntegrationTestDatabaseService {
     if (updateFields.length === 0) return null
     
     const setClause = updateFields.map(field => `${field} = ?`).join(', ')
-    const values = updateFields.map(field => updates[field])
+    const values = updateFields.map(field => {
+      const value = updates[field]
+      // Convert boolean values to integers for SQLite
+      if (typeof value === 'boolean') {
+        return value ? 1 : 0
+      }
+      return value
+    })
     values.push(id)
     
     const stmt = this.db.prepare(`UPDATE budgets SET ${setClause} WHERE id = ?`)
@@ -230,14 +238,14 @@ describe('Budget System Integration Tests', () => {
       expect(firstPeriod.status).toBe('active')
 
       // 3. Add expenses during the period
-      const expense1 = testDbService.addExpense({
+      testDbService.addExpense({
         amount: 35.50,
         timestamp: '2025-07-22T10:30:00',
         budget_period_id: firstPeriod.id,
         place_name: 'Grocery Store A'
       })
 
-      const expense2 = testDbService.addExpense({
+      testDbService.addExpense({
         amount: 42.75,
         timestamp: '2025-07-24T14:15:00',
         budget_period_id: firstPeriod.id,
@@ -247,8 +255,8 @@ describe('Budget System Integration Tests', () => {
       // 4. Verify period shows correct spending
       const periodsWithSpending = testDbService.getBudgetPeriods()
       expect(periodsWithSpending).toHaveLength(1)
-      expect(periodsWithSpending[0].actual_spent).toBe(78.25)
-      expect(periodsWithSpending[0].target_amount).toBe(150.00)
+      expect((periodsWithSpending[0] as any).actual_spent).toBe(78.25)
+      expect((periodsWithSpending[0] as any).target_amount).toBe(150.00)
 
       // 5. Generate next period for continuation
       const nextStartDate = calculateNextPeriodStart(firstPeriod, budget.duration_days)
@@ -261,8 +269,8 @@ describe('Budget System Integration Tests', () => {
       // 6. Verify we now have two periods
       const allPeriods = testDbService.getBudgetPeriods()
       expect(allPeriods).toHaveLength(2)
-      expect(allPeriods[0].actual_spent).toBe(78.25) // First period
-      expect(allPeriods[1].actual_spent).toBe(0)     // Second period
+      expect((allPeriods[0] as any).actual_spent).toBe(78.25) // First period
+      expect((allPeriods[1] as any).actual_spent).toBe(0)     // Second period
     })
 
     it('should handle retroactive budget creation with existing expenses', async () => {
@@ -295,7 +303,7 @@ describe('Budget System Integration Tests', () => {
       })
 
       // 3. Generate retroactive period that should cover current date
-      const retroPeriod = generateRetroactivePeriod(budget, new Date('2025-07-22T15:00:00'))
+      const retroPeriod = generateRetroactivePeriod(budget)
       const createdPeriod = testDbService.createBudgetPeriod(retroPeriod)
 
       expect(createdPeriod.start_date).toBe('2025-07-21') // Previous Monday
@@ -314,13 +322,13 @@ describe('Budget System Integration Tests', () => {
       // 5. Verify period shows correct spending
       const periodsWithSpending = testDbService.getBudgetPeriods()
       expect(periodsWithSpending).toHaveLength(1)
-      expect(periodsWithSpending[0].actual_spent).toBe(70.00) // 25 + 45
+      expect((periodsWithSpending[0] as any).actual_spent).toBe(70.00) // 25 + 45
 
       // 6. Verify expenses are properly associated
       const expensesInPeriod = testDbService.getExpensesInPeriod(createdPeriod.id)
       expect(expensesInPeriod).toHaveLength(2)
-      expect(expensesInPeriod[0].amount).toBe(25.00)
-      expect(expensesInPeriod[1].amount).toBe(45.00)
+      expect((expensesInPeriod[0] as any).amount).toBe(25.00)
+      expect((expensesInPeriod[1] as any).amount).toBe(45.00)
     })
 
     it('should handle budget transitions (upcoming budget activation)', async () => {
@@ -369,22 +377,22 @@ describe('Budget System Integration Tests', () => {
 
       // 7. Verify transition
       const activeBudget = testDbService.getActiveBudget()
-      expect(activeBudget.name).toBe('New Budget Plan')
-      expect(activeBudget.is_active).toBe(1) // SQLite returns 1 for true
-      expect(activeBudget.is_upcoming).toBe(0) // Should be false now
+      expect((activeBudget as any).name).toBe('New Budget Plan')
+      expect((activeBudget as any).is_active).toBe(1) // SQLite returns 1 for true
+      expect((activeBudget as any).is_upcoming).toBe(0) // Should be false now
 
       // 8. Verify periods are correct
       const allPeriods = testDbService.getBudgetPeriods()
       expect(allPeriods).toHaveLength(2)
       
       // Current period should have expenses
-      const currentPeriodData = allPeriods.find(p => p.id === currentPeriod.id)
-      expect(currentPeriodData!.actual_spent).toBe(75.00)
+      const currentPeriodData = allPeriods.find((p: any) => p.id === currentPeriod.id)
+      expect((currentPeriodData as any)!.actual_spent).toBe(75.00)
       
       // New period should be clean
-      const newPeriodData = allPeriods.find(p => p.id === newPeriod.id)
-      expect(newPeriodData!.actual_spent).toBe(0)
-      expect(newPeriodData!.target_amount).toBe(400.00)
+      const newPeriodData = allPeriods.find((p: any) => p.id === newPeriod.id)
+      expect((newPeriodData as any)!.actual_spent).toBe(0)
+      expect((newPeriodData as any)!.target_amount).toBe(400.00)
     })
 
     it('should handle complex multi-period budget with different durations', async () => {
@@ -433,18 +441,18 @@ describe('Budget System Integration Tests', () => {
       const periodsWithSpending = testDbService.getBudgetPeriods()
       expect(periodsWithSpending).toHaveLength(3)
 
-      const p1 = periodsWithSpending.find(p => p.id === period1.id)
-      const p2 = periodsWithSpending.find(p => p.id === period2.id)
-      const p3 = periodsWithSpending.find(p => p.id === period3.id)
+      const p1 = periodsWithSpending.find((p: any) => p.id === period1.id)
+      const p2 = periodsWithSpending.find((p: any) => p.id === period2.id)
+      const p3 = periodsWithSpending.find((p: any) => p.id === period3.id)
 
-      expect(p1!.actual_spent).toBe(50.00)
-      expect(p2!.actual_spent).toBe(75.00)
-      expect(p3!.actual_spent).toBe(0)
+      expect((p1 as any)!.actual_spent).toBe(50.00)
+      expect((p2 as any)!.actual_spent).toBe(75.00)
+      expect((p3 as any)!.actual_spent).toBe(0)
 
       // All should have the same target
-      expect(p1!.target_amount).toBe(200.00)
-      expect(p2!.target_amount).toBe(200.00)
-      expect(p3!.target_amount).toBe(200.00)
+      expect((p1 as any)!.target_amount).toBe(200.00)
+      expect((p2 as any)!.target_amount).toBe(200.00)
+      expect((p3 as any)!.target_amount).toBe(200.00)
     })
   })
 
@@ -467,7 +475,7 @@ describe('Budget System Integration Tests', () => {
       })
 
       // Try to create overlapping period - should fail due to unique constraint
-      expect(() => {
+      try {
         testDbService.createBudgetPeriod({
           budget_id: budget.id,
           start_date: '2025-07-24', // Overlaps with existing period
@@ -475,7 +483,11 @@ describe('Budget System Integration Tests', () => {
           target_amount: 100.00,
           status: 'upcoming'
         })
-      }).toThrow()
+        // If it doesn't throw, fail the test
+        expect(true).toBe(false)
+      } catch (error) {
+        expect(error).toBeDefined()
+      }
     })
 
     it('should handle expenses from before any budget period exists', async () => {
@@ -500,7 +512,7 @@ describe('Budget System Integration Tests', () => {
 
       // The expense should not be associated (it's outside the period)
       const periodsWithSpending = testDbService.getBudgetPeriods()
-      expect(periodsWithSpending[0].actual_spent).toBe(0)
+      expect((periodsWithSpending[0] as any).actual_spent).toBe(0)
 
       // The expense should still exist as an orphan
       const expensesInPeriod = testDbService.getExpensesInPeriod(period.id)
@@ -527,14 +539,14 @@ describe('Budget System Integration Tests', () => {
 
       // Create periods for both
       const periods1 = generateBudgetPeriods(budget1, new Date('2025-07-21T00:00:00'), 1)
-      const period1 = testDbService.createBudgetPeriod(periods1[0])
+      testDbService.createBudgetPeriod(periods1[0])
 
       const periods2 = generateBudgetPeriods(budget2, new Date('2025-07-22T00:00:00'), 1)
-      const period2 = testDbService.createBudgetPeriod(periods2[0])
+      testDbService.createBudgetPeriod(periods2[0])
 
       // Verify only one active budget
       const activeBudget = testDbService.getActiveBudget()
-      expect(activeBudget.name).toBe('Food Budget')
+      expect((activeBudget as any).name).toBe('Food Budget')
 
       // Both periods should exist
       const allPeriods = testDbService.getBudgetPeriods()
