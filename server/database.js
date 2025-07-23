@@ -448,6 +448,8 @@ class DatabaseService {
         return Promise.reject(new Error('No valid fields to update'))
       }
       
+      this.db.exec('BEGIN TRANSACTION')
+      
       const setClause = updateFields.map(field => `${field} = ?`).join(', ')
       const values = updateFields.map(field => {
         const value = updates[field]
@@ -469,11 +471,37 @@ class DatabaseService {
       const result = stmt.run(...values)
       
       if (result.changes > 0) {
+        // If amount was updated and this is an active budget, sync current period target
+        if (updates.amount !== undefined) {
+          const budget = this.getBudgetById(id)
+          if (budget && budget.is_active) {
+            const currentPeriodStmt = this.db.prepare(`
+              SELECT id FROM budget_periods 
+              WHERE budget_id = ? AND status = 'active'
+              LIMIT 1
+            `)
+            const currentPeriod = currentPeriodStmt.get(id)
+            
+            if (currentPeriod) {
+              const updatePeriodStmt = this.db.prepare(`
+                UPDATE budget_periods 
+                SET target_amount = ?
+                WHERE id = ?
+              `)
+              updatePeriodStmt.run(updates.amount, currentPeriod.id)
+              console.log(`Updated current period target_amount to ${updates.amount} for budget ${id}`)
+            }
+          }
+        }
+        
+        this.db.exec('COMMIT')
         return this.getBudgetById(id)
       } else {
+        this.db.exec('ROLLBACK')
         return Promise.resolve(null)
       }
     } catch (err) {
+      this.db.exec('ROLLBACK')
       console.error('Database: Error updating budget:', err)
       return Promise.reject(err)
     }
