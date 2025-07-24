@@ -132,9 +132,9 @@ async function handleCreateBudget(budgetData: any) {
     const newBudget = await budgetService.createBudget(budgetData)
     await loadBudgetData()
     
-    // Reset auto-show flag and return to dashboard
+    // Reset auto-show flag - let loadBudgetData() decide the view
     autoShowCreateForm.value = false
-    currentView.value = 'dashboard'
+    // Don't force dashboard view - let loadBudgetData logic determine the correct view
     
     // Show success message
     showSuccessMessage(`Budget "${newBudget.name}" created successfully`)

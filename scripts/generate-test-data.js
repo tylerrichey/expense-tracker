@@ -2,6 +2,7 @@ import 'dotenv/config'
 import Database from 'better-sqlite3'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { existsSync, unlinkSync } from 'fs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -113,6 +114,22 @@ function generateTestData() {
   const testDbPath = join(__dirname, '../server/expenses-test.db')
   console.log(`📁 Database path: ${testDbPath}`)
   
+  // Delete existing test database to ensure clean state
+  let shouldClearData = false
+  if (existsSync(testDbPath)) {
+    try {
+      unlinkSync(testDbPath)
+      console.log('🗑️  Deleted existing test database')
+    } catch (err) {
+      if (err.code === 'EBUSY') {
+        console.log('⚠️  Database file is in use by development server, will clear existing data instead')
+        shouldClearData = true
+      } else {
+        throw err
+      }
+    }
+  }
+  
   // Initialize database
   const db = new Database(testDbPath)
   
@@ -133,9 +150,19 @@ function generateTestData() {
   db.exec(createTableQuery)
   console.log('✅ Database table created')
   
-  // Clear existing test data
-  db.exec('DELETE FROM expenses')
-  console.log('🗑️  Cleared existing data')
+  // Clear existing data if file couldn't be deleted
+  if (shouldClearData) {
+    db.exec('DELETE FROM expenses')
+    // Also clear budget tables if they exist
+    try {
+      db.exec('DELETE FROM budget_periods')
+      db.exec('DELETE FROM budgets')
+      console.log('🗑️  Cleared existing expense and budget data')
+    } catch (err) {
+      // Budget tables may not exist yet, that's ok
+      console.log('🗑️  Cleared existing expense data')
+    }
+  }
   
   const insertStmt = db.prepare(`
     INSERT INTO expenses (amount, latitude, longitude, place_id, place_name, place_address, timestamp)
