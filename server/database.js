@@ -395,8 +395,15 @@ class DatabaseService {
   getAllBudgets() {
     try {
       const stmt = this.db.prepare(`
-        SELECT * FROM budgets 
-        ORDER BY created_at DESC
+        SELECT b.*, 
+               CASE WHEN bp.budget_id IS NOT NULL THEN 1 ELSE 0 END as has_history
+        FROM budgets b
+        LEFT JOIN (
+          SELECT DISTINCT budget_id 
+          FROM budget_periods 
+          WHERE status != 'pending'
+        ) bp ON b.id = bp.budget_id
+        ORDER BY b.created_at DESC
       `)
       const budgets = stmt.all()
       return Promise.resolve(budgets)
@@ -473,7 +480,8 @@ class DatabaseService {
       if (result.changes > 0) {
         // If amount was updated and this is an active budget, sync current period target
         if (updates.amount !== undefined) {
-          const budget = this.getBudgetById(id)
+          const budgetStmt = this.db.prepare('SELECT * FROM budgets WHERE id = ?')
+          const budget = budgetStmt.get(id)
           if (budget && budget.is_active) {
             const currentPeriodStmt = this.db.prepare(`
               SELECT id FROM budget_periods 

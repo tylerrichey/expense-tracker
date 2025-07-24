@@ -11,6 +11,7 @@ export interface Budget {
   is_active: boolean
   is_upcoming: boolean
   vacation_mode: boolean
+  has_history: boolean
 }
 
 export interface BudgetPeriod {
@@ -35,6 +36,11 @@ export interface BudgetCreateData {
 export interface BudgetUpdateData {
   name?: string
   amount?: number
+  start_weekday?: number
+  duration_days?: number
+  is_active?: boolean
+  is_upcoming?: boolean
+  vacation_mode?: boolean
 }
 
 class BudgetService {

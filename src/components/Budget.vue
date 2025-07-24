@@ -196,11 +196,18 @@ async function handleScheduleBudget(budgetId: number) {
 async function handleCancelUpcoming(budgetId: number) {
   try {
     const budget = budgets.value.find(b => b.id === budgetId)
-    // Cancel upcoming budget by deleting it since it hasn't started yet
-    await budgetService.deleteBudget(budgetId)
-    await loadBudgetData()
     
-    showSuccessMessage(`Cancelled "${budget?.name || 'Budget'}" as upcoming`)
+    if (budget?.is_active) {
+      // If budget is also active, just remove upcoming status
+      await budgetService.updateBudget(budgetId, { is_upcoming: false })
+      showSuccessMessage(`Removed "${budget.name}" as upcoming budget`)
+    } else {
+      // If budget is only upcoming (not active), delete it completely
+      await budgetService.deleteBudget(budgetId)
+      showSuccessMessage(`Cancelled "${budget?.name || 'Budget'}" as upcoming`)
+    }
+    
+    await loadBudgetData()
   } catch (err: any) {
     error.value = err.message || 'Failed to cancel upcoming budget'
     throw err

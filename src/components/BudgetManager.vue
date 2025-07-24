@@ -102,7 +102,7 @@
                 Activate Now
               </button>
               <button @click="cancelUpcoming(upcomingBudget)" class="cancel-btn">
-                Cancel
+                {{ isUpcomingBudgetAlsoActive ? 'Remove as Upcoming' : 'Cancel' }}
               </button>
             </div>
           </div>
@@ -130,7 +130,11 @@
               <button @click="scheduleForNext(budget)" class="schedule-btn">
                 Set as Upcoming
               </button>
-              <button @click="deleteBudget(budget)" class="delete-btn">
+              <button 
+                v-if="!budget.has_history" 
+                @click="deleteBudget(budget)" 
+                class="delete-btn"
+              >
                 Delete
               </button>
             </div>
@@ -241,7 +245,11 @@ const upcomingBudget = computed(() => {
 })
 
 const otherBudgets = computed(() => {
-  return props.budgets.filter(b => !b.is_active && !b.is_upcoming)
+  return props.budgets.filter(b => {
+    // Include budgets that are neither active nor upcoming
+    // OR budgets that are active but not upcoming (so they can be set as upcoming again)
+    return (!b.is_active && !b.is_upcoming) || (b.is_active && !b.is_upcoming)
+  })
 })
 
 const spendingPercentage = computed(() => {
@@ -252,6 +260,11 @@ const spendingPercentage = computed(() => {
 const isOverBudget = computed(() => {
   if (!props.currentPeriod) return false
   return (props.currentPeriod.actual_spent || 0) > props.currentPeriod.target_amount
+})
+
+const isUpcomingBudgetAlsoActive = computed(() => {
+  if (!upcomingBudget.value) return false
+  return upcomingBudget.value.is_active
 })
 
 // Methods
@@ -321,11 +334,17 @@ async function scheduleForNext(budget) {
 }
 
 async function cancelUpcoming(budget) {
-  if (confirm(`Cancel "${budget.name}" as upcoming budget?`)) {
+  const isAlsoActive = budget.is_active
+  const action = isAlsoActive ? 'remove as upcoming' : 'cancel'
+  const message = isAlsoActive 
+    ? `Remove "${budget.name}" as upcoming budget? It will remain active for the current period.`
+    : `Cancel "${budget.name}" as upcoming budget?`
+    
+  if (confirm(message)) {
     try {
       await emit('cancel-upcoming', budget.id)
     } catch (error) {
-      console.error('Failed to cancel upcoming budget:', error)
+      console.error(`Failed to ${action} budget:`, error)
     }
   }
 }

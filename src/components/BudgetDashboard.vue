@@ -67,8 +67,8 @@
       <!-- Budget Stats -->
       <div class="budget-stats">
         <div class="stat-card">
-          <div class="stat-value">${{ formatAmount(remaining) }}</div>
-          <div class="stat-label">{{ remaining >= 0 ? 'Remaining' : 'Over Budget' }}</div>
+          <div class="stat-value">${{ formatAmount(Math.abs(remaining)) }}</div>
+          <div class="stat-label" :class="{ 'over-budget': remaining < 0 }">{{ remaining >= 0 ? 'Remaining' : 'Over Budget' }}</div>
         </div>
         
         <div class="stat-card" v-if="currentPeriod">
@@ -450,6 +450,11 @@ async function toggleVacationMode() {
   color: #b0b0b0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.stat-label.over-budget {
+  color: #dc3545;
+  font-weight: bold;
 }
 
 /* Insights */
