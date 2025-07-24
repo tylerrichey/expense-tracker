@@ -150,9 +150,14 @@ function calculateTopLocations() {
       }
     })
 
-  // Sort by number of visits and take top 5
+  // Sort by number of expenses first, then by amount
   topLocations.value = Array.from(locationMap.values())
-    .sort((a, b) => b.count - a.count)
+    .sort((a, b) => {
+      if (b.count !== a.count) {
+        return b.count - a.count
+      }
+      return b.total - a.total
+    })
     .slice(0, 5)
 }
 
