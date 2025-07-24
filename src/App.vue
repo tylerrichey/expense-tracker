@@ -24,6 +24,7 @@ import LoginForm from './components/LoginForm.vue'
 import HorizontalNav from './components/HorizontalNav.vue'
 import Home from './components/Home.vue'
 import Reports from './components/Reports.vue'
+import Budget from './components/Budget.vue'
 import AppFooter from './components/AppFooter.vue'
 import { AuthService } from './services/auth'
 
@@ -35,6 +36,14 @@ const navItems = computed(() => [
     id: 'home',
     title: 'Home',
     component: markRaw(Home),
+    props: {
+      refreshTrigger: refreshTrigger.value
+    }
+  },
+  {
+    id: 'budget',
+    title: 'Budget',
+    component: markRaw(Budget),
     props: {
       refreshTrigger: refreshTrigger.value
     }
@@ -99,7 +108,7 @@ main {
 @media (min-width: 768px) {
   main {
     padding: 40px 20px;
-    max-width: 600px;
+    max-width: 1000px;
   }
 }
 </style>

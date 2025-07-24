@@ -59,9 +59,9 @@ ${'='.repeat(50)}
     appendFileSync(this.logPath, logEntry)
     
     // Also log to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log(logEntry)
-    }
+    // if (process.env.NODE_ENV === 'development') {
+      // console.log(logEntry)
+    // }
   }
 
   logResponse(status, statusText, headers, data) {
@@ -79,9 +79,9 @@ ${'='.repeat(50)}
     appendFileSync(this.logPath, logEntry)
     
     // Also log to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log(logEntry)
-    }
+    // if (process.env.NODE_ENV === 'development') {
+      // console.log(logEntry)
+    // }
   }
 
   logError(error) {

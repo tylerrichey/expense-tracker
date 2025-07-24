@@ -257,3 +257,4 @@ firestore-debug.log
 # Build-generated files
 src/build-info.json
 public/build-info.json
+.aider*

@@ -18,13 +18,22 @@ This file contains important instructions and reminders for Claude Code when wor
 
 ## Post-Commit Checklist
 
-**ALWAYS monitor GitHub Actions after every commit and push:**
+**ALWAYS monitor GitHub Actions after every commit and push - DO NOT STOP until build is complete:**
 
-1. **Check build status** - Use `gh run list --limit 3` to see recent runs
-2. **Monitor for failures** - Use `gh run view <run-id>` to get details if builds fail
-3. **Fix issues immediately** - Address CI failures while context is fresh
-4. **Verify deployment** - Confirm successful deployment to production
-5. **Don't leave broken builds** - Always follow through until green checkmarks
+1. **Wait for build completion** - Wait at least 60 seconds after push, then use `gh run list --limit 3` to check status
+2. **Monitor until completion** - Keep checking every 30-60 seconds until status shows "completed"
+   - Status should be "completed" with "success" - not just "queued" or "in_progress"
+   - Use `gh run view <run-id>` to get detailed logs if build fails
+3. **Take immediate action on failures** - If build fails:
+   - View the failure details with `gh run view <run-id>`
+   - Fix the issues immediately while context is fresh
+   - Commit and push the fixes
+   - Monitor the new build until it succeeds
+4. **Verify successful deployment** - Only consider the task complete when:
+   - Build shows "completed" status with "success" 
+   - No red X marks or failure indicators
+   - Production deployment has succeeded
+5. **Never leave broken builds** - Always follow through until green checkmarks appear
 
 ## Project Structure
 
