@@ -34,7 +34,7 @@
               `rgba(255, 99, 71, ${getSpendingIntensity(day.date) * 0.3})` : 
               undefined 
           }"
-          @click="showDayDetails(day.date)"
+          @click="showDayDetails(day.date, $event)"
           @mouseenter="showHoverPreview(day.date, $event)"
           @mouseleave="hideHoverPreview"
         >
@@ -156,42 +156,6 @@
       </div>
     </div>
 
-    <!-- Day Expenses Modal -->
-    <div v-if="selectedDay" class="modal-overlay" @click="closeDayDetails">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h4>{{ selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) }}</h4>
-          <button @click="closeDayDetails" class="close-modal">×</button>
-        </div>
-        <div class="modal-body">
-          <div v-if="selectedDayExpenses.length === 0" class="no-expenses">
-            <p>No expenses for this day</p>
-          </div>
-          <div v-else>
-            <div class="expense-summary">
-              <span class="summary-label">Total:</span>
-              <span class="summary-amount">${{ getDailyTotal(selectedDay).toFixed(2) }}</span>
-              <span class="summary-count">({{ selectedDayExpenses.length }} expenses)</span>
-            </div>
-            <div class="expense-list">
-              <div v-for="expense in selectedDayExpenses" :key="expense.id" class="expense-item">
-                <div class="expense-main">
-                  <div class="expense-amount">${{ expense.amount.toFixed(2) }}</div>
-                  <div class="expense-location">{{ expense.place_name || 'Unknown location' }}</div>
-                </div>
-                <div class="expense-time">
-                  {{ new Date(expense.timestamp).toLocaleTimeString('en-US', { 
-                    hour: 'numeric', 
-                    minute: '2-digit',
-                    hour12: true 
-                  }) }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="loading">
@@ -218,8 +182,6 @@ const props = defineProps({
 const currentMonth = ref(new Date())
 const selectedPeriod = ref(null)
 const tooltipPosition = ref(null)
-const selectedDay = ref(null)
-const selectedDayExpenses = ref([])
 const hoverPreview = ref(null)
 const allPeriods = ref([])
 const currentPeriod = ref(null)
@@ -327,21 +289,31 @@ function showPeriodDetails(period, event) {
   }
 }
 
-function showDayDetails(date) {
-  selectedDay.value = date
-  selectedDayExpenses.value = getExpensesForDate(date)
+function showDayDetails(date, event) {
+  // Get expenses for this date
+  const dayExpenses = getExpensesForDate(date)
+  if (dayExpenses.length === 0) return
+  
+  const total = getDailyTotal(date)
+  
+  // Use the hover preview for showing day details
+  hoverPreview.value = {
+    date,
+    expenses: dayExpenses,
+    total,
+    position: {
+      x: event.pageX + 10,
+      y: event.pageY - 10
+    }
+  }
+  
   // Close period tooltip if open
   selectedPeriod.value = null
   tooltipPosition.value = null
 }
 
-function closeDayDetails() {
-  selectedDay.value = null
-  selectedDayExpenses.value = []
-}
-
 function showHoverPreview(date, event) {
-  // Only show on desktop (non-touch devices)
+  // Only show on hover for desktop (non-touch devices)
   if (window.matchMedia('(max-width: 768px)').matches) return
   
   const dayExpenses = getExpensesForDate(date)
@@ -493,8 +465,8 @@ function handleClickOutside(event) {
     tooltipPosition.value = null
   }
   
-  // Hide hover preview on any click
-  if (hoverPreview.value) {
+  // Hide hover preview only if not clicking on a calendar day
+  if (hoverPreview.value && !event.target.closest('.calendar-day')) {
     hoverPreview.value = null
   }
 }
@@ -871,7 +843,6 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   max-width: 250px;
   min-width: 200px;
-  pointer-events: none;
 }
 
 .preview-header {
