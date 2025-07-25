@@ -18,7 +18,6 @@
         :budgets="budgets"
         :current-period="currentPeriod"
         :historical-periods="historicalPeriods"
-        :all-periods="allPeriods"
         :loading="loading"
         :auto-show-create-form="autoShowCreateForm"
         @create-budget="handleCreateBudget"
