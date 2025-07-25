@@ -1,11 +1,5 @@
 <template>
   <div class="calendar-page">
-    <!-- Page Header -->
-    <div class="page-header">
-      <h2>Calendar</h2>
-      <p class="page-description">View your budget periods and expenses in a calendar format</p>
-    </div>
-
     <!-- Calendar Component -->
     <div class="calendar-container">
       <!-- Calendar Header -->
@@ -655,18 +649,20 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.1;
 }
 
 .expense-count {
-  color: #ffa500;
+  color: #4a9eff;
   font-weight: 600;
+  font-size: 12px;
 }
 
 .expense-total {
-  color: #ff6347;
+  color: #28a745;
   font-weight: 500;
+  font-size: 12px;
 }
 
 .budget-periods {
@@ -917,7 +913,7 @@ onUnmounted(() => {
 }
 
 .preview-amount {
-  color: #ff6347;
+  color: #28a745;
   font-weight: 600;
   min-width: 50px;
 }
@@ -1066,7 +1062,7 @@ onUnmounted(() => {
 }
 
 .expense-amount {
-  color: #ff6347;
+  color: #28a745;
   font-weight: 600;
   font-size: 16px;
   margin-bottom: 2px;
