@@ -226,7 +226,7 @@ const calendarDays = computed(() => {
     
     days.push({
       date,
-      dateKey: date.toISOString().split('T')[0],
+      dateKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
       isCurrentMonth,
       isToday,
       budgetPeriods,
@@ -383,10 +383,16 @@ function isOverBudget(period) {
 
 // Expense calculation functions
 function getExpensesForDate(date) {
-  const dateString = date.toISOString().split('T')[0]
+  // Use local timezone for date comparison to match ExpenseList behavior
+  const year = date.getFullYear()
+  const month = date.getMonth()
+  const day = date.getDate()
+  
   return expenses.value.filter(expense => {
-    const expenseDate = new Date(expense.timestamp).toISOString().split('T')[0]
-    return expenseDate === dateString
+    const expenseDate = new Date(expense.timestamp)
+    return expenseDate.getFullYear() === year &&
+           expenseDate.getMonth() === month &&
+           expenseDate.getDate() === day
   })
 }
 
@@ -410,14 +416,16 @@ function getSpendingIntensity(date) {
            expenseDate.getFullYear() === currentMonth.value.getFullYear()
   })
   
-  const maxDaily = Math.max(...Array.from(new Set(monthExpenses.map(e => 
-    new Date(e.timestamp).toISOString().split('T')[0]
-  ))).map(dateStr => {
-    const dayTotal = monthExpenses
-      .filter(e => new Date(e.timestamp).toISOString().split('T')[0] === dateStr)
-      .reduce((sum, e) => sum + e.amount, 0)
-    return dayTotal
-  }))
+  // Group expenses by local date instead of UTC date
+  const dailyTotals = new Map()
+  monthExpenses.forEach(expense => {
+    const expenseDate = new Date(expense.timestamp)
+    const dateKey = `${expenseDate.getFullYear()}-${expenseDate.getMonth()}-${expenseDate.getDate()}`
+    const current = dailyTotals.get(dateKey) || 0
+    dailyTotals.set(dateKey, current + expense.amount)
+  })
+  
+  const maxDaily = Math.max(...Array.from(dailyTotals.values()))
   
   if (maxDaily === 0) return 0
   return Math.min(total / maxDaily, 1) // Normalize to 0-1 range
