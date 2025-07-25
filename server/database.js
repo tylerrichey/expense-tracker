@@ -11,6 +11,7 @@ import {
   validateBudget,
   formatDateForDB
 } from './budget-utils.js'
+import { logger } from './logger.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -37,7 +38,7 @@ class DatabaseService {
       }
     }
     
-    console.log(`📁 Using database: ${dbPath}`)
+    logger.log('info', `📁 Using database: ${dbPath}`)
     this.dbPath = dbPath
     this.db = new Database(dbPath)
     this.initializeDatabase()
@@ -60,7 +61,7 @@ class DatabaseService {
     
     try {
       this.db.exec(createTableQuery)
-      console.log('Database initialized successfully')
+      logger.log('info', 'Database initialized successfully')
       // Add new columns if they don't exist (for existing databases)
       this.addMissingColumns()
       // Run migrations
@@ -88,7 +89,7 @@ class DatabaseService {
       } catch (err) {
         // Ignore errors for existing columns
         if (!err.message.includes('duplicate column name')) {
-          console.error('Error adding column:', err)
+          logger.log('error', 'Error adding column:', { error: err.message })
         }
       }
     })
@@ -110,7 +111,7 @@ class DatabaseService {
     // Get list of available migrations
     const migrationsDir = join(__dirname, 'migrations')
     if (!existsSync(migrationsDir)) {
-      console.log('No migrations directory found, skipping migrations')
+      logger.log('info', 'No migrations directory found, skipping migrations')
       return
     }
 
@@ -125,7 +126,7 @@ class DatabaseService {
         continue // Skip already applied migrations
       }
 
-      console.log(`🔄 Running migration: ${migrationName}`)
+      logger.log('info', `🔄 Running migration: ${migrationName}`)
       
       try {
         const migration = await import(`./migrations/${migrationFile}`)
@@ -134,12 +135,12 @@ class DatabaseService {
           
           // Record that this migration was applied
           this.db.prepare('INSERT INTO migrations (name) VALUES (?)').run(migrationName)
-          console.log(`✅ Migration completed: ${migrationName}`)
+          logger.log('info', `✅ Migration completed: ${migrationName}`)
         } else {
-          console.warn(`⚠️ Migration ${migrationName} has no 'up' function`)
+          logger.log('warn', `⚠️ Migration ${migrationName} has no 'up' function`)
         }
       } catch (err) {
-        console.error(`❌ Migration failed: ${migrationName}`, err)
+        logger.log('error', `❌ Migration failed: ${migrationName}`, { error: err.message })
         throw err
       }
     }
@@ -148,7 +149,7 @@ class DatabaseService {
   async addExpense(expense) {
     try {
       if (process.env.NODE_ENV !== 'production') {
-        console.log('Database: Adding expense with data:', JSON.stringify(expense, null, 2))
+        logger.log('info', 'Database: Adding expense with data:', { expense })
       }
       
       // Get current active budget period for immediate association
@@ -159,20 +160,20 @@ class DatabaseService {
           // Check if budget is in vacation mode
           if (currentPeriod.vacation_mode) {
             if (process.env.NODE_ENV !== 'production') {
-              console.log('Database: Budget is in vacation mode, creating orphan expense')
+              logger.log('info', 'Database: Budget is in vacation mode, creating orphan expense')
             }
             budgetPeriodId = null // Don't associate with budget period during vacation
           } else {
             budgetPeriodId = currentPeriod.id
             if (process.env.NODE_ENV !== 'production') {
-              console.log('Database: Associating expense with budget period:', budgetPeriodId)
+              logger.log('info', 'Database: Associating expense with budget period:', { budgetPeriodId })
             }
           }
         }
       } catch (err) {
         // If no current period exists, expense will be created as orphan
         if (process.env.NODE_ENV !== 'production') {
-          console.log('Database: No active budget period found, creating orphan expense')
+          logger.log('info', 'Database: No active budget period found, creating orphan expense')
         }
       }
       
@@ -193,11 +194,11 @@ class DatabaseService {
       )
       
       if (process.env.NODE_ENV !== 'production') {
-        console.log('Database: Expense saved with ID:', result.lastInsertRowid)
+        logger.log('info', 'Database: Expense saved with ID:', { id: result.lastInsertRowid })
       }
       return Promise.resolve({ id: result.lastInsertRowid, ...expense })
     } catch (err) {
-      console.error('Database: Error adding expense:', err)
+      logger.log('error', 'Database: Error adding expense:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -335,10 +336,10 @@ class DatabaseService {
         return Promise.resolve(false) // Expense not found
       }
       
-      console.log(`Database: Updated expense ${expenseId} with image (${imageBuffer.length} bytes)`)
+      logger.log('info', `Database: Updated expense ${expenseId} with image (${imageBuffer.length} bytes)`)
       return Promise.resolve(true)
     } catch (err) {
-      console.error('Database: Error updating expense image:', err)
+      logger.log('error', 'Database: Error updating expense image:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -359,7 +360,7 @@ class DatabaseService {
       
       return Promise.resolve(result.receipt_image)
     } catch (err) {
-      console.error('Database: Error retrieving expense image:', err)
+      logger.log('error', 'Database: Error retrieving expense image:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -384,10 +385,10 @@ class DatabaseService {
       )
       
       const newBudget = { id: result.lastInsertRowid, ...budget }
-      console.log('Database: Budget created with ID:', result.lastInsertRowid)
+      logger.log('info', 'Database: Budget created with ID:', { id: result.lastInsertRowid })
       return Promise.resolve(newBudget)
     } catch (err) {
-      console.error('Database: Error creating budget:', err)
+      logger.log('error', 'Database: Error creating budget:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -408,7 +409,7 @@ class DatabaseService {
       const budgets = stmt.all()
       return Promise.resolve(budgets)
     } catch (err) {
-      console.error('Database: Error fetching budgets:', err)
+      logger.log('error', 'Database: Error fetching budgets:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -419,7 +420,7 @@ class DatabaseService {
       const budget = stmt.get(id)
       return Promise.resolve(budget || null)
     } catch (err) {
-      console.error('Database: Error fetching budget:', err)
+      logger.log('error', 'Database: Error fetching budget:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -430,7 +431,7 @@ class DatabaseService {
       const budget = stmt.get()
       return Promise.resolve(budget || null)
     } catch (err) {
-      console.error('Database: Error fetching active budget:', err)
+      logger.log('error', 'Database: Error fetching active budget:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -441,7 +442,7 @@ class DatabaseService {
       const budget = stmt.get()
       return Promise.resolve(budget || null)
     } catch (err) {
-      console.error('Database: Error fetching upcoming budget:', err)
+      logger.log('error', 'Database: Error fetching upcoming budget:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -497,7 +498,7 @@ class DatabaseService {
                 WHERE id = ?
               `)
               updatePeriodStmt.run(updates.amount, currentPeriod.id)
-              console.log(`Updated current period target_amount to ${updates.amount} for budget ${id}`)
+              logger.log('info', `Updated current period target_amount to ${updates.amount} for budget ${id}`)
             }
           }
         }
@@ -510,7 +511,7 @@ class DatabaseService {
       }
     } catch (err) {
       this.db.exec('ROLLBACK')
-      console.error('Database: Error updating budget:', err)
+      logger.log('error', 'Database: Error updating budget:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -544,7 +545,7 @@ class DatabaseService {
       
       return Promise.resolve({ deleted: result.changes > 0, id })
     } catch (err) {
-      console.error('Database: Error deleting budget:', err)
+      logger.log('error', 'Database: Error deleting budget:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -567,10 +568,10 @@ class DatabaseService {
       )
       
       const newPeriod = { id: result.lastInsertRowid, ...period }
-      console.log('Database: Budget period created with ID:', result.lastInsertRowid)
+      logger.log('info', 'Database: Budget period created with ID:', { id: result.lastInsertRowid })
       return Promise.resolve(newPeriod)
     } catch (err) {
-      console.error('Database: Error creating budget period:', err)
+      logger.log('error', 'Database: Error creating budget period:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -597,7 +598,7 @@ class DatabaseService {
       const periods = stmt.all(...params)
       return Promise.resolve(periods)
     } catch (err) {
-      console.error('Database: Error fetching budget periods:', err)
+      logger.log('error', 'Database: Error fetching budget periods:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -617,7 +618,7 @@ class DatabaseService {
       const period = stmt.get()
       return Promise.resolve(period || null)
     } catch (err) {
-      console.error('Database: Error fetching current budget period:', err)
+      logger.log('error', 'Database: Error fetching current budget period:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -633,7 +634,7 @@ class DatabaseService {
       const result = stmt.run(status, id)
       return Promise.resolve(result.changes > 0)
     } catch (err) {
-      console.error('Database: Error updating budget period status:', err)
+      logger.log('error', 'Database: Error updating budget period status:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -673,7 +674,7 @@ class DatabaseService {
       }
 
       this.db.exec('COMMIT')
-      console.log(`Database: Created budget with ${retroactive ? 'retroactive' : 'normal'} period`)
+      logger.log('info', `Database: Created budget with ${retroactive ? 'retroactive' : 'normal'} period`)
       
       return Promise.resolve({
         budget,
@@ -682,7 +683,7 @@ class DatabaseService {
 
     } catch (err) {
       this.db.exec('ROLLBACK')
-      console.error('Database: Error creating budget with period:', err)
+      logger.log('error', 'Database: Error creating budget with period:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -709,11 +710,11 @@ class DatabaseService {
       // Create the next period
       const savedPeriod = await this.createBudgetPeriod(nextPeriod)
 
-      console.log('Database: Created next budget period:', savedPeriod.id)
+      logger.log('info', 'Database: Created next budget period:', { id: savedPeriod.id })
       return Promise.resolve(savedPeriod)
 
     } catch (err) {
-      console.error('Database: Error creating next budget period:', err)
+      logger.log('error', 'Database: Error creating next budget period:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -733,7 +734,7 @@ class DatabaseService {
       const period = stmt.get(budgetId)
       return Promise.resolve(period || null)
     } catch (err) {
-      console.error('Database: Error fetching current budget period for budget:', err)
+      logger.log('error', 'Database: Error fetching current budget period for budget:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -755,11 +756,11 @@ class DatabaseService {
         period.end_date
       )
 
-      console.log(`Database: Associated ${result.changes} expenses with period ${period.id}`)
+      logger.log('info', `Database: Associated ${result.changes} expenses with period ${period.id}`)
       return Promise.resolve(result.changes)
 
     } catch (err) {
-      console.error('Database: Error associating expenses with period:', err)
+      logger.log('error', 'Database: Error associating expenses with period:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -781,11 +782,11 @@ class DatabaseService {
       })
 
       await Promise.all(updatePromises)
-      console.log('Database: Updated all budget period statuses')
+      logger.log('info', 'Database: Updated all budget period statuses')
       return Promise.resolve(updatedPeriods)
 
     } catch (err) {
-      console.error('Database: Error updating period statuses:', err)
+      logger.log('error', 'Database: Error updating period statuses:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -801,7 +802,7 @@ class DatabaseService {
       
       return Promise.resolve(matchingPeriod)
     } catch (err) {
-      console.error('Database: Error finding period for expense:', err)
+      logger.log('error', 'Database: Error finding period for expense:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -823,12 +824,12 @@ class DatabaseService {
       }
 
       this.db.exec('COMMIT')
-      console.log(`Database: Activated budget ${budgetId}`)
+      logger.log('info', `Database: Activated budget ${budgetId}`)
       return Promise.resolve(true)
 
     } catch (err) {
       this.db.exec('ROLLBACK')
-      console.error('Database: Error activating budget:', err)
+      logger.log('error', 'Database: Error activating budget:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -850,12 +851,12 @@ class DatabaseService {
       }
 
       this.db.exec('COMMIT')
-      console.log(`Database: Scheduled upcoming budget ${budgetId}`)
+      logger.log('info', `Database: Scheduled upcoming budget ${budgetId}`)
       return Promise.resolve(true)
 
     } catch (err) {
       this.db.exec('ROLLBACK')
-      console.error('Database: Error scheduling upcoming budget:', err)
+      logger.log('error', 'Database: Error scheduling upcoming budget:', { error: err.message })
       return Promise.reject(err)
     }
   }
@@ -884,7 +885,7 @@ class DatabaseService {
       
       return stmt.get()
     } catch (err) {
-      console.error('Database: Error getting current budget analytics:', err)
+      logger.log('error', 'Database: Error getting current budget analytics:', { error: err.message })
       return null
     }
   }
@@ -913,7 +914,7 @@ class DatabaseService {
       
       return stmt.all(limit)
     } catch (err) {
-      console.error('Database: Error getting budget history:', err)
+      logger.log('error', 'Database: Error getting budget history:', { error: err.message })
       return []
     }
   }
@@ -943,7 +944,7 @@ class DatabaseService {
       
       return stmt.all()
     } catch (err) {
-      console.error('Database: Error getting budget trends:', err)
+      logger.log('error', 'Database: Error getting budget trends:', { error: err.message })
       return []
     }
   }
