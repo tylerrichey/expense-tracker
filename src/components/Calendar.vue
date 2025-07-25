@@ -58,7 +58,7 @@
                 'period-middle': day.isPeriodMiddle(period),
                 [`status-${period.status}`]: true
               }"
-              @click="showPeriodDetails(period, $event)"
+              @click.stop="showPeriodDetails(period, $event)"
               :title="getPeriodTooltip(period)"
             >
               <span v-if="day.isPeriodStart(period)" class="period-label">
