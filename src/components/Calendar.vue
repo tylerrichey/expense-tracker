@@ -31,10 +31,24 @@
           :class="{
             'other-month': !day.isCurrentMonth,
             'today': day.isToday,
-            'has-budget': day.budgetPeriods.length > 0
+            'has-budget': day.budgetPeriods.length > 0,
+            'has-expenses': getDailyCount(day.date) > 0
           }"
+          :style="{ 
+            '--spending-intensity': getSpendingIntensity(day.date),
+            backgroundColor: getSpendingIntensity(day.date) > 0 ? 
+              `rgba(255, 99, 71, ${getSpendingIntensity(day.date) * 0.3})` : 
+              undefined 
+          }"
+          @click="showDayDetails(day.date)"
         >
-          <div class="day-number">{{ day.date.getDate() }}</div>
+          <div class="day-header">
+            <div class="day-number">{{ day.date.getDate() }}</div>
+            <div v-if="getDailyCount(day.date) > 0" class="expense-info">
+              <span class="expense-count">{{ getDailyCount(day.date) }}</span>
+              <span class="expense-total">${{ getDailyTotal(day.date).toFixed(0) }}</span>
+            </div>
+          </div>
           
           <!-- Budget Period Overlays -->
           <div class="budget-periods">
@@ -120,6 +134,43 @@
       </div>
     </div>
 
+    <!-- Day Expenses Modal -->
+    <div v-if="selectedDay" class="modal-overlay" @click="closeDayDetails">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h4>{{ selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) }}</h4>
+          <button @click="closeDayDetails" class="close-modal">×</button>
+        </div>
+        <div class="modal-body">
+          <div v-if="selectedDayExpenses.length === 0" class="no-expenses">
+            <p>No expenses for this day</p>
+          </div>
+          <div v-else>
+            <div class="expense-summary">
+              <span class="summary-label">Total:</span>
+              <span class="summary-amount">${{ getDailyTotal(selectedDay).toFixed(2) }}</span>
+              <span class="summary-count">({{ selectedDayExpenses.length }} expenses)</span>
+            </div>
+            <div class="expense-list">
+              <div v-for="expense in selectedDayExpenses" :key="expense.id" class="expense-item">
+                <div class="expense-main">
+                  <div class="expense-amount">${{ expense.amount.toFixed(2) }}</div>
+                  <div class="expense-location">{{ expense.place_name || 'Unknown location' }}</div>
+                </div>
+                <div class="expense-time">
+                  {{ new Date(expense.timestamp).toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                  }) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <div v-if="loading" class="loading">
       <div class="loading-spinner"></div>
@@ -131,6 +182,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { budgetService } from '../services/budget'
+import { databaseService } from '../services/database'
 
 // Props for refresh trigger
 const props = defineProps({
@@ -144,9 +196,12 @@ const props = defineProps({
 const currentMonth = ref(new Date())
 const selectedPeriod = ref(null)
 const tooltipPosition = ref(null)
+const selectedDay = ref(null)
+const selectedDayExpenses = ref([])
 const allPeriods = ref([])
 const currentPeriod = ref(null)
 const budgets = ref([])
+const expenses = ref([])
 const loading = ref(false)
 
 // Constants
@@ -249,6 +304,19 @@ function showPeriodDetails(period, event) {
   }
 }
 
+function showDayDetails(date) {
+  selectedDay.value = date
+  selectedDayExpenses.value = getExpensesForDate(date)
+  // Close period tooltip if open
+  selectedPeriod.value = null
+  tooltipPosition.value = null
+}
+
+function closeDayDetails() {
+  selectedDay.value = null
+  selectedDayExpenses.value = []
+}
+
 function getPeriodTooltip(period) {
   const spent = period.actual_spent || 0
   const percentage = Math.round((spent / period.target_amount) * 100)
@@ -270,19 +338,63 @@ function isOverBudget(period) {
   return (period.actual_spent || 0) > period.target_amount
 }
 
+// Expense calculation functions
+function getExpensesForDate(date) {
+  const dateString = date.toISOString().split('T')[0]
+  return expenses.value.filter(expense => {
+    const expenseDate = new Date(expense.timestamp).toISOString().split('T')[0]
+    return expenseDate === dateString
+  })
+}
+
+function getDailyTotal(date) {
+  const dayExpenses = getExpensesForDate(date)
+  return dayExpenses.reduce((total, expense) => total + expense.amount, 0)
+}
+
+function getDailyCount(date) {
+  return getExpensesForDate(date).length
+}
+
+function getSpendingIntensity(date) {
+  const total = getDailyTotal(date)
+  if (total === 0) return 0
+  
+  // Calculate intensity based on max spending in visible month
+  const monthExpenses = expenses.value.filter(expense => {
+    const expenseDate = new Date(expense.timestamp)
+    return expenseDate.getMonth() === currentMonth.value.getMonth() && 
+           expenseDate.getFullYear() === currentMonth.value.getFullYear()
+  })
+  
+  const maxDaily = Math.max(...Array.from(new Set(monthExpenses.map(e => 
+    new Date(e.timestamp).toISOString().split('T')[0]
+  ))).map(dateStr => {
+    const dayTotal = monthExpenses
+      .filter(e => new Date(e.timestamp).toISOString().split('T')[0] === dateStr)
+      .reduce((sum, e) => sum + e.amount, 0)
+    return dayTotal
+  }))
+  
+  if (maxDaily === 0) return 0
+  return Math.min(total / maxDaily, 1) // Normalize to 0-1 range
+}
+
 // Data loading
 async function loadCalendarData() {
   loading.value = true
   
   try {
-    const [budgetsData, currentPeriodData, allPeriodsData] = await Promise.all([
+    const [budgetsData, currentPeriodData, allPeriodsData, expensesData] = await Promise.all([
       budgetService.getAllBudgets(),
       budgetService.getCurrentBudgetPeriod().catch(() => null),
-      budgetService.getBudgetPeriods().catch(() => [])
+      budgetService.getBudgetPeriods().catch(() => []),
+      databaseService.getAllExpenses().catch(() => [])
     ])
     
     budgets.value = budgetsData
     currentPeriod.value = currentPeriodData
+    expenses.value = expensesData
     
     // Generate virtual upcoming periods for upcoming budgets that don't have actual periods yet
     const upcomingBudget = budgetsData.find(b => b.is_upcoming)
@@ -467,11 +579,36 @@ onUnmounted(() => {
   font-weight: bold;
 }
 
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+  min-height: 20px;
+}
+
 .day-number {
   color: #e0e0e0;
   font-weight: 500;
-  margin-bottom: 4px;
   font-size: 14px;
+}
+
+.expense-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.expense-count {
+  color: #ffa500;
+  font-weight: 600;
+}
+
+.expense-total {
+  color: #ff6347;
+  font-weight: 500;
 }
 
 .budget-periods {
@@ -669,6 +806,149 @@ onUnmounted(() => {
   color: white;
 }
 
+/* Day Expenses Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+  padding: 20px;
+}
+
+.modal-content {
+  background: #1e1e1e;
+  border: 2px solid #444;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #444;
+  background: #2a2a2a;
+}
+
+.modal-header h4 {
+  margin: 0;
+  color: #e0e0e0;
+  font-size: 18px;
+}
+
+.close-modal {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.close-modal:hover {
+  background: #444;
+  color: #e0e0e0;
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.no-expenses {
+  text-align: center;
+  color: #888;
+  padding: 40px 20px;
+}
+
+.expense-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #2a2a2a;
+  border-radius: 8px;
+}
+
+.summary-label {
+  color: #b0b0b0;
+  font-weight: 500;
+}
+
+.summary-amount {
+  color: #e0e0e0;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.summary-count {
+  color: #888;
+  font-size: 14px;
+}
+
+.expense-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expense-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.expense-item:hover {
+  background: #333;
+}
+
+.expense-main {
+  flex: 1;
+}
+
+.expense-amount {
+  color: #ff6347;
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+
+.expense-location {
+  color: #b0b0b0;
+  font-size: 14px;
+}
+
+.expense-time {
+  color: #888;
+  font-size: 12px;
+  text-align: right;
+}
+
 .loading {
   text-align: center;
   padding: 60px 20px;
@@ -738,6 +1018,10 @@ onUnmounted(() => {
   }
   
   .period-label {
+    display: none;
+  }
+  
+  .expense-info {
     display: none;
   }
 }
