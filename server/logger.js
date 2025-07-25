@@ -111,6 +111,31 @@ Request Details: ${error.request}
     // Also log to console in development and for errors
     console.log(logEntry)
   }
+
+  log(level, message, context = {}) {
+    const timestamp = this.formatTimestamp()
+    const levelUpper = level.toUpperCase()
+    
+    const icons = {
+      INFO: 'ℹ️',
+      WARN: '⚠️',
+      ERROR: '❌'
+    }
+    
+    const logEntry = `
+${icons[levelUpper] || 'ℹ️'} === ${levelUpper} [${timestamp} PST] ===
+Message: ${message}
+${Object.keys(context).length > 0 ? `Context: ${JSON.stringify(context, null, 2)}\n` : ''}${'='.repeat(50)}
+
+`
+    
+    appendFileSync(this.logPath, logEntry)
+    
+    // Also log to console in development and for errors
+    if (process.env.NODE_ENV === 'development' || levelUpper === 'ERROR') {
+      console.log(logEntry)
+    }
+  }
 }
 
 export const logger = new Logger()
