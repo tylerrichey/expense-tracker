@@ -121,9 +121,9 @@ class BudgetScheduler {
 
           if (!hasActivePeriod && !hasUpcomingPeriod) {
             if (budget.vacation_mode) {
-              console.log(`  🏖️ Auto-continuing budget in vacation mode: ${budget.name}`)
+              logger.log('info', `  🏖️ Auto-continuing budget in vacation mode: ${budget.name}`)
             } else {
-              console.log(`  🔄 Auto-continuing budget: ${budget.name}`)
+              logger.log('info', `  🔄 Auto-continuing budget: ${budget.name}`)
             }
             await this.continueBudget(budget, completedPeriod)
           }
