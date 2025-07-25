@@ -2,304 +2,359 @@
  * Budget period scheduler and auto-continuation logic
  */
 
-import { databaseService } from './database.js'
-import { updatePeriodStatuses, calculateNextPeriodStart, generateBudgetPeriods } from './budget-utils.js'
+import { databaseService } from "./database.js";
+import {
+  updatePeriodStatuses,
+  calculateNextPeriodStart,
+  generateBudgetPeriods,
+} from "./budget-utils.js";
+import { logger } from "./logger.js";
 
 class BudgetScheduler {
   constructor() {
-    this.isRunning = false
-    this.intervalId = null
-    this.checkInterval = 60 * 60 * 1000 // Check every hour
+    this.isRunning = false;
+    this.intervalId = null;
+    this.checkInterval = 60 * 60 * 1000; // Check every hour
   }
 
   start() {
     if (this.isRunning) {
-      logger.log('info', 'Budget scheduler is already running')
-      return
+      logger.log("info", "Budget scheduler is already running");
+      return;
     }
 
-    logger.log('info', '🕐 Starting budget scheduler...')
-    this.isRunning = true
-    
+    logger.log("info", "🕐 Starting budget scheduler...");
+    this.isRunning = true;
+
     // Run immediate check
-    this.performScheduledTasks()
-    
+    this.performScheduledTasks();
+
     // Schedule periodic checks
     this.intervalId = setInterval(() => {
-      this.performScheduledTasks()
-    }, this.checkInterval)
+      this.performScheduledTasks();
+    }, this.checkInterval);
   }
 
   stop() {
     if (!this.isRunning) {
-      return
+      return;
     }
 
-    logger.log('info', '⏹️ Stopping budget scheduler...')
-    this.isRunning = false
-    
+    logger.log("info", "⏹️ Stopping budget scheduler...");
+    this.isRunning = false;
+
     if (this.intervalId) {
-      clearInterval(this.intervalId)
-      this.intervalId = null
+      clearInterval(this.intervalId);
+      this.intervalId = null;
     }
   }
 
   async performScheduledTasks() {
     try {
-      logger.log('info', '🔄 Budget scheduler: Performing scheduled tasks...')
-      
+      logger.log("info", "🔄 Budget scheduler: Performing scheduled tasks...");
+
       // Update all period statuses
-      await this.updatePeriodStatuses()
-      
+      await this.updatePeriodStatuses();
+
       // Handle period transitions
-      await this.handlePeriodTransitions()
-      
+      await this.handlePeriodTransitions();
+
       // Auto-continue budgets if needed
-      await this.autoContinueBudgets()
-      
+      await this.autoContinueBudgets();
+
       // Associate unassociated expenses
-      await this.associateOrphanExpenses()
-      
-      logger.log('info', '✅ Budget scheduler: Scheduled tasks completed')
-      
+      await this.associateOrphanExpenses();
+
+      logger.log("info", "✅ Budget scheduler: Scheduled tasks completed");
     } catch (err) {
-      logger.log('error', 'Budget scheduler: Error performing scheduled tasks', { error: err.message })
+      logger.log(
+        "error",
+        "Budget scheduler: Error performing scheduled tasks",
+        { error: err.message }
+      );
     }
   }
 
   async updatePeriodStatuses() {
     try {
-      await databaseService.updateAllPeriodStatuses()
-      logger.log('info', '  📊 Updated all budget period statuses')
+      await databaseService.updateAllPeriodStatuses();
+      logger.log("info", "  📊 Updated all budget period statuses");
     } catch (err) {
-      logger.log('error', '  ❌ Error updating period statuses', { error: err.message })
+      logger.log("error", "  ❌ Error updating period statuses", {
+        error: err.message,
+      });
     }
   }
 
   async handlePeriodTransitions() {
     try {
       // Get periods that just became completed
-      const periods = await databaseService.getBudgetPeriods()
-      const now = new Date()
-      
+      const periods = await databaseService.getBudgetPeriods();
+      const now = new Date();
+
       for (const period of periods) {
-        const endDate = new Date(period.end_date + 'T23:59:59')
-        const isJustCompleted = period.status === 'completed' && 
-                               Math.abs(now - endDate) < this.checkInterval
-        
+        const endDate = new Date(period.end_date + "T23:59:59");
+        const isJustCompleted =
+          period.status === "completed" &&
+          Math.abs(now - endDate) < this.checkInterval;
+
         if (isJustCompleted) {
-          logger.log('info', `  🏁 Period ${period.id} just completed`)
-          await this.handlePeriodCompletion(period)
+          logger.log("info", `  🏁 Period ${period.id} just completed`);
+          await this.handlePeriodCompletion(period);
         }
       }
     } catch (err) {
-      logger.log('error', '  ❌ Error handling period transitions', { error: err.message })
+      logger.log("error", "  ❌ Error handling period transitions", {
+        error: err.message,
+      });
     }
   }
 
   async handlePeriodCompletion(completedPeriod) {
     try {
       // Get the budget for this period
-      const budget = await databaseService.getBudgetById(completedPeriod.budget_id)
+      const budget = await databaseService.getBudgetById(
+        completedPeriod.budget_id
+      );
       if (!budget) {
-        logger.log('warn', `  ⚠️ Budget ${completedPeriod.budget_id} not found for completed period`)
-        return
+        logger.log(
+          "warn",
+          `  ⚠️ Budget ${completedPeriod.budget_id} not found for completed period`
+        );
+        return;
       }
 
       // Check if this budget is active and should continue
       if (budget.is_active) {
         // Check if there's an upcoming budget scheduled
-        const upcomingBudget = await databaseService.getUpcomingBudget()
-        
+        const upcomingBudget = await databaseService.getUpcomingBudget();
+
         if (upcomingBudget) {
-          logger.log('info', `  🔄 Transitioning to upcoming budget: ${upcomingBudget.name}`)
-          await this.transitionToUpcomingBudget(budget, upcomingBudget)
+          logger.log(
+            "info",
+            `  🔄 Transitioning to upcoming budget: ${upcomingBudget.name}`
+          );
+          await this.transitionToUpcomingBudget(budget, upcomingBudget);
         } else {
-          const periods = await databaseService.getBudgetPeriods(budget.id)
-          const hasActivePeriod = periods.some(p => p.status === 'active')
-          const hasUpcomingPeriod = periods.some(p => p.status === 'upcoming')
+          const periods = await databaseService.getBudgetPeriods(budget.id);
+          const hasActivePeriod = periods.some((p) => p.status === "active");
+          const hasUpcomingPeriod = periods.some(
+            (p) => p.status === "upcoming"
+          );
 
           if (!hasActivePeriod && !hasUpcomingPeriod) {
             if (budget.vacation_mode) {
-              logger.log('info', `  🏖️ Auto-continuing budget in vacation mode: ${budget.name}`)
+              logger.log(
+                "info",
+                `  🏖️ Auto-continuing budget in vacation mode: ${budget.name}`
+              );
             } else {
-              logger.log('info', `  🔄 Auto-continuing budget: ${budget.name}`)
+              logger.log("info", `  🔄 Auto-continuing budget: ${budget.name}`);
             }
-            await this.continueBudget(budget, completedPeriod)
+            await this.continueBudget(budget, completedPeriod);
           }
         }
       } else {
-        console.log(`  ⏸️ Budget ${budget.name} is inactive, not continuing`)
+        console.log(`  ⏸️ Budget ${budget.name} is inactive, not continuing`);
       }
     } catch (err) {
-      console.error('  ❌ Error handling period completion:', err)
+      console.error("  ❌ Error handling period completion:", err);
     }
   }
 
   async continueBudget(budget, lastPeriod) {
     try {
       // Calculate next period start date
-      const nextStartDate = calculateNextPeriodStart(lastPeriod, budget.duration_days)
-      const nextPeriods = generateBudgetPeriods(budget, nextStartDate, 1)
-      const nextPeriod = nextPeriods[0]
-      
+      const nextStartDate = calculateNextPeriodStart(
+        lastPeriod,
+        budget.duration_days
+      );
+      const nextPeriods = generateBudgetPeriods(budget, nextStartDate, 1);
+      const nextPeriod = nextPeriods[0];
+
       // Create the next period
-      await databaseService.createBudgetPeriod(nextPeriod)
-      
-      console.log(`  ✅ Created continuation period for budget ${budget.name}`)
+      await databaseService.createBudgetPeriod(nextPeriod);
+
+      console.log(`  ✅ Created continuation period for budget ${budget.name}`);
     } catch (err) {
-      console.error('  ❌ Error continuing budget:', err)
-      throw err
+      console.error("  ❌ Error continuing budget:", err);
+      throw err;
     }
   }
 
   async transitionToUpcomingBudget(currentBudget, upcomingBudget) {
     try {
       // Deactivate current budget and activate upcoming budget
-      await databaseService.updateBudget(currentBudget.id, { 
-        is_active: false 
-      })
-      
-      await databaseService.updateBudget(upcomingBudget.id, { 
-        is_active: true, 
-        is_upcoming: false 
-      })
-      
+      await databaseService.updateBudget(currentBudget.id, {
+        is_active: false,
+      });
+
+      await databaseService.updateBudget(upcomingBudget.id, {
+        is_active: true,
+        is_upcoming: false,
+      });
+
       // Create first period for the new active budget
-      const periods = generateBudgetPeriods(upcomingBudget, new Date(), 1)
-      const newPeriod = periods[0]
-      
-      await databaseService.createBudgetPeriod(newPeriod)
-      
-      console.log(`  ✅ Transitioned from ${currentBudget.name} to ${upcomingBudget.name}`)
+      const periods = generateBudgetPeriods(upcomingBudget, new Date(), 1);
+      const newPeriod = periods[0];
+
+      await databaseService.createBudgetPeriod(newPeriod);
+
+      console.log(
+        `  ✅ Transitioned from ${currentBudget.name} to ${upcomingBudget.name}`
+      );
     } catch (err) {
-      console.error('  ❌ Error transitioning to upcoming budget:', err)
-      throw err
+      console.error("  ❌ Error transitioning to upcoming budget:", err);
+      throw err;
     }
   }
 
   async autoContinueBudgets() {
     try {
       // Find active budgets that have no upcoming periods (including those in vacation mode)
-      const activeBudget = await databaseService.getActiveBudget()
+      const activeBudget = await databaseService.getActiveBudget();
       if (!activeBudget) {
-        return
+        return;
       }
 
       // Check if active budget has any upcoming or active periods
-      const periods = await databaseService.getBudgetPeriods(activeBudget.id)
-      const hasActivePeriod = periods.some(p => p.status === 'active')
-      const hasUpcomingPeriod = periods.some(p => p.status === 'upcoming')
+      const periods = await databaseService.getBudgetPeriods(activeBudget.id);
+      const hasActivePeriod = periods.some((p) => p.status === "active");
+      const hasUpcomingPeriod = periods.some((p) => p.status === "upcoming");
 
       if (!hasActivePeriod && !hasUpcomingPeriod) {
         if (activeBudget.vacation_mode) {
-          console.log(`  🏖️ Auto-continuing budget in vacation mode ${activeBudget.name} - no active/upcoming periods`)
+          console.log(
+            `  🏖️ Auto-continuing budget in vacation mode ${activeBudget.name} - no active/upcoming periods`
+          );
         } else {
-          console.log(`  🔄 Auto-continuing budget ${activeBudget.name} - no active/upcoming periods`)
+          console.log(
+            `  🔄 Auto-continuing budget ${activeBudget.name} - no active/upcoming periods`
+          );
         }
-        
+
         // Create a new period starting now
-        const newPeriods = generateBudgetPeriods(activeBudget, new Date(), 1)
-        const newPeriod = newPeriods[0]
-        
-        await databaseService.createBudgetPeriod(newPeriod)
-        logger.log('info', `  ✅ Created auto-continuation period for ${activeBudget.name}`)
+        const newPeriods = generateBudgetPeriods(activeBudget, new Date(), 1);
+        const newPeriod = newPeriods[0];
+
+        await databaseService.createBudgetPeriod(newPeriod);
+        logger.log(
+          "info",
+          `  ✅ Created auto-continuation period for ${activeBudget.name}`
+        );
       }
     } catch (err) {
-      logger.log('error', '  ❌ Error auto-continuing budgets', { error: err.message })
+      logger.log("error", "  ❌ Error auto-continuing budgets", {
+        error: err.message,
+      });
     }
   }
 
   async associateOrphanExpenses() {
     try {
       // Find expenses that don't have a budget_period_id
-      const orphanExpenses = await databaseService.getOrphanExpenses()
-      
+      const orphanExpenses = await databaseService.getOrphanExpenses();
+
       if (orphanExpenses.length === 0) {
-        return
+        return;
       }
 
-      logger.log('info', `  🔗 Found ${orphanExpenses.length} orphan expenses to associate`)
-      
+      logger.log(
+        "info",
+        `  🔗 Found ${orphanExpenses.length} orphan expenses to associate`
+      );
+
       // Get all periods to match against
-      const allPeriods = await databaseService.getBudgetPeriods()
-      
-      let associatedCount = 0
+      const allPeriods = await databaseService.getBudgetPeriods();
+
+      let associatedCount = 0;
       for (const expense of orphanExpenses) {
-        const matchingPeriod = await databaseService.findPeriodForExpense(expense.timestamp)
+        const matchingPeriod = await databaseService.findPeriodForExpense(
+          expense.timestamp
+        );
         if (matchingPeriod) {
           // Get the budget for this period to check vacation mode
-          const budget = await databaseService.getBudgetById(matchingPeriod.budget_id)
+          const budget = await databaseService.getBudgetById(
+            matchingPeriod.budget_id
+          );
           if (budget && budget.vacation_mode) {
             // Skip association during vacation mode
-            continue
+            continue;
           }
-          
+
           // Associate the expense with the period
-          await databaseService.associateExpenseWithPeriod(expense.id, matchingPeriod.id)
-          associatedCount++
+          await databaseService.associateExpenseWithPeriod(
+            expense.id,
+            matchingPeriod.id
+          );
+          associatedCount++;
         }
       }
-      
+
       if (associatedCount > 0) {
-        logger.log('info', `  ✅ Associated ${associatedCount} orphan expenses with periods`)
+        logger.log(
+          "info",
+          `  ✅ Associated ${associatedCount} orphan expenses with periods`
+        );
       }
     } catch (err) {
-      logger.log('error', '  ❌ Error associating orphan expenses', { error: err.message })
+      logger.log("error", "  ❌ Error associating orphan expenses", {
+        error: err.message,
+      });
     }
   }
 
   // Manual trigger methods for testing/debugging
   async triggerPeriodUpdate() {
-    logger.log('info', '🔧 Manual trigger: Updating period statuses')
-    await this.updatePeriodStatuses()
+    logger.log("info", "🔧 Manual trigger: Updating period statuses");
+    await this.updatePeriodStatuses();
   }
 
   async triggerAutoContinue() {
-    logger.log('info', '🔧 Manual trigger: Auto-continuing budgets')
-    await this.autoContinueBudgets()
+    logger.log("info", "🔧 Manual trigger: Auto-continuing budgets");
+    await this.autoContinueBudgets();
   }
 
   async triggerOrphanAssociation() {
-    logger.log('info', '🔧 Manual trigger: Associating orphan expenses')
-    await this.associateOrphanExpenses()
+    logger.log("info", "🔧 Manual trigger: Associating orphan expenses");
+    await this.associateOrphanExpenses();
   }
 }
 
 // Add helper methods to database service
 if (!databaseService.getOrphanExpenses) {
-  databaseService.getOrphanExpenses = function() {
+  databaseService.getOrphanExpenses = function () {
     try {
       const stmt = this.db.prepare(`
         SELECT * FROM expenses 
         WHERE budget_period_id IS NULL 
         ORDER BY timestamp DESC
-      `)
-      const expenses = stmt.all()
-      return Promise.resolve(expenses)
+      `);
+      const expenses = stmt.all();
+      return Promise.resolve(expenses);
     } catch (err) {
-      console.error('Database: Error fetching orphan expenses:', err)
-      return Promise.reject(err)
+      console.error("Database: Error fetching orphan expenses:", err);
+      return Promise.reject(err);
     }
-  }
+  };
 }
 
 if (!databaseService.associateExpenseWithPeriod) {
-  databaseService.associateExpenseWithPeriod = function(expenseId, periodId) {
+  databaseService.associateExpenseWithPeriod = function (expenseId, periodId) {
     try {
       const stmt = this.db.prepare(`
         UPDATE expenses 
         SET budget_period_id = ? 
         WHERE id = ?
-      `)
-      const result = stmt.run(periodId, expenseId)
-      return Promise.resolve(result.changes > 0)
+      `);
+      const result = stmt.run(periodId, expenseId);
+      return Promise.resolve(result.changes > 0);
     } catch (err) {
-      console.error('Database: Error associating expense with period:', err)
-      return Promise.reject(err)
+      console.error("Database: Error associating expense with period:", err);
+      return Promise.reject(err);
     }
-  }
+  };
 }
 
-export const budgetScheduler = new BudgetScheduler()
-export default budgetScheduler
+export const budgetScheduler = new BudgetScheduler();
+export default budgetScheduler;
