@@ -41,6 +41,8 @@
               undefined 
           }"
           @click="showDayDetails(day.date)"
+          @mouseenter="showHoverPreview(day.date, $event)"
+          @mouseleave="hideHoverPreview"
         >
           <div class="day-header">
             <div class="day-number">{{ day.date.getDate() }}</div>
@@ -88,6 +90,32 @@
           <div class="legend-item">
             <div class="legend-color status-completed"></div>
             <span>Completed</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expense Hover Preview -->
+      <div 
+        v-if="hoverPreview && hoverPreview.expenses.length > 0" 
+        class="expense-preview" 
+        :style="{ left: hoverPreview.position.x + 'px', top: hoverPreview.position.y + 'px' }"
+        @click.stop
+      >
+        <div class="preview-header">
+          <span class="preview-date">{{ hoverPreview.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }}</span>
+          <span class="preview-total">${{ hoverPreview.total.toFixed(2) }}</span>
+        </div>
+        <div class="preview-expenses">
+          <div 
+            v-for="expense in hoverPreview.expenses.slice(0, 3)" 
+            :key="expense.id" 
+            class="preview-expense"
+          >
+            <span class="preview-amount">${{ expense.amount.toFixed(2) }}</span>
+            <span class="preview-location">{{ expense.place_name || 'Unknown' }}</span>
+          </div>
+          <div v-if="hoverPreview.expenses.length > 3" class="preview-more">
+            +{{ hoverPreview.expenses.length - 3 }} more
           </div>
         </div>
       </div>
@@ -198,6 +226,7 @@ const selectedPeriod = ref(null)
 const tooltipPosition = ref(null)
 const selectedDay = ref(null)
 const selectedDayExpenses = ref([])
+const hoverPreview = ref(null)
 const allPeriods = ref([])
 const currentPeriod = ref(null)
 const budgets = ref([])
@@ -315,6 +344,30 @@ function showDayDetails(date) {
 function closeDayDetails() {
   selectedDay.value = null
   selectedDayExpenses.value = []
+}
+
+function showHoverPreview(date, event) {
+  // Only show on desktop (non-touch devices)
+  if (window.matchMedia('(max-width: 768px)').matches) return
+  
+  const dayExpenses = getExpensesForDate(date)
+  if (dayExpenses.length === 0) return
+  
+  const total = getDailyTotal(date)
+  
+  hoverPreview.value = {
+    date,
+    expenses: dayExpenses,
+    total,
+    position: {
+      x: event.pageX + 10,
+      y: event.pageY - 10
+    }
+  }
+}
+
+function hideHoverPreview() {
+  hoverPreview.value = null
 }
 
 function getPeriodTooltip(period) {
@@ -439,11 +492,16 @@ async function loadCalendarData() {
   }
 }
 
-// Close tooltip when clicking outside
+// Close tooltip/preview when clicking outside
 function handleClickOutside(event) {
   if (selectedPeriod.value && !event.target.closest('.period-tooltip') && !event.target.closest('.budget-period')) {
     selectedPeriod.value = null
     tooltipPosition.value = null
+  }
+  
+  // Hide hover preview on any click
+  if (hoverPreview.value) {
+    hoverPreview.value = null
   }
 }
 
@@ -804,6 +862,82 @@ onUnmounted(() => {
 .status-badge.status-completed {
   background: #6c757d;
   color: white;
+}
+
+/* Expense Hover Preview */
+.expense-preview {
+  position: fixed;
+  background: #1e1e1e;
+  border: 2px solid #444;
+  border-radius: 8px;
+  padding: 0;
+  z-index: 999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 250px;
+  min-width: 200px;
+  pointer-events: none;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #444;
+  background: #2a2a2a;
+  border-radius: 6px 6px 0 0;
+}
+
+.preview-date {
+  color: #b0b0b0;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.preview-total {
+  color: #e0e0e0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.preview-expenses {
+  padding: 8px;
+}
+
+.preview-expense {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.preview-expense:not(:last-child) {
+  border-bottom: 1px solid #333;
+}
+
+.preview-amount {
+  color: #ff6347;
+  font-weight: 600;
+  min-width: 50px;
+}
+
+.preview-location {
+  color: #b0b0b0;
+  text-align: right;
+  flex: 1;
+  margin-left: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-more {
+  color: #888;
+  font-size: 11px;
+  text-align: center;
+  padding: 4px 0 2px 0;
+  font-style: italic;
 }
 
 /* Day Expenses Modal */
