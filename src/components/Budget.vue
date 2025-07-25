@@ -100,8 +100,41 @@ async function loadBudgetData(showLoading = true) {
     budgets.value = budgetsData
     currentPeriod.value = currentPeriodData
     
-    // Store all periods for calendar view
-    allPeriods.value = allPeriodsData
+    // Generate virtual upcoming periods for upcoming budgets that don't have actual periods yet
+    const upcomingBudget = budgetsData.find(b => b.is_upcoming)
+    const virtualUpcomingPeriods = []
+    
+    if (upcomingBudget && currentPeriod.value) {
+      // Calculate when the upcoming budget will start (after current period ends)
+      const currentEndDate = new Date(currentPeriod.value.end_date)
+      const upcomingStartDate = new Date(currentEndDate)
+      upcomingStartDate.setDate(upcomingStartDate.getDate() + 1)
+      
+      const upcomingEndDate = new Date(upcomingStartDate)
+      upcomingEndDate.setDate(upcomingEndDate.getDate() + upcomingBudget.duration_days - 1)
+      
+      // Check if this period doesn't already exist in allPeriodsData
+      const existingUpcoming = allPeriodsData.find(p => 
+        p.budget_id === upcomingBudget.id && p.status === 'upcoming'
+      )
+      
+      if (!existingUpcoming) {
+        virtualUpcomingPeriods.push({
+          id: -upcomingBudget.id, // Use negative ID to avoid conflicts
+          budget_id: upcomingBudget.id,
+          budget_name: upcomingBudget.name,
+          start_date: upcomingStartDate.toISOString().split('T')[0],
+          end_date: upcomingEndDate.toISOString().split('T')[0],
+          target_amount: upcomingBudget.amount,
+          actual_spent: 0,
+          status: 'upcoming' as const,
+          created_at: new Date().toISOString()
+        })
+      }
+    }
+    
+    // Store all periods including virtual upcoming periods for calendar view
+    allPeriods.value = [...allPeriodsData, ...virtualUpcomingPeriods]
     
     // For the manager list view, show only completed periods
     historicalPeriods.value = allPeriodsData.filter(p => p.status === 'completed').slice(0, 10)

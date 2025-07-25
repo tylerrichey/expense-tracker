@@ -191,8 +191,12 @@ const calendarDays = computed(() => {
 
 // Methods
 function getPeriodsForDate(date) {
+  // Since historicalPeriods now contains all periods (including active and upcoming),
+  // we don't need to add currentPeriod separately to avoid duplication
   const allPeriods = [...props.historicalPeriods]
-  if (props.currentPeriod) {
+  
+  // Only add currentPeriod if it's not already in historicalPeriods
+  if (props.currentPeriod && !allPeriods.find(p => p.id === props.currentPeriod.id)) {
     allPeriods.push(props.currentPeriod)
   }
   
