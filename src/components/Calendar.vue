@@ -736,5 +736,9 @@ onUnmounted(() => {
   .legend-items {
     flex-wrap: wrap;
   }
+  
+  .period-label {
+    display: none;
+  }
 }
 </style>
