@@ -283,10 +283,7 @@ function nextMonth() {
 
 function showPeriodDetails(period, event) {
   selectedPeriod.value = period
-  tooltipPosition.value = {
-    x: event.pageX + 10,
-    y: event.pageY - 10
-  }
+  tooltipPosition.value = getSmartTooltipPosition(event, 300, 200) // estimated tooltip size
 }
 
 function showDayDetails(date, event) {
@@ -301,10 +298,7 @@ function showDayDetails(date, event) {
     date,
     expenses: dayExpenses,
     total,
-    position: {
-      x: event.pageX + 10,
-      y: event.pageY - 10
-    }
+    position: getSmartTooltipPosition(event, 250, 150) // estimated preview size
   }
   
   // Close period tooltip if open
@@ -325,15 +319,45 @@ function showHoverPreview(date, event) {
     date,
     expenses: dayExpenses,
     total,
-    position: {
-      x: event.pageX + 10,
-      y: event.pageY - 10
-    }
+    position: getSmartTooltipPosition(event, 250, 150) // estimated preview size
   }
 }
 
 function hideHoverPreview() {
   hoverPreview.value = null
+}
+
+function getSmartTooltipPosition(event, tooltipWidth = 250, tooltipHeight = 150) {
+  const margin = 10
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const scrollX = window.pageXOffset || document.documentElement.scrollLeft
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop
+  
+  let x = event.pageX + margin
+  let y = event.pageY - margin
+  
+  // Check right edge - if tooltip would overflow, position to the left of cursor
+  if (event.clientX + tooltipWidth + margin > viewportWidth) {
+    x = event.pageX - tooltipWidth - margin
+  }
+  
+  // Check bottom edge - if tooltip would overflow, position above cursor
+  if (event.clientY + tooltipHeight + margin > viewportHeight) {
+    y = event.pageY - tooltipHeight - margin
+  }
+  
+  // Ensure tooltip doesn't go off the left edge
+  if (x < scrollX + margin) {
+    x = scrollX + margin
+  }
+  
+  // Ensure tooltip doesn't go off the top edge
+  if (y < scrollY + margin) {
+    y = scrollY + margin
+  }
+  
+  return { x, y }
 }
 
 function getPeriodTooltip(period) {
