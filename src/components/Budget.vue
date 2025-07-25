@@ -18,6 +18,7 @@
         :budgets="budgets"
         :current-period="currentPeriod"
         :historical-periods="historicalPeriods"
+        :all-periods="allPeriods"
         :loading="loading"
         :auto-show-create-form="autoShowCreateForm"
         @create-budget="handleCreateBudget"
@@ -56,6 +57,7 @@ const currentView = ref<'dashboard' | 'manage'>('dashboard')
 const budgets = ref<Budget[]>([])
 const currentPeriod = ref<BudgetPeriod | null>(null)
 const historicalPeriods = ref<BudgetPeriod[]>([])
+const allPeriods = ref<BudgetPeriod[]>([])
 const loading = ref(false)
 const error = ref('')
 const autoShowCreateForm = ref(false)
@@ -89,15 +91,20 @@ async function loadBudgetData(showLoading = true) {
   }
   
   try {
-    const [budgetsData, currentPeriodData, historyData] = await Promise.all([
+    const [budgetsData, currentPeriodData, allPeriodsData] = await Promise.all([
       budgetService.getAllBudgets(),
       budgetService.getCurrentBudgetPeriod().catch(() => null),
-      budgetService.getBudgetHistory(10).catch(() => [])
+      budgetService.getBudgetPeriods().catch(() => [])
     ])
     
     budgets.value = budgetsData
     currentPeriod.value = currentPeriodData
-    historicalPeriods.value = historyData
+    
+    // Store all periods for calendar view
+    allPeriods.value = allPeriodsData
+    
+    // For the manager list view, show only completed periods
+    historicalPeriods.value = allPeriodsData.filter(p => p.status === 'completed').slice(0, 10)
     
     // If there are budgets but no active budget, show management view
     const hasActiveBudget = budgetsData.find(b => b.is_active)

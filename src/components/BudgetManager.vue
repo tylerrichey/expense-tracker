@@ -7,6 +7,24 @@
       </button>
     </div>
 
+    <!-- View Toggle Tabs -->
+    <div class="view-tabs">
+      <button 
+        @click="currentView = 'list'" 
+        class="tab-btn"
+        :class="{ active: currentView === 'list' }"
+      >
+        📋 List View
+      </button>
+      <button 
+        @click="currentView = 'calendar'" 
+        class="tab-btn"
+        :class="{ active: currentView === 'calendar' }"
+      >
+        📅 Calendar View
+      </button>
+    </div>
+
     <!-- Create/Edit Form Modal -->
     <div v-if="showCreateForm || editingBudget" class="modal-overlay" @click="closeModal">
       <div class="modal-content" @click.stop>
@@ -19,8 +37,8 @@
       </div>
     </div>
 
-    <!-- Budget List -->
-    <div class="budgets-section">
+    <!-- List View -->
+    <div v-if="currentView === 'list'" class="budgets-section">
       <!-- Active Budget -->
       <div v-if="activeBudget" class="budget-group">
         <h3 class="group-title">Active Budget</h3>
@@ -179,6 +197,14 @@
       </div>
     </div>
 
+    <!-- Calendar View -->
+    <div v-if="currentView === 'calendar'" class="calendar-section">
+      <BudgetCalendar 
+        :historical-periods="allPeriods"
+        :current-period="currentPeriod"
+      />
+    </div>
+
     <!-- Loading State -->
     <div v-if="loading" class="loading">
       <div class="loading-spinner"></div>
@@ -190,6 +216,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import BudgetForm from './BudgetForm.vue'
+import BudgetCalendar from './BudgetCalendar.vue'
 
 const props = defineProps({
   budgets: {
@@ -201,6 +228,10 @@ const props = defineProps({
     default: null
   },
   historicalPeriods: {
+    type: Array,
+    default: () => []
+  },
+  allPeriods: {
     type: Array,
     default: () => []
   },
@@ -227,6 +258,7 @@ const emit = defineEmits([
 // Local state
 const showCreateForm = ref(false)
 const editingBudget = ref(null)
+const currentView = ref('list')
 
 // Watch for auto-show prop changes
 watch(() => props.autoShowCreateForm, (shouldShow) => {
@@ -786,5 +818,48 @@ function getUpcomingStartDate() {
     align-self: flex-end;
     text-align: right;
   }
+}
+
+/* View Tabs */
+.view-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: #2a2a2a;
+  border-radius: 8px;
+  border: 1px solid #444;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  color: #b0b0b0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tab-btn:hover {
+  background: #3a3a3a;
+  color: #e0e0e0;
+}
+
+.tab-btn.active {
+  background: #007bff;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.calendar-section {
+  margin-top: 8px;
 }
 </style>
