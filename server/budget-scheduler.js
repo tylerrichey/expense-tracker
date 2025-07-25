@@ -14,11 +14,11 @@ class BudgetScheduler {
 
   start() {
     if (this.isRunning) {
-      console.log('Budget scheduler is already running')
+      logger.log('info', 'Budget scheduler is already running')
       return
     }
 
-    console.log('🕐 Starting budget scheduler...')
+    logger.log('info', '🕐 Starting budget scheduler...')
     this.isRunning = true
     
     // Run immediate check
@@ -35,7 +35,7 @@ class BudgetScheduler {
       return
     }
 
-    console.log('⏹️ Stopping budget scheduler...')
+    logger.log('info', '⏹️ Stopping budget scheduler...')
     this.isRunning = false
     
     if (this.intervalId) {
@@ -46,7 +46,7 @@ class BudgetScheduler {
 
   async performScheduledTasks() {
     try {
-      console.log('🔄 Budget scheduler: Performing scheduled tasks...')
+      logger.log('info', '🔄 Budget scheduler: Performing scheduled tasks...')
       
       // Update all period statuses
       await this.updatePeriodStatuses()
@@ -60,19 +60,19 @@ class BudgetScheduler {
       // Associate unassociated expenses
       await this.associateOrphanExpenses()
       
-      console.log('✅ Budget scheduler: Scheduled tasks completed')
+      logger.log('info', '✅ Budget scheduler: Scheduled tasks completed')
       
     } catch (err) {
-      console.error('❌ Budget scheduler: Error performing scheduled tasks:', err)
+      logger.log('error', 'Budget scheduler: Error performing scheduled tasks', { error: err.message })
     }
   }
 
   async updatePeriodStatuses() {
     try {
       await databaseService.updateAllPeriodStatuses()
-      console.log('  📊 Updated all budget period statuses')
+      logger.log('info', '  📊 Updated all budget period statuses')
     } catch (err) {
-      console.error('  ❌ Error updating period statuses:', err)
+      logger.log('error', '  ❌ Error updating period statuses', { error: err.message })
     }
   }
 
@@ -88,12 +88,12 @@ class BudgetScheduler {
                                Math.abs(now - endDate) < this.checkInterval
         
         if (isJustCompleted) {
-          console.log(`  🏁 Period ${period.id} just completed`)
+          logger.log('info', `  🏁 Period ${period.id} just completed`)
           await this.handlePeriodCompletion(period)
         }
       }
     } catch (err) {
-      console.error('  ❌ Error handling period transitions:', err)
+      logger.log('error', '  ❌ Error handling period transitions', { error: err.message })
     }
   }
 
@@ -102,7 +102,7 @@ class BudgetScheduler {
       // Get the budget for this period
       const budget = await databaseService.getBudgetById(completedPeriod.budget_id)
       if (!budget) {
-        console.log(`  ⚠️ Budget ${completedPeriod.budget_id} not found for completed period`)
+        logger.log('warn', `  ⚠️ Budget ${completedPeriod.budget_id} not found for completed period`)
         return
       }
 
@@ -112,7 +112,7 @@ class BudgetScheduler {
         const upcomingBudget = await databaseService.getUpcomingBudget()
         
         if (upcomingBudget) {
-          console.log(`  🔄 Transitioning to upcoming budget: ${upcomingBudget.name}`)
+          logger.log('info', `  🔄 Transitioning to upcoming budget: ${upcomingBudget.name}`)
           await this.transitionToUpcomingBudget(budget, upcomingBudget)
         } else {
           const periods = await databaseService.getBudgetPeriods(budget.id)
@@ -203,10 +203,10 @@ class BudgetScheduler {
         const newPeriod = newPeriods[0]
         
         await databaseService.createBudgetPeriod(newPeriod)
-        console.log(`  ✅ Created auto-continuation period for ${activeBudget.name}`)
+        logger.log('info', `  ✅ Created auto-continuation period for ${activeBudget.name}`)
       }
     } catch (err) {
-      console.error('  ❌ Error auto-continuing budgets:', err)
+      logger.log('error', '  ❌ Error auto-continuing budgets', { error: err.message })
     }
   }
 
@@ -219,7 +219,7 @@ class BudgetScheduler {
         return
       }
 
-      console.log(`  🔗 Found ${orphanExpenses.length} orphan expenses to associate`)
+      logger.log('info', `  🔗 Found ${orphanExpenses.length} orphan expenses to associate`)
       
       // Get all periods to match against
       const allPeriods = await databaseService.getBudgetPeriods()
@@ -242,26 +242,26 @@ class BudgetScheduler {
       }
       
       if (associatedCount > 0) {
-        console.log(`  ✅ Associated ${associatedCount} orphan expenses with periods`)
+        logger.log('info', `  ✅ Associated ${associatedCount} orphan expenses with periods`)
       }
     } catch (err) {
-      console.error('  ❌ Error associating orphan expenses:', err)
+      logger.log('error', '  ❌ Error associating orphan expenses', { error: err.message })
     }
   }
 
   // Manual trigger methods for testing/debugging
   async triggerPeriodUpdate() {
-    console.log('🔧 Manual trigger: Updating period statuses')
+    logger.log('info', '🔧 Manual trigger: Updating period statuses')
     await this.updatePeriodStatuses()
   }
 
   async triggerAutoContinue() {
-    console.log('🔧 Manual trigger: Auto-continuing budgets')
+    logger.log('info', '🔧 Manual trigger: Auto-continuing budgets')
     await this.autoContinueBudgets()
   }
 
   async triggerOrphanAssociation() {
-    console.log('🔧 Manual trigger: Associating orphan expenses')
+    logger.log('info', '🔧 Manual trigger: Associating orphan expenses')
     await this.associateOrphanExpenses()
   }
 }
