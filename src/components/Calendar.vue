@@ -101,15 +101,12 @@
         </div>
         <div class="preview-expenses">
           <div 
-            v-for="expense in hoverPreview.expenses.slice(0, 3)" 
-            :key="expense.id" 
+            v-for="expense in hoverPreview.expenses" 
+            :key="expense.place_name || 'Unknown'" 
             class="preview-expense"
           >
             <span class="preview-amount">${{ expense.amount.toFixed(2) }}</span>
             <span class="preview-location">{{ expense.place_name || 'Unknown' }}</span>
-          </div>
-          <div v-if="hoverPreview.expenses.length > 3" class="preview-more">
-            +{{ hoverPreview.expenses.length - 3 }} more
           </div>
         </div>
       </div>
@@ -293,10 +290,25 @@ function showDayDetails(date, event) {
   
   const total = getDailyTotal(date)
   
+  // Aggregate expenses by place and sort by amount descending
+  const aggregatedExpenses = new Map()
+  dayExpenses.forEach(expense => {
+    const place = expense.place_name || 'Unknown'
+    if (!aggregatedExpenses.has(place)) {
+      aggregatedExpenses.set(place, 0)
+    }
+    aggregatedExpenses.set(place, aggregatedExpenses.get(place) + expense.amount)
+  })
+  
+  // Convert to array of expense-like objects and sort by amount descending
+  const sortedExpenses = Array.from(aggregatedExpenses.entries())
+    .map(([place, amount]) => ({ place_name: place, amount }))
+    .sort((a, b) => b.amount - a.amount)
+  
   // Use the hover preview for showing day details
   hoverPreview.value = {
     date,
-    expenses: dayExpenses,
+    expenses: sortedExpenses,
     total,
     position: getSmartTooltipPosition(event, 250, 150) // estimated preview size
   }
@@ -315,9 +327,24 @@ function showHoverPreview(date, event) {
   
   const total = getDailyTotal(date)
   
+  // Aggregate expenses by place and sort by amount descending
+  const aggregatedExpenses = new Map()
+  dayExpenses.forEach(expense => {
+    const place = expense.place_name || 'Unknown'
+    if (!aggregatedExpenses.has(place)) {
+      aggregatedExpenses.set(place, 0)
+    }
+    aggregatedExpenses.set(place, aggregatedExpenses.get(place) + expense.amount)
+  })
+  
+  // Convert to array of expense-like objects and sort by amount descending
+  const sortedExpenses = Array.from(aggregatedExpenses.entries())
+    .map(([place, amount]) => ({ place_name: place, amount }))
+    .sort((a, b) => b.amount - a.amount)
+  
   hoverPreview.value = {
     date,
-    expenses: dayExpenses,
+    expenses: sortedExpenses,
     total,
     position: getSmartTooltipPosition(event, 250, 150) // estimated preview size
   }
@@ -929,14 +956,6 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.preview-more {
-  color: #888;
-  font-size: 11px;
-  text-align: center;
-  padding: 4px 0 2px 0;
-  font-style: italic;
 }
 
 /* Day Expenses Modal */

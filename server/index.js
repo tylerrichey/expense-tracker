@@ -107,16 +107,8 @@ app.post("/api/expenses", authenticateRequest, async (req, res) => {
     };
 
     if (process.env.NODE_ENV !== "production") {
-      logger.log(
-        "info",
-        "Server: Received expense data",
-        { data: req.body }
-      );
-      logger.log(
-        "info",
-        "Server: Prepared expense object",
-        { expense }
-      );
+      logger.log("info", "Server: Received expense data", { data: req.body });
+      logger.log("info", "Server: Prepared expense object", { expense });
     }
 
     const savedExpense = await databaseService.addExpense(expense);
@@ -170,11 +162,17 @@ app.post(
       );
 
       if (!success) {
-        logger.log("error", `Image upload failed: Expense ${expenseId} not found`);
+        logger.log(
+          "error",
+          `Image upload failed: Expense ${expenseId} not found`
+        );
         return res.status(404).json({ error: "Expense not found" });
       }
 
-      logger.log("info", `✅ Image uploaded successfully for expense ${expenseId}`);
+      logger.log(
+        "info",
+        `✅ Image uploaded successfully for expense ${expenseId}`
+      );
       res.json({ message: "Image uploaded successfully" });
     } catch (error) {
       logger.log("error", "Error uploading image:", { error: error.message });
@@ -243,7 +241,9 @@ app.get("/api/expenses/:id/image", authenticateRequest, async (req, res) => {
 
     res.send(imageBuffer);
   } catch (error) {
-    logger.log("error", "Error retrieving expense image:", { error: error.message });
+    logger.log("error", "Error retrieving expense image:", {
+      error: error.message,
+    });
     res.status(500).json({ error: "Failed to retrieve image" });
   }
 });
@@ -264,7 +264,9 @@ app.get("/api/expenses/recent", authenticateRequest, async (req, res) => {
     const expenses = await databaseService.getRecentExpenses(days);
     res.json(expenses);
   } catch (error) {
-    logger.log("error", "Error fetching recent expenses:", { error: error.message });
+    logger.log("error", "Error fetching recent expenses:", {
+      error: error.message,
+    });
     res.status(500).json({ error: "Failed to fetch recent expenses" });
   }
 });
@@ -303,12 +305,14 @@ app.get("/api/places/nearby", authenticateRequest, async (req, res) => {
     const places = await placesService.searchNearbyPlaces(
       latitude,
       longitude,
-      radius ? parseInt(radius) : 500
+      radius ? parseInt(radius) : 200
     );
 
     res.json(places);
   } catch (error) {
-    logger.log("error", "Error fetching nearby places:", { error: error.message });
+    logger.log("error", "Error fetching nearby places:", {
+      error: error.message,
+    });
     res
       .status(500)
       .json({ error: error.message || "Failed to fetch nearby places" });
@@ -331,7 +335,9 @@ app.get(
       const summary = await databaseService.getExpenseSummary(days);
       res.json(summary);
     } catch (error) {
-      logger.log("error", "Error fetching expense summary:", { error: error.message });
+      logger.log("error", "Error fetching expense summary:", {
+        error: error.message,
+      });
       res.status(500).json({ error: "Failed to fetch expense summary" });
     }
   }
@@ -345,7 +351,9 @@ app.get(
       const summary = await databaseService.getCurrentMonthSummary();
       res.json(summary);
     } catch (error) {
-      logger.log("error", "Error fetching current month summary:", { error: error.message });
+      logger.log("error", "Error fetching current month summary:", {
+        error: error.message,
+      });
       res.status(500).json({ error: "Failed to fetch current month summary" });
     }
   }
@@ -386,7 +394,9 @@ app.get("/api/backup/download", authenticateRequest, (req, res) => {
     readStream.pipe(res);
 
     readStream.on("error", (error) => {
-      logger.log("error", "Error streaming backup file:", { error: error.message });
+      logger.log("error", "Error streaming backup file:", {
+        error: error.message,
+      });
       if (!res.headersSent) {
         res.status(500).json({ error: "Failed to download backup" });
       }
@@ -421,11 +431,9 @@ app.post("/api/budgets", authenticateRequest, async (req, res) => {
     }
 
     if (start_weekday < 0 || start_weekday > 6) {
-      return res
-        .status(400)
-        .json({
-          error: "Start weekday must be between 0 (Sunday) and 6 (Saturday)",
-        });
+      return res.status(400).json({
+        error: "Start weekday must be between 0 (Sunday) and 6 (Saturday)",
+      });
     }
 
     if (duration_days < 7 || duration_days > 28) {
@@ -485,7 +493,15 @@ app.get("/api/budgets/:id", authenticateRequest, async (req, res) => {
 app.put("/api/budgets/:id", authenticateRequest, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { name, amount, start_weekday, duration_days, is_active, is_upcoming, vacation_mode } = req.body;
+    const {
+      name,
+      amount,
+      start_weekday,
+      duration_days,
+      is_active,
+      is_upcoming,
+      vacation_mode,
+    } = req.body;
 
     if (isNaN(id)) {
       return res.status(400).json({ error: "Invalid budget ID" });
@@ -511,14 +527,18 @@ app.put("/api/budgets/:id", authenticateRequest, async (req, res) => {
 
     if (start_weekday !== undefined) {
       if (start_weekday < 0 || start_weekday > 6) {
-        return res.status(400).json({ error: "Start weekday must be between 0-6" });
+        return res
+          .status(400)
+          .json({ error: "Start weekday must be between 0-6" });
       }
       updateData.start_weekday = start_weekday;
     }
 
     if (duration_days !== undefined) {
       if (duration_days <= 0) {
-        return res.status(400).json({ error: "Duration must be greater than 0" });
+        return res
+          .status(400)
+          .json({ error: "Duration must be greater than 0" });
       }
       updateData.duration_days = duration_days;
     }
@@ -649,7 +669,9 @@ app.post(
 
       res.json(budget);
     } catch (error) {
-      logger.log("error", "Error toggling vacation mode:", { error: error.message });
+      logger.log("error", "Error toggling vacation mode:", {
+        error: error.message,
+      });
       res
         .status(500)
         .json({ error: error.message || "Failed to toggle vacation mode" });
@@ -675,7 +697,9 @@ app.get("/api/budget-periods", authenticateRequest, async (req, res) => {
 
     res.json(periods);
   } catch (error) {
-    logger.log("error", "Error fetching budget periods:", { error: error.message });
+    logger.log("error", "Error fetching budget periods:", {
+      error: error.message,
+    });
     res.status(500).json({ error: "Failed to fetch budget periods" });
   }
 });
@@ -696,7 +720,9 @@ app.get(
 
       res.json(period);
     } catch (error) {
-      logger.log("error", "Error fetching current budget period:", { error: error.message });
+      logger.log("error", "Error fetching current budget period:", {
+        error: error.message,
+      });
       res.status(500).json({ error: "Failed to fetch current budget period" });
     }
   }
@@ -719,7 +745,9 @@ app.get("/api/budget-periods/:id", authenticateRequest, async (req, res) => {
 
     res.json(period);
   } catch (error) {
-    logger.log("error", "Error fetching budget period:", { error: error.message });
+    logger.log("error", "Error fetching budget period:", {
+      error: error.message,
+    });
     res.status(500).json({ error: "Failed to fetch budget period" });
   }
 });
@@ -740,7 +768,9 @@ app.get(
 
       res.json(analytics);
     } catch (error) {
-      logger.log("error", "Error fetching current budget analytics:", { error: error.message });
+      logger.log("error", "Error fetching current budget analytics:", {
+        error: error.message,
+      });
       res.status(500).json({ error: "Failed to fetch budget analytics" });
     }
   }
@@ -757,7 +787,9 @@ app.get(
 
       res.json(history);
     } catch (error) {
-      logger.log("error", "Error fetching budget history:", { error: error.message });
+      logger.log("error", "Error fetching budget history:", {
+        error: error.message,
+      });
       res.status(500).json({ error: "Failed to fetch budget history" });
     }
   }
@@ -773,7 +805,9 @@ app.get(
 
       res.json(trends);
     } catch (error) {
-      logger.log("error", "Error fetching budget trends:", { error: error.message });
+      logger.log("error", "Error fetching budget trends:", {
+        error: error.message,
+      });
       res.status(500).json({ error: "Failed to fetch budget trends" });
     }
   }
@@ -788,7 +822,9 @@ app.post(
       await budgetScheduler.performScheduledTasks();
       res.json({ message: "Auto-continuation triggered successfully" });
     } catch (error) {
-      logger.log("error", "Error triggering auto-continuation:", { error: error.message });
+      logger.log("error", "Error triggering auto-continuation:", {
+        error: error.message,
+      });
       res.status(500).json({ error: "Failed to trigger auto-continuation" });
     }
   }
