@@ -64,7 +64,8 @@ describe('Image Upload Tests', () => {
         latitude: expenseData.latitude,
         longitude: expenseData.longitude,
         place_name: expenseData.place_name,
-        place_address: expenseData.place_address
+        place_address: expenseData.place_address,
+        timestamp: expenseData.timestamp
       })
     })
     expect(result).toEqual(mockExpenseResponse)
@@ -115,7 +116,8 @@ describe('Image Upload Tests', () => {
         latitude: expenseData.latitude,
         longitude: expenseData.longitude,
         place_name: expenseData.place_name,
-        place_address: expenseData.place_address
+        place_address: expenseData.place_address,
+        timestamp: expenseData.timestamp
       })
     })
     expect(result).toEqual(mockResponse)
