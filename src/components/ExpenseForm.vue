@@ -4,15 +4,26 @@
     <form @submit.prevent="submitExpense" @keydown.enter="handleFormKeydown">
       <div class="form-group">
         <label for="amount">Amount ($):</label>
-        <input
-          id="amount"
-          v-model.number="amount"
-          type="number"
-          step="0.01"
-          min="0"
-          required
-          placeholder="0.00"
-        />
+        <div class="amount-date-container">
+          <input
+            id="amount"
+            v-model.number="amount"
+            type="number"
+            step="0.01"
+            min="0"
+            required
+            placeholder="0.00"
+            class="amount-input"
+          />
+          <input
+            id="expense-date"
+            v-model="expenseDate"
+            type="date"
+            required
+            class="date-input"
+            @click="handleDateInputClick"
+          />
+        </div>
       </div>
       <div class="form-group">
         <label for="location">Location:</label>
@@ -145,6 +156,7 @@ import { getCurrentLocation, getFreshLocation } from '../services/geolocation'
 import { Place } from '../types/expense'
 
 const amount = ref<number>(0)
+const expenseDate = ref(new Date().toISOString().split('T')[0])
 const isSubmitting = ref(false)
 const message = ref('')
 const messageType = ref<'success' | 'error'>('success')
@@ -371,7 +383,7 @@ async function submitExpense() {
       place_name: showManualInput.value ? manualPlaceName.value.trim() : 
                   (typeof selectedPlace.value === 'object' ? selectedPlace.value.name : undefined),
       place_address: typeof selectedPlace.value === 'object' ? selectedPlace.value.address : undefined,
-      timestamp: new Date()
+      timestamp: new Date(expenseDate.value + 'T12:00:00')
     }
     
     if (import.meta.env.DEV) {
@@ -397,6 +409,7 @@ async function submitExpense() {
     const message = receiptImage.value ? 'Expense and receipt image added successfully!' : 'Expense added successfully!'
     showMessage(message, 'success')
     amount.value = 0
+    expenseDate.value = new Date().toISOString().split('T')[0]
     
     // Reset location fields based on current mode
     if (showManualInput.value) {
@@ -501,6 +514,20 @@ function selectSuggestion(place: string) {
   selectedSuggestionIndex.value = -1
 }
 
+function handleDateInputClick(event: Event) {
+  const target = event.target as HTMLInputElement
+  try {
+    // Try to trigger the date picker on mobile/modern browsers
+    if (target.showPicker) {
+      target.showPicker()
+    }
+  } catch (error) {
+    // showPicker() might not be supported on all browsers/devices
+    // The browser will handle the date input naturally in this case
+    console.debug('showPicker not supported:', error)
+  }
+}
+
 function handleFormKeydown(event: KeyboardEvent) {
   // Prevent Enter key from submitting the form when not intended
   // especially important for mobile browsers
@@ -546,12 +573,13 @@ label {
   font-size: 14px;
 }
 
-input[type="number"], .location-select, .location-input {
+input[type="number"], input[type="date"], .location-select, .location-input {
   width: 100%;
   padding: 12px;
   border: 1px solid #444;
   border-radius: 4px;
   font-size: 16px;
+  font-family: inherit;
   box-sizing: border-box;
   -webkit-appearance: none;
   -moz-appearance: textfield;
@@ -559,7 +587,43 @@ input[type="number"], .location-select, .location-input {
   color: #e0e0e0;
 }
 
-input[type="number"]:focus, .location-select:focus, .location-input:focus {
+/* Additional styling for date input to ensure consistent appearance */
+input[type="date"] {
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+/* Style the date input's calendar icon */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background-color: #e0e0e0;
+  border-radius: 2px;
+  cursor: pointer;
+  filter: invert(1);
+}
+
+/* Firefox date input styling */
+input[type="date"]::-moz-calendar-picker-indicator {
+  background-color: #e0e0e0;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.amount-date-container {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.amount-input {
+  flex: 2;
+}
+
+.date-input {
+  flex: 1;
+  min-width: 140px;
+}
+
+input[type="number"]:focus, input[type="date"]:focus, .location-select:focus, .location-input:focus {
   outline: none;
   border-color: #007bff;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
@@ -795,9 +859,18 @@ button:active {
     margin-bottom: 15px;
   }
   
-  input[type="number"] {
+  input[type="number"], input[type="date"] {
     padding: 14px;
     font-size: 16px;
+  }
+  
+  .amount-date-container {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .amount-input, .date-input {
+    flex: 1;
   }
   
   button {

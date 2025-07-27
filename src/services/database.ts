@@ -22,6 +22,7 @@ class DatabaseService {
         place_id: expense.place_id,
         place_name: expense.place_name,
         place_address: expense.place_address,
+        timestamp: expense.timestamp,
         // receipt_image handled separately via file upload API
       })
     })

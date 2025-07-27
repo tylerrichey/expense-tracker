@@ -89,7 +89,7 @@ app.post("/api/auth/login", (req, res) => {
 // API Routes (protected)
 app.post("/api/expenses", authenticateRequest, async (req, res) => {
   try {
-    const { amount, latitude, longitude, place_id, place_name, place_address } =
+    const { amount, latitude, longitude, place_id, place_name, place_address, timestamp } =
       req.body;
 
     if (!amount || amount <= 0) {
@@ -103,7 +103,7 @@ app.post("/api/expenses", authenticateRequest, async (req, res) => {
       place_id: place_id || null,
       place_name: place_name || null,
       place_address: place_address || null,
-      timestamp: new Date().toISOString(),
+      timestamp: timestamp ? new Date(timestamp).toISOString() : new Date().toISOString(),
     };
 
     if (process.env.NODE_ENV !== "production") {
