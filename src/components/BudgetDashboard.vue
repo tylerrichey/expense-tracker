@@ -261,7 +261,7 @@ function formatAmount(amount) {
 
 function formatDate(dateString) {
   if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString + 'T00:00:00').toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric'
   })

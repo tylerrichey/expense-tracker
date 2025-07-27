@@ -228,20 +228,16 @@ const calendarDays = computed(() => {
       isToday,
       budgetPeriods,
       isPeriodStart: (period) => {
-        const periodStart = new Date(period.start_date)
-        periodStart.setHours(0, 0, 0, 0)
+        const periodStart = new Date(period.start_date + 'T00:00:00')
         return date.getTime() === periodStart.getTime()
       },
       isPeriodEnd: (period) => {
-        const periodEnd = new Date(period.end_date)
-        periodEnd.setHours(0, 0, 0, 0)
+        const periodEnd = new Date(period.end_date + 'T00:00:00')
         return date.getTime() === periodEnd.getTime()
       },
       isPeriodMiddle: (period) => {
-        const periodStart = new Date(period.start_date)
-        const periodEnd = new Date(period.end_date)
-        periodStart.setHours(0, 0, 0, 0)
-        periodEnd.setHours(0, 0, 0, 0)
+        const periodStart = new Date(period.start_date + 'T00:00:00')
+        const periodEnd = new Date(period.end_date + 'T00:00:00')
         return date.getTime() > periodStart.getTime() && date.getTime() < periodEnd.getTime()
       }
     })
@@ -260,10 +256,8 @@ function getPeriodsForDate(date) {
   }
   
   return periods.filter(period => {
-    const periodStart = new Date(period.start_date)
-    const periodEnd = new Date(period.end_date)
-    periodStart.setHours(0, 0, 0, 0)
-    periodEnd.setHours(0, 0, 0, 0)
+    const periodStart = new Date(period.start_date + 'T00:00:00')
+    const periodEnd = new Date(period.end_date + 'T00:00:00')
     date.setHours(0, 0, 0, 0)
     
     return date.getTime() >= periodStart.getTime() && date.getTime() <= periodEnd.getTime()

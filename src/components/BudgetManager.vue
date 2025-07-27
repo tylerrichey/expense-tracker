@@ -274,7 +274,7 @@ function formatAmount(amount) {
 
 function formatDate(dateString) {
   if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString + 'T00:00:00').toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric'
   })
@@ -372,7 +372,7 @@ function getUpcomingStartDate() {
   
   // If there's an active budget with current period, start after it ends
   if (activeBudget.value && props.currentPeriod) {
-    const endDate = new Date(props.currentPeriod.end_date)
+    const endDate = new Date(props.currentPeriod.end_date + 'T00:00:00')
     endDate.setDate(endDate.getDate() + 1) // Day after current period ends
     return endDate.toLocaleDateString('en-US', { 
       month: 'short', 
