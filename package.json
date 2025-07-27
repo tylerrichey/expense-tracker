@@ -14,17 +14,22 @@
     "start": "node server/index.js",
     "generate-test-data": "node scripts/generate-test-data.js",
     "generate-build-info": "node scripts/generate-build-info.js",
+    "tesseract": "node scripts/tesseract-test.js",
+    "google-docai": "node scripts/google-docai-test.js",
     "test": "npm run typecheck && vitest run",
     "test:watch": "vitest",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@google-cloud/documentai": "^8.4.0",
     "axios": "^1.6.8",
     "better-sqlite3": "^9.4.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^4.19.2",
     "multer": "^2.0.2",
+    "node-fetch": "^3.3.2",
+    "tesseract.js": "^5.0.4",
     "vue": "^3.4.21"
   },
   "devDependencies": {
