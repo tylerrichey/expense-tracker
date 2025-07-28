@@ -31,10 +31,12 @@ export function setDatabaseInstance(db) {
  */
 function getTimezone() {
   if (!databaseInstance) {
-    console.warn('Database instance not set, using UTC timezone')
+    console.warn('🔍 EXPENSE DEBUG: Database instance not set, using UTC timezone')
     return 'UTC'
   }
-  return getCurrentTimezone(databaseInstance)
+  const timezone = getCurrentTimezone(databaseInstance)
+  console.log('🔍 EXPENSE DEBUG: Got timezone from database:', timezone)
+  return timezone
 }
 
 /**
@@ -138,6 +140,13 @@ export function generateBudgetPeriods(budget, fromDate = new Date(), periodCount
 export function isDateInPeriod(date, period) {
   const timezone = getTimezone()
   
+  console.log('🔍 EXPENSE DEBUG: isDateInPeriod called:', {
+    date: date.toISOString(),
+    periodStart: period.start_date,
+    periodEnd: period.end_date,
+    timezone: timezone
+  })
+  
   // For UTC timezone, use original logic for backward compatibility
   if (timezone === 'UTC') {
     const checkDate = new Date(date)
@@ -149,10 +158,21 @@ export function isDateInPeriod(date, period) {
     startDate.setUTCHours(0, 0, 0, 0)
     endDate.setUTCHours(23, 59, 59, 999)
     
-    return checkDate >= startDate && checkDate <= endDate
+    const result = checkDate >= startDate && checkDate <= endDate
+    
+    console.log('🔍 EXPENSE DEBUG: UTC date comparison:', {
+      checkDate: checkDate.toISOString(),
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      result: result
+    })
+    
+    return result
   }
   
-  return isDateInPeriodTimezoneAware(date, period, timezone)
+  const result = isDateInPeriodTimezoneAware(date, period, timezone)
+  console.log('🔍 EXPENSE DEBUG: Timezone-aware result:', result)
+  return result
 }
 
 /**

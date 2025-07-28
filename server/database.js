@@ -152,48 +152,73 @@ class DatabaseService {
 
   async addExpense(expense) {
     try {
-      if (process.env.NODE_ENV !== 'production') {
-        logger.log('info', 'Database: Adding expense with data:', { expense })
-      }
+      // Always log expense addition for debugging
+      logger.log('info', '🔍 EXPENSE DEBUG: Adding expense with data:', { 
+        amount: expense.amount, 
+        timestamp: expense.timestamp, 
+        place_name: expense.place_name 
+      })
       
       // Find the correct budget period based on expense timestamp
       let budgetPeriodId = null
       try {
+        // First, get all available periods for debugging
+        const allPeriods = await this.getBudgetPeriods()
+        logger.log('info', '🔍 EXPENSE DEBUG: Available budget periods:', 
+          allPeriods.map(p => ({
+            id: p.id,
+            start_date: p.start_date,
+            end_date: p.end_date,
+            status: p.status,
+            budget_name: p.budget_name
+          }))
+        )
+        
         const matchingPeriod = await this.findPeriodForExpense(expense.timestamp)
+        logger.log('info', '🔍 EXPENSE DEBUG: findPeriodForExpense result:', matchingPeriod ? {
+          id: matchingPeriod.id,
+          start_date: matchingPeriod.start_date,
+          end_date: matchingPeriod.end_date,
+          status: matchingPeriod.status,
+          budget_id: matchingPeriod.budget_id
+        } : 'NO MATCHING PERIOD')
+        
         if (matchingPeriod) {
           // Check if the associated budget is in vacation mode
           const budget = await this.getBudgetById(matchingPeriod.budget_id)
+          logger.log('info', '🔍 EXPENSE DEBUG: Associated budget:', budget ? {
+            id: budget.id,
+            name: budget.name,
+            vacation_mode: budget.vacation_mode,
+            is_active: budget.is_active
+          } : 'NO BUDGET FOUND')
+          
           if (budget && budget.vacation_mode) {
-            if (process.env.NODE_ENV !== 'production') {
-              logger.log('info', 'Database: Budget is in vacation mode, creating orphan expense')
-            }
+            logger.log('info', '🔍 EXPENSE DEBUG: Budget is in vacation mode, creating orphan expense')
             budgetPeriodId = null // Don't associate with budget period during vacation
           } else {
             budgetPeriodId = matchingPeriod.id
-            if (process.env.NODE_ENV !== 'production') {
-              logger.log('info', 'Database: Associating expense with budget period based on date:', { 
-                budgetPeriodId, 
-                expenseDate: expense.timestamp,
-                periodStart: matchingPeriod.start_date,
-                periodEnd: matchingPeriod.end_date 
-              })
-            }
-          }
-        } else {
-          if (process.env.NODE_ENV !== 'production') {
-            logger.log('info', 'Database: No matching budget period found for expense date, creating orphan expense:', { 
-              expenseDate: expense.timestamp 
+            logger.log('info', '🔍 EXPENSE DEBUG: Associating expense with budget period:', { 
+              budgetPeriodId, 
+              expenseDate: expense.timestamp,
+              periodStart: matchingPeriod.start_date,
+              periodEnd: matchingPeriod.end_date,
+              periodStatus: matchingPeriod.status
             })
           }
+        } else {
+          logger.log('info', '🔍 EXPENSE DEBUG: No matching budget period found for expense date:', { 
+            expenseDate: expense.timestamp,
+            expenseDateParsed: new Date(expense.timestamp).toISOString()
+          })
         }
       } catch (err) {
         // If no matching period exists, expense will be created as orphan
-        if (process.env.NODE_ENV !== 'production') {
-          logger.log('info', 'Database: Error finding budget period for expense date, creating orphan expense:', { 
-            error: err.message,
-            expenseDate: expense.timestamp 
-          })
-        }
+        logger.log('error', '🔍 EXPENSE DEBUG: Error finding budget period for expense date:', { 
+          error: err.message,
+          expenseDate: expense.timestamp,
+          stack: err.stack
+        })
       }
       
       const stmt = this.db.prepare(`
@@ -212,9 +237,14 @@ class DatabaseService {
         budgetPeriodId
       )
       
-      if (process.env.NODE_ENV !== 'production') {
-        logger.log('info', 'Database: Expense saved with ID:', { id: result.lastInsertRowid })
-      }
+      // Always log the final result for debugging
+      logger.log('info', '🔍 EXPENSE DEBUG: Expense saved successfully:', { 
+        expenseId: result.lastInsertRowid,
+        assignedToBudgetPeriodId: budgetPeriodId,
+        timestamp: expense.timestamp,
+        amount: expense.amount
+      })
+      
       return Promise.resolve({ id: result.lastInsertRowid, ...expense })
     } catch (err) {
       logger.log('error', 'Database: Error adding expense:', { error: err.message })
@@ -816,8 +846,37 @@ class DatabaseService {
       const periods = await this.getBudgetPeriods()
       const targetDate = new Date(expenseDate)
       
+      logger.log('info', '🔍 EXPENSE DEBUG: findPeriodForExpense called:', {
+        expenseDate,
+        targetDateParsed: targetDate.toISOString(),
+        availablePeriodsCount: periods.length
+      })
+      
+      // Log detailed period checking for debugging
+      periods.forEach(period => {
+        const startDate = new Date(period.start_date + 'T00:00:00Z')
+        const endDate = new Date(period.end_date + 'T23:59:59Z')
+        const inRange = targetDate >= startDate && targetDate <= endDate
+        
+        logger.log('info', '🔍 EXPENSE DEBUG: Checking period:', {
+          periodId: period.id,
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          target: targetDate.toISOString(),
+          inRange: inRange,
+          status: period.status
+        })
+      })
+      
       // Find the period that contains this date
       const matchingPeriod = findPeriodForDate(targetDate, periods)
+      
+      logger.log('info', '🔍 EXPENSE DEBUG: findPeriodForDate returned:', matchingPeriod ? {
+        id: matchingPeriod.id,
+        start_date: matchingPeriod.start_date,
+        end_date: matchingPeriod.end_date,
+        status: matchingPeriod.status
+      } : 'NO MATCH')
       
       return Promise.resolve(matchingPeriod)
     } catch (err) {
