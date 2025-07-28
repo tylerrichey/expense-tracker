@@ -64,11 +64,11 @@ export function setupAdminRoutes(app, authenticateRequest) {
       <h2>SQL Query</h2>
       <div class="query-examples">
         <h4>Example Queries (click to use):</h4>
-        <div class="example-query" onclick="setQuery('SELECT * FROM expenses ORDER BY timestamp DESC LIMIT 10')">Recent 10 expenses</div>
-        <div class="example-query" onclick="setQuery('SELECT * FROM budgets WHERE is_active = 1')">Active budgets</div>
-        <div class="example-query" onclick="setQuery('SELECT * FROM budget_periods ORDER BY start_date DESC LIMIT 5')">Recent budget periods</div>
-        <div class="example-query" onclick="setQuery('SELECT COUNT(*) as expense_count, SUM(amount) as total_amount FROM expenses')">Expense summary</div>
-        <div class="example-query" onclick="setQuery('SELECT name as table_name, sql FROM sqlite_master WHERE type=&quot;table&quot;')">Show table schemas</div>
+        <div class="example-query" onclick="loadRecentExpenses()">Recent 10 expenses</div>
+        <div class="example-query" onclick="loadActiveBudgets()">Active budgets</div>
+        <div class="example-query" onclick="loadRecentBudgetPeriods()">Recent budget periods</div>
+        <div class="example-query" onclick="loadExpenseSummary()">Expense summary</div>
+        <div class="example-query" onclick="loadTableSchemas()">Show table schemas</div>
       </div>
       <textarea id="query" placeholder="Enter your SQL query here..."></textarea>
       <div>
@@ -168,8 +168,8 @@ export function setupAdminRoutes(app, authenticateRequest) {
         const tables = await response.json();
         
         let html = '<div class="tables-list">';
-        tables.forEach(table => {
-          html += '<div class="table-card" onclick="loadTableData(&quot;' + table.name + '&quot;)">' +
+        tables.forEach((table, index) => {
+          html += '<div class="table-card" onclick="loadTable(' + index + ')">' +
             '<strong>' + table.name + '</strong>' +
             '<div style="font-size: 0.9em; color: #666; margin-top: 5px;">' +
             'Click to view data' +
@@ -178,19 +178,46 @@ export function setupAdminRoutes(app, authenticateRequest) {
         });
         html += '</div>';
         
+        // Store tables globally for the click handlers
+        window.adminTables = tables;
+        
         document.getElementById('tables-container').innerHTML = html;
       } catch (error) {
         showError('Error loading tables: ' + error.message);
       }
     }
     
-    async function loadTableData(tableName) {
-      setQuery('SELECT * FROM ' + tableName + ' LIMIT 100');
-      executeQuery();
+    function loadTable(index) {
+      if (window.adminTables && window.adminTables[index]) {
+        const tableName = window.adminTables[index].name;
+        setQuery('SELECT * FROM ' + tableName + ' LIMIT 100');
+        executeQuery();
+      }
     }
     
     function setQuery(query) {
       document.getElementById('query').value = query;
+    }
+    
+    // Example query functions
+    function loadRecentExpenses() {
+      setQuery('SELECT * FROM expenses ORDER BY timestamp DESC LIMIT 10');
+    }
+    
+    function loadActiveBudgets() {
+      setQuery('SELECT * FROM budgets WHERE is_active = 1');
+    }
+    
+    function loadRecentBudgetPeriods() {
+      setQuery('SELECT * FROM budget_periods ORDER BY start_date DESC LIMIT 5');
+    }
+    
+    function loadExpenseSummary() {
+      setQuery('SELECT COUNT(*) as expense_count, SUM(amount) as total_amount FROM expenses');
+    }
+    
+    function loadTableSchemas() {
+      setQuery('SELECT name as table_name, sql FROM sqlite_master WHERE type = "table"');
     }
     
     function clearQuery() {
