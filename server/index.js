@@ -9,6 +9,7 @@ import { databaseService } from "./database.js";
 import { placesService } from "./places.js";
 import { budgetScheduler } from "./budget-scheduler.js";
 import { logger } from "./logger.js";
+import { getCommonTimezones, isValidTimezone } from "./timezone-utils.js";
 
 // Set NODE_ENV to development if not set (for dev server)
 if (!process.env.NODE_ENV) {
@@ -829,6 +830,66 @@ app.post(
     }
   }
 );
+
+// Settings endpoints
+app.get("/api/settings", authenticateRequest, async (req, res) => {
+  try {
+    const settings = await databaseService.getAllSettings();
+    res.json(settings);
+  } catch (error) {
+    logger.log("error", "Error fetching settings:", { error: error.message });
+    res.status(500).json({ error: "Failed to fetch settings" });
+  }
+});
+
+app.get("/api/settings/:key", authenticateRequest, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const setting = await databaseService.getSetting(key);
+    
+    if (!setting) {
+      return res.status(404).json({ error: "Setting not found" });
+    }
+    
+    res.json(setting);
+  } catch (error) {
+    logger.log("error", "Error fetching setting:", { error: error.message });
+    res.status(500).json({ error: "Failed to fetch setting" });
+  }
+});
+
+app.put("/api/settings/:key", authenticateRequest, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value } = req.body;
+    
+    if (!value) {
+      return res.status(400).json({ error: "Value is required" });
+    }
+    
+    // Validate timezone setting
+    if (key === 'timezone' && !isValidTimezone(value)) {
+      return res.status(400).json({ error: "Invalid timezone" });
+    }
+    
+    const setting = await databaseService.setSetting(key, value);
+    res.json(setting);
+  } catch (error) {
+    logger.log("error", "Error updating setting:", { error: error.message });
+    res.status(500).json({ error: "Failed to update setting" });
+  }
+});
+
+// Timezone-specific endpoints
+app.get("/api/timezones", authenticateRequest, (req, res) => {
+  try {
+    const timezones = getCommonTimezones();
+    res.json(timezones);
+  } catch (error) {
+    logger.log("error", "Error fetching timezones:", { error: error.message });
+    res.status(500).json({ error: "Failed to fetch timezones" });
+  }
+});
 
 // Health check endpoint for deployment monitoring
 app.get("/api/health", (req, res) => {

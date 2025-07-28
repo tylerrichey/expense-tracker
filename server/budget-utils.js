@@ -2,6 +2,41 @@
  * Budget period generation and management utilities
  */
 
+import { 
+  getCurrentTimezone,
+  createStartOfDayInTimezone,
+  createEndOfDayInTimezone,
+  getCurrentDateInTimezone,
+  isDateInPeriodTimezoneAware,
+  calculateBudgetPeriodEndInTimezone,
+  calculateBudgetPeriodStartInTimezone,
+  updatePeriodStatusesInTimezone,
+  formatDateForDBInTimezone
+} from './timezone-utils.js'
+
+// Database instance - will be injected by the calling code
+let databaseInstance = null
+
+/**
+ * Set the database instance for timezone lookups
+ * @param {Object} db - Database instance
+ */
+export function setDatabaseInstance(db) {
+  databaseInstance = db
+}
+
+/**
+ * Get timezone from database or default to UTC
+ * @returns {string} Current timezone setting
+ */
+function getTimezone() {
+  if (!databaseInstance) {
+    console.warn('Database instance not set, using UTC timezone')
+    return 'UTC'
+  }
+  return getCurrentTimezone(databaseInstance)
+}
+
 /**
  * Calculate the start date for a budget period based on current date and target weekday
  * @param {number} targetWeekday - Target weekday (0=Sunday, 1=Monday, etc.)
@@ -10,25 +45,29 @@
  * @returns {Date} The calculated start date
  */
 export function calculateBudgetPeriodStart(targetWeekday, durationDays, fromDate = new Date()) {
-  const currentDate = new Date(fromDate)
-  const currentWeekday = currentDate.getDay()
+  const timezone = getTimezone()
   
-  // Calculate how many days to go back to reach the target weekday
-  let daysBack = (currentWeekday - targetWeekday + 7) % 7
-  
-  // If we're on the target weekday, check if we should use this week or last week
-  if (daysBack === 0) {
-    // If it's the same day, we need to determine which period we're in
-    // For now, assume we want the current period (this week)
-    // This logic can be refined based on time of day or other factors
-    daysBack = 0
+  // For UTC timezone, use original logic for backward compatibility
+  if (timezone === 'UTC') {
+    const currentDate = new Date(fromDate)
+    const currentWeekday = currentDate.getDay()
+    
+    // Calculate how many days to go back to reach the target weekday
+    let daysBack = (currentWeekday - targetWeekday + 7) % 7
+    
+    // If we're on the target weekday, check if we should use this week or last week
+    if (daysBack === 0) {
+      daysBack = 0
+    }
+    
+    const startDate = new Date(currentDate)
+    startDate.setDate(currentDate.getDate() - daysBack)
+    startDate.setHours(0, 0, 0, 0) // Start of day
+    
+    return startDate
   }
   
-  const startDate = new Date(currentDate)
-  startDate.setDate(currentDate.getDate() - daysBack)
-  startDate.setHours(0, 0, 0, 0) // Start of day
-  
-  return startDate
+  return calculateBudgetPeriodStartInTimezone(targetWeekday, durationDays, fromDate, timezone)
 }
 
 /**
@@ -38,11 +77,17 @@ export function calculateBudgetPeriodStart(targetWeekday, durationDays, fromDate
  * @returns {Date} The calculated end date
  */
 export function calculateBudgetPeriodEnd(startDate, durationDays) {
-  const endDate = new Date(startDate)
-  endDate.setDate(startDate.getDate() + durationDays - 1)
-  // Use UTC methods to avoid timezone conversion issues
-  endDate.setUTCHours(23, 59, 59, 999) // End of day in UTC
-  return endDate
+  const timezone = getTimezone()
+  
+  // For UTC timezone, use original logic for backward compatibility
+  if (timezone === 'UTC') {
+    const endDate = new Date(startDate)
+    endDate.setDate(startDate.getDate() + durationDays - 1)
+    endDate.setUTCHours(23, 59, 59, 999) // End of day in UTC
+    return endDate
+  }
+  
+  return calculateBudgetPeriodEndInTimezone(startDate, durationDays, timezone)
 }
 
 /**
@@ -68,8 +113,8 @@ export function generateBudgetPeriods(budget, fromDate = new Date(), periodCount
     
     const period = {
       budget_id: budget.id,
-      start_date: currentStart.toISOString().split('T')[0], // YYYY-MM-DD format
-      end_date: endDate.toISOString().split('T')[0],
+      start_date: formatDateForDB(currentStart),
+      end_date: formatDateForDB(endDate),
       target_amount: budget.amount,
       status: i === 0 ? 'active' : 'upcoming'
     }
@@ -91,16 +136,23 @@ export function generateBudgetPeriods(budget, fromDate = new Date(), periodCount
  * @returns {boolean} True if date is within the period
  */
 export function isDateInPeriod(date, period) {
-  const checkDate = new Date(date)
-  const startDate = new Date(period.start_date)
-  const endDate = new Date(period.end_date)
+  const timezone = getTimezone()
   
-  // Use UTC methods for consistent timezone handling
-  checkDate.setUTCHours(12, 0, 0, 0) // Noon UTC to avoid timezone issues
-  startDate.setUTCHours(0, 0, 0, 0)
-  endDate.setUTCHours(23, 59, 59, 999)
+  // For UTC timezone, use original logic for backward compatibility
+  if (timezone === 'UTC') {
+    const checkDate = new Date(date)
+    const startDate = new Date(period.start_date)
+    const endDate = new Date(period.end_date)
+    
+    // Use UTC methods for consistent timezone handling
+    checkDate.setUTCHours(12, 0, 0, 0) // Noon UTC to avoid timezone issues
+    startDate.setUTCHours(0, 0, 0, 0)
+    endDate.setUTCHours(23, 59, 59, 999)
+    
+    return checkDate >= startDate && checkDate <= endDate
+  }
   
-  return checkDate >= startDate && checkDate <= endDate
+  return isDateInPeriodTimezoneAware(date, period, timezone)
 }
 
 /**
@@ -120,24 +172,31 @@ export function findPeriodForDate(date, periods) {
  * @returns {Array} Updated periods with correct statuses
  */
 export function updatePeriodStatuses(periods, currentDate = new Date()) {
-  const now = new Date(currentDate)
-  now.setHours(12, 0, 0, 0) // Noon for consistent comparison
+  const timezone = getTimezone()
   
-  return periods.map(period => {
-    const startDate = new Date(period.start_date + 'T00:00:00')
-    const endDate = new Date(period.end_date + 'T23:59:59')
+  // For UTC timezone, use original logic for backward compatibility
+  if (timezone === 'UTC') {
+    const now = new Date(currentDate)
+    now.setHours(12, 0, 0, 0) // Noon for consistent comparison
     
-    let status
-    if (now < startDate) {
-      status = 'upcoming'
-    } else if (now >= startDate && now <= endDate) {
-      status = 'active'
-    } else {
-      status = 'completed'
-    }
-    
-    return { ...period, status }
-  })
+    return periods.map(period => {
+      const startDate = new Date(period.start_date + 'T00:00:00')
+      const endDate = new Date(period.end_date + 'T23:59:59')
+      
+      let status
+      if (now < startDate) {
+        status = 'upcoming'
+      } else if (now >= startDate && now <= endDate) {
+        status = 'active'
+      } else {
+        status = 'completed'
+      }
+      
+      return { ...period, status }
+    })
+  }
+  
+  return updatePeriodStatusesInTimezone(periods, timezone, currentDate)
 }
 
 /**
@@ -180,8 +239,8 @@ export function generateRetroactivePeriod(budget, targetDate = new Date()) {
   
   return {
     budget_id: budget.id,
-    start_date: startDate.toISOString().split('T')[0],
-    end_date: endDate.toISOString().split('T')[0],
+    start_date: formatDateForDB(startDate),
+    end_date: formatDateForDB(endDate),
     target_amount: budget.amount,
     status: status
   }
@@ -206,7 +265,14 @@ export function calculateNextPeriodStart(period, durationDays) {
  * @returns {string} Formatted date string
  */
 export function formatDateForDB(date) {
-  return date.toISOString().split('T')[0]
+  const timezone = getTimezone()
+  
+  // For UTC timezone, use original logic for backward compatibility
+  if (timezone === 'UTC') {
+    return date.toISOString().split('T')[0]
+  }
+  
+  return formatDateForDBInTimezone(date, timezone)
 }
 
 /**

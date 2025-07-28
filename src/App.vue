@@ -26,6 +26,7 @@ import Home from './components/Home.vue'
 import Budget from './components/Budget.vue'
 import Calendar from './components/Calendar.vue'
 import Reports from './components/Reports.vue'
+import SettingsPage from './components/SettingsPage.vue'
 import AppFooter from './components/AppFooter.vue'
 import { AuthService } from './services/auth'
 
@@ -61,6 +62,11 @@ const navItems = computed(() => [
     id: 'reports',
     title: 'Reports',
     component: markRaw(Reports)
+  },
+  {
+    id: 'settings',
+    title: 'Settings',
+    component: markRaw(SettingsPage)
   }
 ])
 

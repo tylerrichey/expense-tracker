@@ -7,8 +7,14 @@ import {
   updatePeriodStatuses,
   calculateNextPeriodStart,
   generateBudgetPeriods,
+  setDatabaseInstance,
 } from "./budget-utils.js";
 import { logger } from "./logger.js";
+import { 
+  getCurrentTimezone,
+  getCurrentDateInTimezone,
+  createEndOfDayInTimezone 
+} from "./timezone-utils.js";
 
 class BudgetScheduler {
   constructor() {
@@ -25,6 +31,9 @@ class BudgetScheduler {
 
     logger.log("info", "🕐 Starting budget scheduler...");
     this.isRunning = true;
+
+    // Set database instance for timezone-aware operations
+    setDatabaseInstance(databaseService.db);
 
     // Run immediate check
     this.performScheduledTasks();
@@ -90,16 +99,17 @@ class BudgetScheduler {
     try {
       // Get periods that just became completed
       const periods = await databaseService.getBudgetPeriods();
-      const now = new Date();
+      const timezone = getCurrentTimezone(databaseService.db);
+      const now = getCurrentDateInTimezone(timezone);
 
       for (const period of periods) {
-        const endDate = new Date(period.end_date + "T23:59:59");
+        const endDate = createEndOfDayInTimezone(period.end_date, timezone);
         const isJustCompleted =
           period.status === "completed" &&
           Math.abs(now - endDate) < this.checkInterval;
 
         if (isJustCompleted) {
-          logger.log("info", `  🏁 Period ${period.id} just completed`);
+          logger.log("info", `  🏁 Period ${period.id} just completed in timezone ${timezone}`);
           await this.handlePeriodCompletion(period);
         }
       }
@@ -194,8 +204,10 @@ class BudgetScheduler {
         is_upcoming: false,
       });
 
-      // Create first period for the new active budget
-      const periods = generateBudgetPeriods(upcomingBudget, new Date(), 1);
+      // Create first period for the new active budget using timezone-aware date
+      const timezone = getCurrentTimezone(databaseService.db);
+      const currentDate = getCurrentDateInTimezone(timezone);
+      const periods = generateBudgetPeriods(upcomingBudget, currentDate, 1);
       const newPeriod = periods[0];
 
       await databaseService.createBudgetPeriod(newPeriod);
@@ -233,8 +245,10 @@ class BudgetScheduler {
           );
         }
 
-        // Create a new period starting now
-        const newPeriods = generateBudgetPeriods(activeBudget, new Date(), 1);
+        // Create a new period starting now using timezone-aware date
+        const timezone = getCurrentTimezone(databaseService.db);
+        const currentDate = getCurrentDateInTimezone(timezone);
+        const newPeriods = generateBudgetPeriods(activeBudget, currentDate, 1);
         const newPeriod = newPeriods[0];
 
         await databaseService.createBudgetPeriod(newPeriod);

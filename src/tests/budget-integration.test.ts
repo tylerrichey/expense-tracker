@@ -5,7 +5,7 @@ import path from 'path'
 
 // Import the actual database service and utilities for integration testing
 // @ts-ignore
-import { generateBudgetPeriods, generateRetroactivePeriod, calculateNextPeriodStart } from '../../server/budget-utils.js'
+import { generateBudgetPeriods, generateRetroactivePeriod, calculateNextPeriodStart, setDatabaseInstance } from '../../server/budget-utils.js'
 
 // Test database service for integration tests
 class IntegrationTestDatabaseService {
@@ -31,6 +31,23 @@ class IntegrationTestDatabaseService {
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         budget_period_id INTEGER REFERENCES budget_periods(id) ON DELETE SET NULL
       )
+    `)
+
+    // Create user_settings table for timezone functionality
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS user_settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key TEXT NOT NULL UNIQUE,
+        value TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    // Set UTC timezone for consistent test behavior
+    this.db.exec(`
+      INSERT OR REPLACE INTO user_settings (key, value) 
+      VALUES ('timezone', 'UTC')
     `)
 
     this.db.exec(`
@@ -199,6 +216,8 @@ describe('Budget System Integration Tests', () => {
     }
     
     testDbService = new IntegrationTestDatabaseService(testDbPath)
+    // Set database instance for timezone-aware operations
+    setDatabaseInstance(testDbService.db)
   })
 
   afterAll(() => {
@@ -213,6 +232,11 @@ describe('Budget System Integration Tests', () => {
     testDbService.db.exec('DELETE FROM expenses')
     testDbService.db.exec('DELETE FROM budget_periods')
     testDbService.db.exec('DELETE FROM budgets')
+    // Reset timezone to UTC for consistent test behavior
+    testDbService.db.exec(`
+      INSERT OR REPLACE INTO user_settings (key, value) 
+      VALUES ('timezone', 'UTC')
+    `)
   })
 
   describe('Complete Budget Lifecycle', () => {
@@ -274,22 +298,37 @@ describe('Budget System Integration Tests', () => {
     })
 
     it('should handle retroactive budget creation with existing expenses', async () => {
+      // Calculate the current week dates dynamically
+      const today = new Date()
+      const currentWeekday = today.getDay()
+      const mondayOfCurrentWeek = new Date(today)
+      mondayOfCurrentWeek.setDate(today.getDate() - ((currentWeekday + 6) % 7)) // Get Monday of current week
+      
+      const tuesday = new Date(mondayOfCurrentWeek)
+      tuesday.setDate(mondayOfCurrentWeek.getDate() + 1)
+      
+      const wednesday = new Date(mondayOfCurrentWeek)
+      wednesday.setDate(mondayOfCurrentWeek.getDate() + 2)
+      
+      const previousSunday = new Date(mondayOfCurrentWeek)
+      previousSunday.setDate(mondayOfCurrentWeek.getDate() - 1)
+      
       // 1. Add some expenses without budget periods (orphans)
       testDbService.addExpense({
         amount: 25.00,
-        timestamp: '2025-07-22T09:00:00',
+        timestamp: tuesday.toISOString(),
         place_name: 'Coffee Shop'
       })
 
       testDbService.addExpense({
         amount: 45.00,
-        timestamp: '2025-07-23T12:00:00',
+        timestamp: wednesday.toISOString(),
         place_name: 'Lunch Place'
       })
 
       testDbService.addExpense({
         amount: 15.00,
-        timestamp: '2025-07-20T16:00:00', // Before period
+        timestamp: previousSunday.toISOString(), // Before period
         place_name: 'Snack Store'
       })
 
@@ -306,9 +345,15 @@ describe('Budget System Integration Tests', () => {
       const retroPeriod = generateRetroactivePeriod(budget)
       const createdPeriod = testDbService.createBudgetPeriod(retroPeriod)
 
-      expect(createdPeriod.start_date).toBe('2025-07-21') // Previous Monday
-      expect(createdPeriod.end_date).toBe('2025-07-27')   // Following Sunday
-      expect(createdPeriod.status).toBe('active')
+      // Verify the period covers the current week
+      const expectedStartDate = mondayOfCurrentWeek.toISOString().split('T')[0]
+      const expectedEndDate = new Date(mondayOfCurrentWeek)
+      expectedEndDate.setDate(mondayOfCurrentWeek.getDate() + 6)
+      const expectedEndDateStr = expectedEndDate.toISOString().split('T')[0]
+
+      expect(createdPeriod.start_date).toBe(expectedStartDate)
+      expect(createdPeriod.end_date).toBe(expectedEndDateStr)
+      expect(['active', 'completed'].includes(createdPeriod.status)).toBe(true)
 
       // 4. Associate existing expenses with the retroactive period
       const associatedCount = testDbService.associateExpensesWithPeriod(

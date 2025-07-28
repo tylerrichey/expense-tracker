@@ -948,6 +948,73 @@ class DatabaseService {
       return []
     }
   }
+
+  // Settings Methods
+  getAllSettings() {
+    try {
+      const stmt = this.db.prepare('SELECT key, value FROM user_settings ORDER BY key')
+      const rows = stmt.all()
+      
+      // Convert to object format
+      const settings = {}
+      rows.forEach(row => {
+        settings[row.key] = row.value
+      })
+      
+      return settings
+    } catch (err) {
+      console.error('Database: Error fetching all settings:', err)
+      throw err
+    }
+  }
+
+  getSetting(key) {
+    try {
+      const stmt = this.db.prepare('SELECT key, value FROM user_settings WHERE key = ?')
+      const row = stmt.get(key)
+      
+      if (!row) {
+        return null
+      }
+      
+      return { key: row.key, value: row.value }
+    } catch (err) {
+      console.error('Database: Error fetching setting:', err)
+      throw err
+    }
+  }
+
+  setSetting(key, value) {
+    try {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO user_settings (key, value, updated_at) 
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+      `)
+      
+      const result = stmt.run(key, value)
+      
+      if (result.changes > 0) {
+        return { key, value }
+      } else {
+        throw new Error('Failed to update setting')
+      }
+    } catch (err) {
+      console.error('Database: Error setting value:', err)
+      throw err
+    }
+  }
+
+  deleteSetting(key) {
+    try {
+      const stmt = this.db.prepare('DELETE FROM user_settings WHERE key = ?')
+      const result = stmt.run(key)
+      
+      return result.changes > 0
+    } catch (err) {
+      console.error('Database: Error deleting setting:', err)
+      throw err
+    }
+  }
 }
 
 export const databaseService = new DatabaseService()
