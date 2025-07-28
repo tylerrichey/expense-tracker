@@ -10,6 +10,7 @@ import { placesService } from "./places.js";
 import { budgetScheduler } from "./budget-scheduler.js";
 import { logger } from "./logger.js";
 import { getCommonTimezones, isValidTimezone } from "./timezone-utils.js";
+import { setupAdminRoutes } from "./admin-routes.js";
 
 // Set NODE_ENV to development if not set (for dev server)
 if (!process.env.NODE_ENV) {
@@ -900,6 +901,9 @@ app.get("/api/health", (req, res) => {
     environment: process.env.NODE_ENV || "development",
   });
 });
+
+// Setup admin routes for database management
+setupAdminRoutes(app);
 
 // Serve the Vue app for all other routes
 app.get("*", (req, res) => {
