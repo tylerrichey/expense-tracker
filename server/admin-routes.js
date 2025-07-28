@@ -82,25 +82,67 @@ export function setupAdminRoutes(app, authenticateRequest) {
   </div>
 
   <script>
-    // Get auth token from localStorage (same as main app)
+    // Session storage for admin token (fallback when localStorage is blocked)
+    let adminToken = null;
+    
+    // Get auth token from localStorage or session variable
     function getAuthToken() {
-      return localStorage.getItem('expense-tracker-token');
+      // First try session variable
+      if (adminToken) return adminToken;
+      
+      // Then try localStorage
+      try {
+        const token = localStorage.getItem('expense-tracker-token');
+        if (token) {
+          adminToken = token; // Cache it
+          return token;
+        }
+      } catch (error) {
+        console.warn('localStorage access blocked:', error);
+      }
+      
+      return null;
     }
     
-    // Check if user is authenticated, redirect if not
-    function checkAuth() {
+    // Prompt user for password and authenticate
+    async function promptForAuthentication() {
+      const password = prompt('Please enter your application password to access the admin panel:');
+      if (!password) return false;
+      
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        
+        const result = await response.json();
+        if (response.ok && result.token) {
+          adminToken = result.token; // Store in session variable
+          return true;
+        } else {
+          alert('Authentication failed: ' + (result.error || 'Invalid password'));
+          return false;
+        }
+      } catch (error) {
+        alert('Authentication error: ' + error.message);
+        return false;
+      }
+    }
+    
+    // Check if user is authenticated, prompt if not
+    async function checkAuth() {
       const token = getAuthToken();
       if (!token) {
-        alert('Please log in to the main application first, then return to the admin panel.');
-        window.location.href = '/';
-        return false;
+        return await promptForAuthentication();
       }
       return true;
     }
     
     // Make authenticated request
     async function makeAuthenticatedRequest(url, options = {}) {
-      if (!checkAuth()) return null;
+      const isAuthenticated = await checkAuth();
+      if (!isAuthenticated) return null;
       
       const token = getAuthToken();
       const headers = {
@@ -254,14 +296,24 @@ export function setupAdminRoutes(app, authenticateRequest) {
     }
     
     function logout() {
-      localStorage.removeItem('expense-tracker-token');
+      // Clear session token
+      adminToken = null;
+      
+      // Try to clear localStorage if accessible
+      try {
+        localStorage.removeItem('expense-tracker-token');
+      } catch (error) {
+        console.warn('Could not clear localStorage:', error);
+      }
+      
       alert('Logged out successfully. Redirecting to main application.');
       window.location.href = '/';
     }
     
     // Check authentication and load tables on page load
-    window.onload = function() {
-      if (checkAuth()) {
+    window.onload = async function() {
+      const isAuthenticated = await checkAuth();
+      if (isAuthenticated) {
         loadTables();
       }
     };
