@@ -1,16 +1,16 @@
 <template>
-  <div class="expense-list">
-    <h3>Recent Expenses (Last 7 Days)</h3>
-    <div v-if="loading" class="loading">Loading expenses...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
-    <div v-else-if="expenses.length === 0" class="no-expenses">
+  <div class="card expense-list">
+    <h3 class="card-title text-center">Recent Expenses (Last 7 Days)</h3>
+    <div v-if="loading" class="text-center text-muted p-xl">Loading expenses...</div>
+    <div v-else-if="error" class="alert alert-error">{{ error }}</div>
+    <div v-else-if="expenses.length === 0" class="text-center text-muted p-xl">
       No expenses recorded in the last 7 days.
     </div>
     <div v-else class="expenses">
       <div 
         v-for="expense in expenses" 
         :key="expense.id" 
-        class="expense-item"
+        class="expense-item card card-compact"
       >
         <div class="expense-content">
           <div class="expense-amount">${{ expense.amount.toFixed(2) }}</div>
@@ -29,7 +29,7 @@
         <div class="expense-actions">
           <button 
             v-if="expense.has_image"
-            class="image-button"
+            class="btn btn-primary btn-sm image-button"
             @click="viewImage(expense.id!)"
             :disabled="loadingImageId === expense.id"
             title="View receipt image"
@@ -37,7 +37,7 @@
             {{ loadingImageId === expense.id ? '...' : '📷' }}
           </button>
           <button 
-            class="delete-button"
+            class="btn btn-danger btn-sm delete-button"
             @click="deleteExpense(expense.id!)"
             :disabled="deletingId === expense.id"
             title="Delete expense"
@@ -50,9 +50,9 @@
   </div>
 
   <!-- Image Modal -->
-  <div v-if="showImageModal" class="image-modal-overlay" @click="closeImageModal">
-    <div class="image-modal" @click.stop>
-      <button class="modal-close-button" @click="closeImageModal" title="Close">×</button>
+  <div v-if="showImageModal" class="modal-overlay" @click="closeImageModal">
+    <div class="modal-content image-modal" @click.stop>
+      <button class="modal-close" @click="closeImageModal" title="Close">×</button>
       <img :src="currentImageUrl" alt="Receipt image" class="modal-image" />
     </div>
   </div>
@@ -181,52 +181,15 @@ defineExpose({ loadExpenses })
 <style scoped>
 .expense-list {
   width: 100%;
-  margin: 20px 0 0 0;
-  padding: 15px;
-  border: 1px solid #333;
-  border-radius: 8px;
-  background-color: #1e1e1e;
-}
-
-h3 {
-  margin-bottom: 15px;
-  color: #e0e0e0;
-  text-align: center;
-  font-size: 1.3rem;
-}
-
-.loading, .error, .no-expenses {
-  text-align: center;
-  padding: 20px;
-  color: #888;
-  font-size: 14px;
-}
-
-.error {
-  color: #f44336;
-  background-color: #2e1a1a;
-  border: 1px solid #5c2e2e;
-  border-radius: 4px;
-}
-
-.expenses {
+  margin-top: var(--spacing-2xl);
 }
 
 .expense-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  margin-bottom: 8px;
-  background-color: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 6px;
-  transition: box-shadow 0.2s;
+  margin-bottom: var(--spacing-sm);
   touch-action: manipulation;
-}
-
-.expense-item:hover {
-  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
 }
 
 .expense-content {
@@ -237,9 +200,9 @@ h3 {
 }
 
 .expense-amount {
-  font-size: 18px;
-  font-weight: bold;
-  color: #007bff;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--primary-blue);
   min-width: 80px;
   flex-shrink: 0;
 }
@@ -247,121 +210,58 @@ h3 {
 .expense-details {
   flex: 1;
   text-align: right;
-  margin-left: 10px;
+  margin-left: var(--spacing-md);
 }
 
 .expense-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-sm);
   align-items: center;
   flex-shrink: 0;
-  margin-left: 12px;
+  margin-left: var(--spacing-base);
 }
 
-.image-button {
-  background: #007bff;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  padding: 6px 8px;
-  cursor: pointer;
-  font-size: 14px;
-  min-width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-  touch-action: manipulation;
-}
-
-.image-button:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.image-button:disabled {
-  background: #6c757d;
-  cursor: not-allowed;
-}
-
-.image-button:active {
-  transform: scale(0.95);
-}
-
+.image-button,
 .delete-button {
-  background: #dc3545;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  padding: 6px 8px;
-  cursor: pointer;
-  font-size: 14px;
   min-width: 32px;
   height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-  touch-action: manipulation;
-}
-
-.delete-button:hover:not(:disabled) {
-  background: #c82333;
-}
-
-.delete-button:disabled {
-  background: #6c757d;
-  cursor: not-allowed;
-}
-
-.delete-button:active {
-  transform: scale(0.95);
+  width: auto;
+  padding: var(--spacing-xs) var(--spacing-sm);
 }
 
 .expense-date {
-  font-size: 14px;
-  color: #b0b0b0;
-  margin-bottom: 2px;
-  line-height: 1.3;
+  font-size: var(--font-size-base);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+  line-height: var(--line-height-sm);
 }
 
 .expense-location {
-  font-size: 12px;
-  color: #888;
-  line-height: 1.2;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  line-height: var(--line-height-sm);
   word-break: break-all;
 }
 
 /* Mobile optimizations */
 @media (max-width: 480px) {
   .expense-list {
-    padding: 12px;
-    margin: 15px 0 0 0;
-    border-radius: 6px;
+    margin-top: var(--spacing-lg);
   }
-  
-  h3 {
-    font-size: 1.2rem;
-    margin-bottom: 12px;
-  }
-  
   
   .expense-item {
-    padding: 10px;
-    margin-bottom: 6px;
-    /* Keep flex-direction: row to maintain inline layout */
     align-items: flex-start;
   }
   
   .expense-content {
     flex-direction: column;
     flex: 1;
-    min-width: 0; /* Allows content to shrink */
+    min-width: 0;
   }
   
   .expense-amount {
-    font-size: 18px;
-    margin-bottom: 3px;
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-xs);
     min-width: auto;
   }
   
@@ -371,7 +271,7 @@ h3 {
   }
   
   .expense-actions {
-    gap: 6px;
+    gap: var(--spacing-xs);
     flex-shrink: 0;
     align-self: center;
   }
@@ -380,95 +280,32 @@ h3 {
   .delete-button {
     width: 28px;
     height: 28px;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
+    min-width: 28px;
   }
   
   .expense-date {
-    font-size: 13px;
-    line-height: 1.2;
+    font-size: var(--font-size-sm);
   }
   
   .expense-location {
     font-size: 11px;
-    margin-top: 2px;
-    line-height: 1.2;
-    /* Prevent text from overflowing */
+    margin-top: var(--spacing-xs);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 200px;
   }
-  
-  .loading, .error, .no-expenses {
-    padding: 15px;
-    font-size: 13px;
-  }
-}
-
-/* Very small screens */
-@media (max-width: 320px) {
-  .expense-list {
-    padding: 10px;
-  }
-  
-  .expense-amount {
-    font-size: 18px;
-  }
-  
-  .expense-location {
-    font-size: 10px;
-  }
 }
 
 /* Image Modal Styles */
-.image-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(2px);
-}
-
 .image-modal {
   position: relative;
   width: auto;
   height: auto;
   max-width: 90vw;
   max-height: 90vh;
-  background: #2a2a2a;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  padding: 20px;
-  box-sizing: border-box;
-}
-
-.modal-close-button {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(0, 0, 0, 0.7);
-  border: none;
-  border-radius: 50%;
-  color: white;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 18px;
-  z-index: 1001;
-  transition: background-color 0.2s;
-}
-
-.modal-close-button:hover {
-  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(2px);
 }
 
 .modal-image {
@@ -478,7 +315,7 @@ h3 {
   height: auto;
   display: block;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* Mobile modal adjustments */
@@ -486,20 +323,11 @@ h3 {
   .image-modal {
     max-width: 95vw;
     max-height: 95vh;
-    padding: 10px;
   }
   
   .modal-image {
     max-width: calc(95vw - 20px);
     max-height: calc(95vh - 20px);
-  }
-  
-  .modal-close-button {
-    top: 5px;
-    right: 5px;
-    width: 25px;
-    height: 25px;
-    font-size: 16px;
   }
 }
 </style>

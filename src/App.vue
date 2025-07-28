@@ -97,33 +97,33 @@ function handleAuthenticated() {
 
 body {
   font-family: Arial, sans-serif;
-  background-color: #121212;
-  color: #e0e0e0;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 #app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: #121212;
+  background-color: var(--bg-primary);
 }
 
 main {
   flex: 1;
-  padding: 20px 10px;
+  padding: var(--spacing-2xl) var(--spacing-md);
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 500px;
+  max-width: var(--container-sm);
   margin: 0 auto;
 }
 
 /* Desktop styles */
 @media (min-width: 768px) {
   main {
-    padding: 40px 20px;
-    max-width: 1000px;
+    padding: var(--spacing-4xl) var(--spacing-2xl);
+    max-width: var(--container-lg);
   }
 }
 </style>

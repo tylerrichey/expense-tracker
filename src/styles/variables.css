@@ -1,0 +1,110 @@
+:root {
+  /* Colors - Dark Theme */
+  --bg-primary: #121212;
+  --bg-secondary: #1e1e1e;
+  --bg-tertiary: #2a2a2a;
+  --bg-quaternary: #1a1a1a;
+  --bg-hover: #3a3a3a;
+  --bg-hover-light: #4a4a4a;
+  
+  /* Text Colors */
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-muted: #888;
+  --text-disabled: #666;
+  
+  /* Border Colors */
+  --border-primary: #333;
+  --border-secondary: #444;
+  --border-tertiary: #555;
+  
+  /* Brand Colors */
+  --primary-blue: #007bff;
+  --primary-blue-hover: #0056b3;
+  --primary-blue-light: #4dabf7;
+  
+  /* Status Colors */
+  --success-green: #28a745;
+  --success-green-hover: #218838;
+  --error-red: #dc3545;
+  --error-red-alt: #f44336;
+  --error-red-hover: #c82333;
+  --warning-orange: #fd7e14;
+  
+  /* Error/Success Backgrounds */
+  --error-bg: #2e1a1a;
+  --error-border: #5c2e2e;
+  --success-bg: #1a2e1a;
+  --success-border: #2e5c2e;
+  
+  /* Spacing Scale */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 10px;
+  --spacing-base: 12px;
+  --spacing-lg: 15px;
+  --spacing-xl: 16px;
+  --spacing-2xl: 20px;
+  --spacing-3xl: 24px;
+  --spacing-4xl: 32px;
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 50%;
+  
+  /* Typography */
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 28px;
+  
+  /* Line Heights */
+  --line-height-sm: 1.2;
+  --line-height-base: 1.4;
+  --line-height-lg: 1.6;
+  
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 2px 4px rgba(0, 123, 255, 0.2);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.3);
+  --shadow-focus: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+  --transition-slow: 0.3s ease;
+  
+  /* Z-Index Scale */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 900;
+  --z-modal: 1000;
+  --z-popover: 1100;
+  --z-tooltip: 1200;
+  
+  /* Grid Breakpoints (for use in CSS) */
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1200px;
+  
+  /* Container Widths */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+}

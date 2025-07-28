@@ -1,10 +1,10 @@
 <template>
-  <div class="expense-form">
-    <h3>Add Expense</h3>
+  <div class="card expense-form">
+    <h3 class="card-title text-center">Add Expense</h3>
     <form @submit.prevent="submitExpense" @keydown.enter="handleFormKeydown">
       <div class="form-group">
         <!-- <label for="amount">Amount ($):</label> -->
-        <div class="amount-date-container">
+        <div class="amount-date-container flex gap-md">
           <input
             id="amount"
             v-model.number="amount"
@@ -13,14 +13,14 @@
             min="0"
             required
             placeholder="0.00"
-            class="amount-input"
+            class="form-input amount-input flex-1"
           />
           <input
             id="expense-date"
             v-model="expenseDate"
             type="date"
             required
-            class="date-input"
+            class="form-input date-input"
             @click="handleDateInputClick"
           />
         </div>
@@ -34,7 +34,7 @@
               v-model="manualPlaceName"
               type="text"
               placeholder="Enter location name"
-              class="location-input"
+              class="form-input location-input"
               required
               @input="onPlaceNameInput"
               @focus="onPlaceNameFocus"
@@ -91,7 +91,7 @@
             id="location"
             v-model="selectedPlace"
             :disabled="loadingPlaces"
-            class="location-select"
+            class="form-select location-select"
             required
           >
             <option value="" disabled>Select a location</option>
@@ -140,8 +140,9 @@
           📍 {{ manualPlaceName }}
         </div>
       </div>
-      <button type="submit" :disabled="isSubmitting">
-        {{ isSubmitting ? "Adding..." : "Add Expense" }}
+      <button type="submit" :disabled="isSubmitting" class="btn btn-primary btn-full">
+        <span v-if="isSubmitting">Adding<span class="loading-dots"></span></span>
+        <span v-else>Add Expense</span>
       </button>
     </form>
     <input
@@ -152,7 +153,7 @@
       @change="handleImageUpload"
       style="display: none"
     />
-    <div v-if="message" class="message" :class="messageType">
+    <div v-if="message" class="alert" :class="messageType === 'success' ? 'alert-success' : 'alert-error'">
       {{ message }}
     </div>
   </div>
@@ -607,73 +608,6 @@ onMounted(() => {
 .expense-form {
   width: 100%;
   margin: 0;
-  padding: 15px;
-  border: 1px solid #333;
-  border-radius: 8px;
-  background-color: #1e1e1e;
-}
-
-h2 {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #e0e0e0;
-  font-size: 1.5rem;
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-  color: #b0b0b0;
-  font-size: 14px;
-}
-
-input[type="number"],
-input[type="date"],
-.location-select,
-.location-input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #444;
-  border-radius: 4px;
-  font-size: 16px;
-  font-family: inherit;
-  box-sizing: border-box;
-  -webkit-appearance: none;
-  -moz-appearance: textfield;
-  background-color: #2a2a2a;
-  color: #e0e0e0;
-}
-
-/* Additional styling for date input to ensure consistent appearance */
-input[type="date"] {
-  color-scheme: dark;
-  cursor: pointer;
-}
-
-/* Style the date input's calendar icon */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  background-color: #e0e0e0;
-  border-radius: 2px;
-  cursor: pointer;
-  filter: invert(1);
-}
-
-/* Firefox date input styling */
-input[type="date"]::-moz-calendar-picker-indicator {
-  background-color: #e0e0e0;
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.amount-date-container {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
 }
 
 .amount-input {
@@ -685,27 +619,30 @@ input[type="date"]::-moz-calendar-picker-indicator {
   min-width: 140px;
 }
 
-input[type="number"]:focus,
-input[type="date"]:focus,
-.location-select:focus,
-.location-input:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+/* Date input dark theme styling */
+input[type="date"] {
+  color-scheme: dark;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
 }
 
-.location-input:invalid {
-  border-color: #dc3545;
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background-color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  filter: invert(1);
 }
 
-.location-input:invalid:focus {
-  border-color: #dc3545;
-  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+input[type="date"]::-moz-calendar-picker-indicator {
+  background-color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
 
 .location-container {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-sm);
   align-items: stretch;
 }
 
@@ -719,24 +656,24 @@ input[type="date"]:focus,
   top: 100%;
   left: 0;
   right: 0;
-  background-color: #2a2a2a;
-  border: 1px solid #444;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
   border-top: none;
-  border-radius: 0 0 4px 4px;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   list-style: none;
   margin: 0;
   padding: 0;
   max-height: 200px;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: var(--z-dropdown);
 }
 
 .suggestion-item {
-  padding: 12px;
+  padding: var(--spacing-base);
   cursor: pointer;
-  color: #e0e0e0;
-  border-bottom: 1px solid #333;
-  transition: background-color 0.2s;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-primary);
+  transition: background-color var(--transition-base);
 }
 
 .suggestion-item:last-child {
@@ -745,211 +682,87 @@ input[type="date"]:focus,
 
 .suggestion-item:hover,
 .suggestion-item.highlighted {
-  background-color: #3a3a3a;
+  background-color: var(--bg-hover);
 }
 
 .suggestion-item.highlighted {
-  background-color: #007bff;
+  background-color: var(--primary-blue);
   color: white;
 }
 
-.location-select {
+.location-select,
+.location-input {
   flex: 1;
   height: 44px;
+  box-sizing: border-box;
 }
 
 .location-select:disabled {
-  background-color: #1a1a1a;
-  color: #666;
+  background-color: var(--bg-quaternary);
+  color: var(--text-disabled);
   cursor: not-allowed;
 }
 
-.refresh-button {
+.refresh-button,
+.toggle-button,
+.image-button {
   background: transparent;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #b0b0b0;
-  padding: 12px;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  padding: var(--spacing-base);
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   width: 44px;
   height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   touch-action: manipulation;
   flex-shrink: 0;
 }
 
-.refresh-button:hover:not(:disabled) {
-  background: #3a3a3a;
-  border-color: #007bff;
-  color: #007bff;
+.refresh-button:hover:not(:disabled),
+.toggle-button:hover,
+.image-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
 }
 
 .refresh-button:disabled {
   background: transparent;
-  border-color: #333;
-  color: #666;
+  border-color: var(--border-primary);
+  color: var(--text-disabled);
   cursor: not-allowed;
 }
 
-.refresh-button:active {
-  transform: scale(0.95);
-}
-
-.toggle-button {
-  background: transparent;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #b0b0b0;
-  padding: 12px;
-  cursor: pointer;
-  font-size: 16px;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  touch-action: manipulation;
-  flex-shrink: 0;
-}
-
-.toggle-button:hover {
-  background: #3a3a3a;
-  border-color: #007bff;
-  color: #007bff;
-}
-
-.toggle-button:active {
-  transform: scale(0.95);
-}
-
-.image-button {
-  background: transparent;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: #b0b0b0;
-  padding: 12px;
-  cursor: pointer;
-  font-size: 16px;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  touch-action: manipulation;
-  flex-shrink: 0;
-}
-
-.image-button:hover {
-  background: #3a3a3a;
-  border-color: #007bff;
-  color: #007bff;
-}
-
+.refresh-button:active,
+.toggle-button:active,
 .image-button:active {
   transform: scale(0.95);
 }
 
 .selected-place-info {
-  margin-top: 8px;
-  padding: 8px;
-  background-color: #2a2a2a;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #b0b0b0;
-  border-left: 3px solid #007bff;
-}
-
-button {
-  width: 100%;
-  padding: 14px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  touch-action: manipulation;
-}
-
-button:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-button:disabled {
-  background-color: #444;
-  cursor: not-allowed;
-}
-
-button:active {
-  transform: translateY(1px);
-}
-
-.message {
-  margin-top: 15px;
-  padding: 10px;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 14px;
-}
-
-.message.success {
-  background-color: #1a2e1a;
-  color: #4caf50;
-  border: 1px solid #2e5c2e;
-}
-
-.message.error {
-  background-color: #2e1a1a;
-  color: #f44336;
-  border: 1px solid #5c2e2e;
-}
-
-h3 {
-  margin-bottom: 15px;
-  color: #e0e0e0;
-  text-align: center;
-  font-size: 1.3rem;
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  color: var(--text-secondary);
+  border-left: 3px solid var(--primary-blue);
 }
 
 /* Mobile optimizations */
 @media (max-width: 480px) {
-  .expense-form {
-    padding: 12px;
-    border-radius: 6px;
-  }
-
-  h2 {
-    font-size: 1.3rem;
-    margin-bottom: 15px;
-  }
-
-  input[type="number"],
-  input[type="date"] {
-    padding: 14px;
-    font-size: 16px;
-  }
-
   .amount-date-container {
     flex-direction: column;
-    gap: 12px;
   }
 
   .amount-input,
   .date-input {
     flex: 1;
-  }
-
-  button {
-    padding: 16px;
-    font-size: 16px;
   }
 }
 </style>

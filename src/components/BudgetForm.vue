@@ -1,18 +1,19 @@
 <template>
-  <div class="budget-form">
-    <h2>{{ isEditing ? 'Edit Budget' : 'Create Budget' }}</h2>
+  <div class="card budget-form">
+    <h2 class="card-title text-center">{{ isEditing ? 'Edit Budget' : 'Create Budget' }}</h2>
     
-    <div v-if="error" class="error-message">
+    <div v-if="error" class="alert alert-error">
       {{ error }}
     </div>
     
     <form @submit.prevent="submitBudget">
       <div class="form-group">
-        <label for="budget-name">Budget Name:</label>
+        <label for="budget-name" class="form-label">Budget Name:</label>
         <input
           id="budget-name"
           v-model="budgetData.name"
           type="text"
+          class="form-input"
           required
           placeholder="e.g., Weekly Groceries, Monthly Entertainment"
           :disabled="isSubmitting"
@@ -20,13 +21,14 @@
       </div>
 
       <div class="form-group">
-        <label for="budget-amount">Target Amount ($):</label>
+        <label for="budget-amount" class="form-label">Target Amount ($):</label>
         <input
           id="budget-amount"
           v-model.number="budgetData.amount"
           type="number"
           step="0.01"
           min="0.01"
+          class="form-input"
           required
           placeholder="0.00"
           :disabled="isSubmitting"
@@ -34,10 +36,11 @@
       </div>
 
       <div class="form-group">
-        <label for="start-weekday">Start Day:</label>
+        <label for="start-weekday" class="form-label">Start Day:</label>
         <select
           id="start-weekday"
           v-model.number="budgetData.start_weekday"
+          class="form-select"
           required
           :disabled="isSubmitting"
         >
@@ -52,10 +55,11 @@
       </div>
 
       <div class="form-group">
-        <label for="duration">Duration (days):</label>
+        <label for="duration" class="form-label">Duration (days):</label>
         <select
           id="duration"
           v-model.number="budgetData.duration_days"
+          class="form-select"
           required
           :disabled="isSubmitting"
         >
@@ -67,26 +71,27 @@
       </div>
 
       <div class="form-group preview-group">
-        <div class="budget-preview">
-          <h4>Budget Preview:</h4>
+        <div class="budget-preview card card-compact">
+          <h4 class="preview-title">Budget Preview:</h4>
           <p><strong>{{ budgetData.name || 'Unnamed Budget' }}</strong></p>
           <p>Amount: ${{ budgetData.amount ? budgetData.amount.toFixed(2) : '0.00' }}</p>
           <p>Starts: {{ getWeekdayName(budgetData.start_weekday) }}</p>
           <p>Duration: {{ budgetData.duration_days }} days</p>
           <p v-if="budgetPreview">
-            <small class="preview-period">
+            <small class="text-muted text-sm preview-period">
               Next period: {{ budgetPreview.start_date }} to {{ budgetPreview.end_date }}
             </small>
           </p>
         </div>
       </div>
 
-      <div class="form-actions">
-        <button type="button" @click="$emit('cancel')" :disabled="isSubmitting">
+      <div class="flex gap-md justify-end form-actions">
+        <button type="button" @click="$emit('cancel')" :disabled="isSubmitting" class="btn btn-secondary">
           Cancel
         </button>
-        <button type="submit" :disabled="!isFormValid || isSubmitting" class="primary">
-          {{ isSubmitting ? 'Saving...' : (isEditing ? 'Update Budget' : 'Create Budget') }}
+        <button type="submit" :disabled="!isFormValid || isSubmitting" class="btn btn-primary">
+          <span v-if="isSubmitting">Saving<span class="loading-dots"></span></span>
+          <span v-else>{{ isEditing ? 'Update Budget' : 'Create Budget' }}</span>
         </button>
       </div>
     </form>
@@ -190,145 +195,45 @@ watch(() => props.initialData, (newData) => {
 .budget-form {
   max-width: 500px;
   margin: 0 auto;
-  padding: 20px;
-  background: #1e1e1e;
-  border: 1px solid #444;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-
-.budget-form h2 {
-  text-align: center;
-  margin-bottom: 24px;
-  color: #e0e0e0;
-}
-
-.error-message {
-  background: #2e1a1a;
-  border: 1px solid #5c2e2e;
-  color: #f44336;
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 16px;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  font-weight: 500;
-  margin-bottom: 6px;
-  color: #b0b0b0;
-}
-
-.form-group input,
-.form-group select {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #444;
-  border-radius: 4px;
-  font-size: 14px;
-  background: #2a2a2a;
-  color: #e0e0e0;
-}
-
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-}
-
-.form-group input:disabled,
-.form-group select:disabled {
-  background: #1a1a1a;
-  color: #666;
-  cursor: not-allowed;
+  box-shadow: var(--shadow-lg);
 }
 
 .preview-group {
-  margin-top: 24px;
-  margin-bottom: 24px;
-}
-
-.budget-preview {
-  background: #2a2a2a;
-  border: 1px solid #444;
-  padding: 16px;
-  border-radius: 4px;
-}
-
-.budget-preview h4 {
-  margin: 0 0 12px 0;
-  color: #e0e0e0;
+  margin-top: var(--spacing-3xl);
+  margin-bottom: var(--spacing-3xl);
 }
 
 .budget-preview p {
-  margin: 4px 0;
-  color: #b0b0b0;
+  margin: var(--spacing-xs) 0;
+  color: var(--text-secondary);
+}
+
+.preview-title {
+  margin: 0 0 var(--spacing-base) 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
 }
 
 .preview-period {
-  color: #888;
   font-style: italic;
 }
 
 .form-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 24px;
-}
-
-.form-actions button {
-  padding: 10px 20px;
-  border: 1px solid #444;
-  border-radius: 4px;
-  background: #3a3a3a;
-  color: #e0e0e0;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.form-actions button:hover:not(:disabled) {
-  background: #4a4a4a;
-  border-color: #007bff;
-  color: #007bff;
-}
-
-.form-actions button:disabled {
-  background: #2a2a2a;
-  color: #666;
-  cursor: not-allowed;
-  border-color: #333;
-}
-
-.form-actions button.primary {
-  background: #007bff;
-  border-color: #007bff;
-  color: white;
-}
-
-.form-actions button.primary:hover:not(:disabled) {
-  background: #0056b3;
-  border-color: #0056b3;
+  margin-top: var(--spacing-3xl);
 }
 
 /* Responsive */
 @media (max-width: 600px) {
   .budget-form {
-    margin: 10px;
-    padding: 16px;
+    margin: var(--spacing-md);
   }
   
   .form-actions {
     flex-direction: column;
   }
   
-  .form-actions button {
+  .form-actions .btn {
     width: 100%;
   }
 }

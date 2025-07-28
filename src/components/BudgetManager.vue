@@ -1,8 +1,8 @@
 <template>
   <div class="budget-manager">
-    <div class="manager-header">
-      <h2>Budget Management</h2>
-      <button @click="showCreateForm = true" class="create-btn">
+    <div class="manager-header flex justify-between items-center">
+      <h2 class="text-primary font-semibold m-0">Budget Management</h2>
+      <button @click="showCreateForm = true" class="btn btn-success">
         + New Budget
       </button>
     </div>
@@ -24,7 +24,7 @@
       <!-- Active Budget -->
       <div v-if="activeBudget" class="budget-group">
         <h3 class="group-title">Active Budget</h3>
-        <div class="budget-card active">
+        <div class="card budget-card active">
           <div class="budget-main">
             <div class="budget-info">
               <h4>{{ activeBudget.name }}</h4>
@@ -38,12 +38,12 @@
               </p>
             </div>
             <div class="budget-actions">
-              <button @click="editBudget(activeBudget)" class="edit-btn">
+              <button @click="editBudget(activeBudget)" class="btn btn-secondary btn-sm edit-btn">
                 Edit
               </button>
               <button 
                 @click="toggleVacationMode(activeBudget)" 
-                class="vacation-btn"
+                class="btn btn-sm vacation-btn"
                 :class="{ active: activeBudget.vacation_mode }"
               >
                 {{ activeBudget.vacation_mode ? 'Resume' : 'Vacation' }}
