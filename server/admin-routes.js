@@ -104,7 +104,7 @@ export function setupAdminRoutes(app, authenticateRequest) {
       
       const token = getAuthToken();
       const headers = {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': 'Bearer ' + token,
         'Content-Type': 'application/json',
         ...options.headers
       };
@@ -127,14 +127,12 @@ export function setupAdminRoutes(app, authenticateRequest) {
         
         let html = '<div class="tables-list">';
         tables.forEach(table => {
-          html += \`
-            <div class="table-card" onclick="loadTableData('\${table.name}')">
-              <strong>\${table.name}</strong>
-              <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
-                Click to view data
-              </div>
-            </div>
-          \`;
+          html += '<div class="table-card" onclick="loadTableData(\'' + table.name + '\')">' +
+            '<strong>' + table.name + '</strong>' +
+            '<div style="font-size: 0.9em; color: #666; margin-top: 5px;">' +
+            'Click to view data' +
+            '</div>' +
+            '</div>';
         });
         html += '</div>';
         
@@ -145,7 +143,7 @@ export function setupAdminRoutes(app, authenticateRequest) {
     }
     
     async function loadTableData(tableName) {
-      setQuery(\`SELECT * FROM \${tableName} LIMIT 100\`);
+      setQuery('SELECT * FROM ' + tableName + ' LIMIT 100');
       executeQuery();
     }
     
@@ -213,14 +211,14 @@ export function setupAdminRoutes(app, authenticateRequest) {
           return;
         }
         
-        let html = \`<div class="row-count">Returned \${result.data.length} rows</div>\`;
+        let html = '<div class="row-count">Returned ' + result.data.length + ' rows</div>';
         html += '<div class="result-container"><table>';
         
         // Headers
         const headers = Object.keys(result.data[0]);
         html += '<tr>';
         headers.forEach(header => {
-          html += \`<th>\${header}</th>\`;
+          html += '<th>' + header + '</th>';
         });
         html += '</tr>';
         
@@ -233,7 +231,7 @@ export function setupAdminRoutes(app, authenticateRequest) {
             else if (typeof value === 'string' && value.length > 100) {
               value = value.substring(0, 100) + '...';
             }
-            html += \`<td>\${value}</td>\`;
+            html += '<td>' + value + '</td>';
           });
           html += '</tr>';
         });
@@ -242,18 +240,17 @@ export function setupAdminRoutes(app, authenticateRequest) {
         container.innerHTML = html;
       } else {
         // Non-select query (INSERT, UPDATE, DELETE, etc.)
-        container.innerHTML = \`
-          <div class="success">
-            Query executed successfully.<br>
-            Changes: \${result.changes}<br>
-            Last Insert Row ID: \${result.lastInsertRowid || 'N/A'}
-          </div>
-        \`;
+        container.innerHTML = '<div class="success">' +
+          'Query executed successfully.<br>' +
+          'Changes: ' + result.changes + '<br>' +
+          'Last Insert Row ID: ' + (result.lastInsertRowid || 'N/A') +
+          '</div>';
+      }
       }
     }
     
     function showError(message) {
-      document.getElementById('results-container').innerHTML = \`<div class="error">\${message}</div>\`;
+      document.getElementById('results-container').innerHTML = '<div class="error">' + message + '</div>';
     }
     
     function logout() {
