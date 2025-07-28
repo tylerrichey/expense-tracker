@@ -6,8 +6,8 @@ import { databaseService } from './database.js';
  */
 
 export function setupAdminRoutes(app, authenticateRequest) {
-  // Admin UI - serves a simple HTML interface (authentication required)
-  app.get('/admin', authenticateRequest, (req, res) => {
+  // Admin UI - serves a simple HTML interface (no server-side auth, handles auth client-side)
+  app.get('/admin', (req, res) => {
     const html = `
 <!DOCTYPE html>
 <html lang="en">
