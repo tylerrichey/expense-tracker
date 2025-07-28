@@ -902,8 +902,8 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Setup admin routes for database management
-setupAdminRoutes(app);
+// Setup admin routes for database management (with authentication)
+setupAdminRoutes(app, authenticateRequest);
 
 // Serve the Vue app for all other routes
 app.get("*", (req, res) => {

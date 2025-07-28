@@ -5,9 +5,9 @@ import { databaseService } from './database.js';
  * Provides basic CRUD operations through REST endpoints
  */
 
-export function setupAdminRoutes(app) {
-  // Admin UI - serves a simple HTML interface
-  app.get('/admin', (req, res) => {
+export function setupAdminRoutes(app, authenticateRequest) {
+  // Admin UI - serves a simple HTML interface (authentication required)
+  app.get('/admin', authenticateRequest, (req, res) => {
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -45,7 +45,13 @@ export function setupAdminRoutes(app) {
 </head>
 <body>
   <div class="container">
-    <h1>🗄️ SQLite Database Admin</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h1>🗄️ SQLite Database Admin</h1>
+      <div>
+        <span style="color: #28a745; margin-right: 15px;">✓ Authenticated</span>
+        <button onclick="logout()" style="background: #dc3545;">Logout</button>
+      </div>
+    </div>
     
     <div class="section">
       <h2>Database Tables</h2>
@@ -76,9 +82,47 @@ export function setupAdminRoutes(app) {
   </div>
 
   <script>
+    // Get auth token from localStorage (same as main app)
+    function getAuthToken() {
+      return localStorage.getItem('expense-tracker-token');
+    }
+    
+    // Check if user is authenticated, redirect if not
+    function checkAuth() {
+      const token = getAuthToken();
+      if (!token) {
+        alert('Please log in to the main application first, then return to the admin panel.');
+        window.location.href = '/';
+        return false;
+      }
+      return true;
+    }
+    
+    // Make authenticated request
+    async function makeAuthenticatedRequest(url, options = {}) {
+      if (!checkAuth()) return null;
+      
+      const token = getAuthToken();
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+      };
+      
+      return fetch(url, { ...options, headers });
+    }
+    
     async function loadTables() {
       try {
-        const response = await fetch('/admin/api/tables');
+        const response = await makeAuthenticatedRequest('/admin/api/tables');
+        if (!response) return;
+        
+        if (response.status === 401) {
+          alert('Authentication expired. Please log in to the main application again.');
+          window.location.href = '/';
+          return;
+        }
+        
         const tables = await response.json();
         
         let html = '<div class="tables-list">';
@@ -122,13 +166,18 @@ export function setupAdminRoutes(app) {
       }
       
       try {
-        const response = await fetch('/admin/api/query', {
+        const response = await makeAuthenticatedRequest('/admin/api/query', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({ query })
         });
+        
+        if (!response) return;
+        
+        if (response.status === 401) {
+          alert('Authentication expired. Please log in to the main application again.');
+          window.location.href = '/';
+          return;
+        }
         
         const result = await response.json();
         
@@ -207,8 +256,18 @@ export function setupAdminRoutes(app) {
       document.getElementById('results-container').innerHTML = \`<div class="error">\${message}</div>\`;
     }
     
-    // Load tables on page load
-    window.onload = loadTables;
+    function logout() {
+      localStorage.removeItem('expense-tracker-token');
+      alert('Logged out successfully. Redirecting to main application.');
+      window.location.href = '/';
+    }
+    
+    // Check authentication and load tables on page load
+    window.onload = function() {
+      if (checkAuth()) {
+        loadTables();
+      }
+    };
   </script>
 </body>
 </html>
@@ -217,8 +276,8 @@ export function setupAdminRoutes(app) {
     res.send(html);
   });
 
-  // API endpoint to get all tables
-  app.get('/admin/api/tables', (req, res) => {
+  // API endpoint to get all tables (authentication required)
+  app.get('/admin/api/tables', authenticateRequest, (req, res) => {
     try {
       const tables = databaseService.db.prepare(`
         SELECT name, sql 
@@ -233,8 +292,8 @@ export function setupAdminRoutes(app) {
     }
   });
 
-  // API endpoint to execute queries
-  app.post('/admin/api/query', (req, res) => {
+  // API endpoint to execute queries (authentication required)
+  app.post('/admin/api/query', authenticateRequest, (req, res) => {
     try {
       const { query } = req.body;
       
