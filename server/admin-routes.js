@@ -315,7 +315,6 @@ export function setupAdminRoutes(app, authenticateRequest) {
           'Last Insert Row ID: ' + (result.lastInsertRowid || 'N/A') +
           '</div>';
       }
-      }
     }
     
     function showError(message) {
