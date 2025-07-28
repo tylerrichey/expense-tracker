@@ -404,6 +404,13 @@ async function submitExpense() {
   try {
     const location = currentLocation.value || (await getCurrentLocation());
 
+    // Create timestamp: use current time for today's date, 12:00 PM for previous dates
+    const today = new Date().toISOString().split("T")[0];
+    const isToday = expenseDate.value === today;
+    const timestamp = isToday 
+      ? new Date() // Use current time for today
+      : new Date(expenseDate.value + "T12:00:00"); // Use 12 PM for previous dates
+
     const expenseData = {
       amount: amount.value,
       latitude: location?.latitude,
@@ -421,7 +428,7 @@ async function submitExpense() {
         typeof selectedPlace.value === "object"
           ? selectedPlace.value.address
           : undefined,
-      timestamp: new Date(expenseDate.value + "T12:00:00"),
+      timestamp: timestamp,
     };
 
     if (import.meta.env.DEV) {
