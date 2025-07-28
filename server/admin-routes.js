@@ -68,7 +68,7 @@ export function setupAdminRoutes(app, authenticateRequest) {
         <div class="example-query" onclick="setQuery('SELECT * FROM budgets WHERE is_active = 1')">Active budgets</div>
         <div class="example-query" onclick="setQuery('SELECT * FROM budget_periods ORDER BY start_date DESC LIMIT 5')">Recent budget periods</div>
         <div class="example-query" onclick="setQuery('SELECT COUNT(*) as expense_count, SUM(amount) as total_amount FROM expenses')">Expense summary</div>
-        <div class="example-query" onclick="setQuery('SELECT name as table_name, sql FROM sqlite_master WHERE type=\\'table\\'')">Show table schemas</div>
+        <div class="example-query" onclick="setQuery('SELECT name as table_name, sql FROM sqlite_master WHERE type=&quot;table&quot;')">Show table schemas</div>
       </div>
       <textarea id="query" placeholder="Enter your SQL query here..."></textarea>
       <div>
@@ -169,7 +169,7 @@ export function setupAdminRoutes(app, authenticateRequest) {
         
         let html = '<div class="tables-list">';
         tables.forEach(table => {
-          html += '<div class="table-card" onclick="loadTableData(\'' + table.name + '\')">' +
+          html += '<div class="table-card" onclick="loadTableData(&quot;' + table.name + '&quot;)">' +
             '<strong>' + table.name + '</strong>' +
             '<div style="font-size: 0.9em; color: #666; margin-top: 5px;">' +
             'Click to view data' +
