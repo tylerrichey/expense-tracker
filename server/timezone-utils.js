@@ -122,15 +122,17 @@ export function isDateInPeriodTimezoneAware(date, period, timezone = 'UTC') {
   const startDate = createStartOfDayInTimezone(period.start_date, timezone)
   const endDate = createEndOfDayInTimezone(period.end_date, timezone)
   
-  console.log('🔍 EXPENSE DEBUG: isDateInPeriodTimezoneAware detailed:', {
-    checkDate: checkDate.toISOString(),
-    periodStart: period.start_date,
-    periodEnd: period.end_date,
-    timezone: timezone,
-    startDateCalculated: startDate.toISOString(),
-    endDateCalculated: endDate.toISOString(),
-    result: checkDate >= startDate && checkDate <= endDate
-  })
+  if (process.env.DEBUG_EXPENSES) {
+    console.log('🔍 EXPENSE DEBUG: isDateInPeriodTimezoneAware detailed:', {
+      checkDate: checkDate.toISOString(),
+      periodStart: period.start_date,
+      periodEnd: period.end_date,
+      timezone: timezone,
+      startDateCalculated: startDate.toISOString(),
+      endDateCalculated: endDate.toISOString(),
+      result: checkDate >= startDate && checkDate <= endDate
+    })
+  }
   
   return checkDate >= startDate && checkDate <= endDate
 }
