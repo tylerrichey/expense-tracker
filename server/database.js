@@ -9,7 +9,8 @@ import {
   findPeriodForDate,
   calculateNextPeriodStart,
   validateBudget,
-  formatDateForDB
+  formatDateForDB,
+  setDatabaseInstance
 } from './budget-utils.js'
 import { logger } from './logger.js'
 
@@ -42,6 +43,9 @@ class DatabaseService {
     this.dbPath = dbPath
     this.db = new Database(dbPath)
     this.initializeDatabase()
+    
+    // Set database instance for timezone-aware budget utilities
+    setDatabaseInstance(this.db)
   }
 
   initializeDatabase() {
@@ -152,28 +156,43 @@ class DatabaseService {
         logger.log('info', 'Database: Adding expense with data:', { expense })
       }
       
-      // Get current active budget period for immediate association
+      // Find the correct budget period based on expense timestamp
       let budgetPeriodId = null
       try {
-        const currentPeriod = await this.getCurrentBudgetPeriod()
-        if (currentPeriod) {
-          // Check if budget is in vacation mode
-          if (currentPeriod.vacation_mode) {
+        const matchingPeriod = await this.findPeriodForExpense(expense.timestamp)
+        if (matchingPeriod) {
+          // Check if the associated budget is in vacation mode
+          const budget = await this.getBudgetById(matchingPeriod.budget_id)
+          if (budget && budget.vacation_mode) {
             if (process.env.NODE_ENV !== 'production') {
               logger.log('info', 'Database: Budget is in vacation mode, creating orphan expense')
             }
             budgetPeriodId = null // Don't associate with budget period during vacation
           } else {
-            budgetPeriodId = currentPeriod.id
+            budgetPeriodId = matchingPeriod.id
             if (process.env.NODE_ENV !== 'production') {
-              logger.log('info', 'Database: Associating expense with budget period:', { budgetPeriodId })
+              logger.log('info', 'Database: Associating expense with budget period based on date:', { 
+                budgetPeriodId, 
+                expenseDate: expense.timestamp,
+                periodStart: matchingPeriod.start_date,
+                periodEnd: matchingPeriod.end_date 
+              })
             }
+          }
+        } else {
+          if (process.env.NODE_ENV !== 'production') {
+            logger.log('info', 'Database: No matching budget period found for expense date, creating orphan expense:', { 
+              expenseDate: expense.timestamp 
+            })
           }
         }
       } catch (err) {
-        // If no current period exists, expense will be created as orphan
+        // If no matching period exists, expense will be created as orphan
         if (process.env.NODE_ENV !== 'production') {
-          logger.log('info', 'Database: No active budget period found, creating orphan expense')
+          logger.log('info', 'Database: Error finding budget period for expense date, creating orphan expense:', { 
+            error: err.message,
+            expenseDate: expense.timestamp 
+          })
         }
       }
       
