@@ -147,31 +147,45 @@ export function isDateInPeriod(date, period) {
     timezone: timezone
   })
   
-  // For UTC timezone, use original logic for backward compatibility
+  // SIMPLIFIED APPROACH: Convert everything to dates and compare in local timezone context
+  // This avoids the complex timezone conversion issues
+  
+  const checkDate = new Date(date)
+  const startDate = new Date(period.start_date + 'T00:00:00.000Z')
+  const endDate = new Date(period.end_date + 'T23:59:59.999Z')
+  
+  // For non-UTC timezones, we need to be more careful about the comparison
+  // The issue is that the period dates are stored as date strings (YYYY-MM-DD)
+  // but the expense date is a full timestamp
+  
+  let result
   if (timezone === 'UTC') {
-    const checkDate = new Date(date)
-    const startDate = new Date(period.start_date)
-    const endDate = new Date(period.end_date)
+    // For UTC, use the noon comparison to avoid edge cases
+    checkDate.setUTCHours(12, 0, 0, 0)
+    result = checkDate >= startDate && checkDate <= endDate
+  } else {
+    // For other timezones, compare the date parts in the target timezone
+    const expenseDateInTimezone = checkDate.toLocaleDateString('en-CA', { timeZone: timezone })
+    const periodStartDate = period.start_date
+    const periodEndDate = period.end_date
     
-    // Use UTC methods for consistent timezone handling
-    checkDate.setUTCHours(12, 0, 0, 0) // Noon UTC to avoid timezone issues
-    startDate.setUTCHours(0, 0, 0, 0)
-    endDate.setUTCHours(23, 59, 59, 999)
+    result = expenseDateInTimezone >= periodStartDate && expenseDateInTimezone <= periodEndDate
     
-    const result = checkDate >= startDate && checkDate <= endDate
-    
-    console.log('🔍 EXPENSE DEBUG: UTC date comparison:', {
-      checkDate: checkDate.toISOString(),
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
+    console.log('🔍 EXPENSE DEBUG: Timezone date comparison:', {
+      expenseDateInTimezone: expenseDateInTimezone,
+      periodStartDate: periodStartDate,
+      periodEndDate: periodEndDate,
       result: result
     })
-    
-    return result
   }
   
-  const result = isDateInPeriodTimezoneAware(date, period, timezone)
-  console.log('🔍 EXPENSE DEBUG: Timezone-aware result:', result)
+  console.log('🔍 EXPENSE DEBUG: Final comparison result:', {
+    checkDate: checkDate.toISOString(),
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    result: result
+  })
+  
   return result
 }
 
