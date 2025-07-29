@@ -201,10 +201,14 @@ const dailyAverage = computed(() => {
 })
 
 const projectedTotal = computed(() => {
-  if (!props.currentPeriod || daysRemaining.value === 0) return null
+  if (!props.currentPeriod) return null
   
   const totalDays = props.currentBudget?.duration_days || 7
-  const daysPassed = totalDays - daysRemaining.value
+  
+  // Use the same daysPassed calculation as dailyAverage for consistency
+  const startDate = new Date(props.currentPeriod.start_date)
+  const today = new Date()
+  const daysPassed = Math.max(1, Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)))
   
   if (daysPassed <= 0) return currentSpent.value
   
