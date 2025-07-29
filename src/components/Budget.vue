@@ -30,6 +30,33 @@
       />
     </div>
 
+    <!-- Recent History -->
+    <div v-if="currentView === 'dashboard' && historicalPeriods.length > 0" class="recent-history">
+      <h3 class="history-title">Recent History</h3>
+      <div class="history-list">
+        <div 
+          v-for="period in historicalPeriods.slice(0, 5)" 
+          :key="period.id" 
+          class="history-item"
+        >
+          <div class="history-info">
+            <div class="history-name">{{ period.budget_name }}</div>
+            <div class="history-dates">
+              {{ formatDate(period.start_date) }} - {{ formatDate(period.end_date) }}
+            </div>
+          </div>
+          <div class="history-spending">
+            <div class="history-amount">
+              ${{ formatAmount(period.actual_spent || 0) }} / ${{ formatAmount(period.target_amount) }}
+            </div>
+            <div class="history-percentage" :class="{ 'over-budget': (period.actual_spent || 0) > period.target_amount }">
+              {{ Math.round(((period.actual_spent || 0) / period.target_amount) * 100) }}%
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Error Display -->
     <div v-if="error" class="error-banner">
       <div class="error-content">
@@ -288,6 +315,19 @@ function showSuccessMessage(message: string) {
   // In the future, this could be a toast notification system
   console.log('Success:', message)
 }
+
+// Formatting helpers for Recent History
+function formatAmount(amount: number) {
+  return typeof amount === 'number' ? amount.toFixed(2) : '0.00'
+}
+
+function formatDate(dateString: string) {
+  if (!dateString) return ''
+  return new Date(dateString + 'T00:00:00').toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  })
+}
 </script>
 
 <style scoped>
@@ -380,6 +420,89 @@ function showSuccessMessage(message: string) {
   .error-content {
     padding: 10px 12px;
     font-size: 13px;
+  }
+}
+
+/* Recent History Styles */
+.recent-history {
+  margin: 32px auto 0;
+  max-width: 800px;
+}
+
+.history-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #444;
+  padding-bottom: 8px;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  transition: box-shadow 0.2s;
+}
+
+.history-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.history-name {
+  font-weight: 500;
+  color: #e0e0e0;
+  margin-bottom: 2px;
+}
+
+.history-dates {
+  font-size: 12px;
+  color: #b0b0b0;
+}
+
+.history-amount {
+  font-size: 14px;
+  color: #e0e0e0;
+  text-align: right;
+  margin-bottom: 2px;
+}
+
+.history-percentage {
+  font-size: 12px;
+  color: #28a745;
+  text-align: right;
+  font-weight: 500;
+}
+
+.history-percentage.over-budget {
+  color: #dc3545;
+}
+
+/* Responsive adjustments for Recent History */
+@media (max-width: 768px) {
+  .recent-history {
+    margin: 24px 16px 0;
+  }
+  
+  .history-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .history-spending {
+    align-self: flex-end;
+    text-align: right;
   }
 }
 </style>

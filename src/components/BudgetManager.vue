@@ -142,32 +142,6 @@
         </div>
       </div>
 
-      <!-- Historical Periods -->
-      <div v-if="historicalPeriods.length > 0" class="budget-group">
-        <h3 class="group-title">Recent History</h3>
-        <div class="history-list">
-          <div 
-            v-for="period in historicalPeriods.slice(0, 5)" 
-            :key="period.id" 
-            class="history-item"
-          >
-            <div class="history-info">
-              <div class="history-name">{{ period.budget_name }}</div>
-              <div class="history-dates">
-                {{ formatDate(period.start_date) }} - {{ formatDate(period.end_date) }}
-              </div>
-            </div>
-            <div class="history-spending">
-              <div class="history-amount">
-                ${{ formatAmount(period.actual_spent || 0) }} / ${{ formatAmount(period.target_amount) }}
-              </div>
-              <div class="history-percentage" :class="{ 'over-budget': (period.actual_spent || 0) > period.target_amount }">
-                {{ Math.round(((period.actual_spent || 0) / period.target_amount) * 100) }}%
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- Empty State -->
       <div v-if="budgets.length === 0 && !loading" class="empty-state">
@@ -647,56 +621,6 @@ function getUpcomingStartDate() {
   text-align: right;
 }
 
-/* History */
-.history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.history-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 6px;
-  transition: box-shadow 0.2s;
-}
-
-.history-item:hover {
-  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
-}
-
-.history-name {
-  font-weight: 500;
-  color: #e0e0e0;
-  margin-bottom: 2px;
-}
-
-.history-dates {
-  font-size: 12px;
-  color: #b0b0b0;
-}
-
-.history-amount {
-  font-size: 14px;
-  color: #e0e0e0;
-  text-align: right;
-  margin-bottom: 2px;
-}
-
-.history-percentage {
-  font-size: 12px;
-  color: #28a745;
-  text-align: right;
-  font-weight: 500;
-}
-
-.history-percentage.over-budget {
-  color: #dc3545;
-}
 
 /* Empty State */
 .empty-state {
@@ -774,17 +698,6 @@ function getUpcomingStartDate() {
   
   .budget-actions {
     justify-content: flex-start;
-  }
-  
-  .history-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .history-spending {
-    align-self: flex-end;
-    text-align: right;
   }
 }
 
