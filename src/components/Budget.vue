@@ -495,14 +495,9 @@ function formatDate(dateString: string) {
   }
   
   .history-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .history-spending {
-    align-self: flex-end;
-    text-align: right;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
   }
 }
 </style>
