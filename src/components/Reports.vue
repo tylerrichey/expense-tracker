@@ -22,6 +22,27 @@
       </div>
     </div>
 
+    <!-- Expense Summary (only shown when there's an active budget) -->
+    <div v-if="hasActiveBudget" class="report-section">
+      <h4>Expense Summary</h4>
+      <div class="expense-summary-wrapper">
+        <div class="summary-grid">
+          <div class="summary-item">
+            <div class="period">7d</div>
+            <div class="amount">${{ expenseSummary.last7Days.toFixed(2) }}</div>
+          </div>
+          <div class="summary-item">
+            <div class="period">14d</div>
+            <div class="amount">${{ expenseSummary.last14Days.toFixed(2) }}</div>
+          </div>
+          <div class="summary-item">
+            <div class="period">Month</div>
+            <div class="amount">${{ expenseSummary.thisMonth.toFixed(2) }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="report-section">
       <h4>Average Spent Per Weekday</h4>
       <div class="weekday-chart">
@@ -66,6 +87,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { databaseService } from '../services/database'
+import { budgetService } from '../services/budget'
 import { calculateWeekdayDailyAverages } from '../utils/weekdayCalculations'
 
 interface LocationStat {
@@ -77,6 +99,12 @@ interface LocationStat {
 const expenses = ref<any[]>([])
 const weekdayAverages = ref<Array<{name: string, average: number, percentage: number}>>([])
 const topLocations = ref<LocationStat[]>([])
+const hasActiveBudget = ref(false)
+const expenseSummary = ref({
+  last7Days: 0,
+  last14Days: 0,
+  thisMonth: 0
+})
 
 const totalSpent = computed(() => {
   const currentYear = new Date().getFullYear()
@@ -119,11 +147,47 @@ async function loadReports() {
     const allExpenses = await databaseService.getAllExpenses()
     expenses.value = allExpenses
 
+    // Check for active budget
+    await checkActiveBudget()
+
+    // Load expense summary if we have an active budget
+    if (hasActiveBudget.value) {
+      await loadExpenseSummary()
+    }
+
     // Calculate top locations and weekday averages
     calculateTopLocations()
     calculateWeekdayAverages()
   } catch (error) {
     console.error('Error loading reports:', error)
+  }
+}
+
+async function checkActiveBudget() {
+  try {
+    const activeBudget = await budgetService.getActiveBudget()
+    hasActiveBudget.value = !!activeBudget
+  } catch (error) {
+    console.error('Error checking active budget:', error)
+    hasActiveBudget.value = false
+  }
+}
+
+async function loadExpenseSummary() {
+  try {
+    const [summary7, summary14, summaryMonth] = await Promise.all([
+      databaseService.getExpenseSummary(7),
+      databaseService.getExpenseSummary(14),
+      databaseService.getCurrentMonthSummary()
+    ])
+    
+    expenseSummary.value = {
+      last7Days: summary7.total,
+      last14Days: summary14.total,
+      thisMonth: summaryMonth.total
+    }
+  } catch (error) {
+    console.error('Error loading expense summary:', error)
   }
 }
 
@@ -439,6 +503,83 @@ onMounted(() => {
   .weekday-amount {
     font-size: 10px;
     margin-top: 6px;
+  }
+}
+
+/* Expense Summary Styles */
+.expense-summary-wrapper {
+  background: #1e1e1e;
+  border-radius: 8px;
+  border: 1px solid #333;
+  padding: 15px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  transition: box-shadow 0.2s;
+  text-align: center;
+}
+
+.summary-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.summary-item .period {
+  font-weight: 600;
+  color: #b0b0b0;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.summary-item .amount {
+  font-size: 16px;
+  font-weight: bold;
+  color: #007bff;
+  line-height: 1.2;
+}
+
+/* Mobile optimizations for expense summary */
+@media (max-width: 480px) {
+  .expense-summary-wrapper {
+    padding: 12px;
+  }
+  
+  .summary-item {
+    padding: 8px 6px;
+  }
+  
+  .summary-item .period {
+    font-size: 11px;
+  }
+  
+  .summary-item .amount {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 320px) {
+  .summary-item {
+    padding: 6px 4px;
+  }
+  
+  .summary-item .period {
+    font-size: 10px;
+  }
+  
+  .summary-item .amount {
+    font-size: 13px;
   }
 }
 </style>
