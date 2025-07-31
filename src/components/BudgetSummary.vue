@@ -1,6 +1,6 @@
 <template>
   <div class="budget-summary">
-    <h3>Budget Summary</h3>
+    <!-- <h3>Budget Summary</h3> -->
     <div v-if="loading" class="loading">Loading budget...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else-if="!budget || !period" class="no-budget">No active budget</div>
@@ -8,15 +8,20 @@
       <!-- Budget Name and Period Info -->
       <div class="budget-header">
         <div class="budget-name">{{ budget.name }}</div>
-        <div class="budget-period">{{ formatDateRange(period.start_date, period.end_date) }}</div>
+        <div class="budget-period">
+          {{ formatDateRange(period.start_date, period.end_date) }}
+        </div>
       </div>
-      
+
       <!-- Progress Bar -->
       <div class="progress-section">
         <div class="progress-bar">
-          <div 
-            class="progress-fill" 
-            :class="{ 'over-budget': percentage > 100, 'vacation-mode': budget.vacation_mode }"
+          <div
+            class="progress-fill"
+            :class="{
+              'over-budget': percentage > 100,
+              'vacation-mode': budget.vacation_mode,
+            }"
             :style="{ width: `${Math.min(percentage, 100)}%` }"
           ></div>
         </div>
@@ -26,23 +31,27 @@
           <span class="target">${{ period.target_amount.toFixed(2) }}</span>
         </div>
       </div>
-      
+
       <!-- Stats Grid -->
       <div class="stats-grid">
         <div class="stat-item">
-          <div class="stat-value" :class="{ 'over-budget': percentage > 100 }">{{ percentage.toFixed(1) }}%</div>
+          <div class="stat-value" :class="{ 'over-budget': percentage > 100 }">
+            {{ percentage.toFixed(1) }}%
+          </div>
           <div class="stat-label">Used</div>
         </div>
         <div class="stat-item">
           <div class="stat-value">${{ remaining.toFixed(2) }}</div>
-          <div class="stat-label">{{ remaining >= 0 ? 'Remaining' : 'Over Budget' }}</div>
+          <div class="stat-label">
+            {{ remaining >= 0 ? "Remaining" : "Over Budget" }}
+          </div>
         </div>
         <div class="stat-item">
           <div class="stat-value">${{ dailyAverage.toFixed(2) }}</div>
           <div class="stat-label">Daily Avg</div>
         </div>
       </div>
-      
+
       <!-- Vacation Mode Indicator -->
       <div v-if="budget.vacation_mode" class="vacation-mode-indicator">
         🏖️ Vacation Mode Active
@@ -52,90 +61,109 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { budgetService, type Budget, type BudgetPeriod } from '../services/budget'
+import { ref, computed, onMounted, watch } from "vue";
+import {
+  budgetService,
+  type Budget,
+  type BudgetPeriod,
+} from "../services/budget";
 
-const loading = ref(false)
-const error = ref('')
-const budget = ref<Budget | null>(null)
-const period = ref<BudgetPeriod | null>(null)
+const loading = ref(false);
+const error = ref("");
+const budget = ref<Budget | null>(null);
+const period = ref<BudgetPeriod | null>(null);
 
 const props = defineProps<{
-  refreshTrigger?: number
-}>()
+  refreshTrigger?: number;
+}>();
 
 // Computed properties
 const percentage = computed(() => {
-  if (!period.value) return 0
-  return (period.value.actual_spent / period.value.target_amount) * 100
-})
+  if (!period.value) return 0;
+  return (period.value.actual_spent / period.value.target_amount) * 100;
+});
 
 const remaining = computed(() => {
-  if (!period.value) return 0
-  return period.value.target_amount - period.value.actual_spent
-})
+  if (!period.value) return 0;
+  return period.value.target_amount - period.value.actual_spent;
+});
 
 const dailyAverage = computed(() => {
-  if (!period.value) return 0
-  
-  const startDate = new Date(period.value.start_date)
-  const currentDate = new Date()
-  const endDate = new Date(period.value.end_date)
-  
+  if (!period.value) return 0;
+
+  const startDate = new Date(period.value.start_date);
+  const currentDate = new Date();
+  const endDate = new Date(period.value.end_date);
+
   // Use the earlier of current date or end date for calculation
-  const calculationDate = currentDate < endDate ? currentDate : endDate
-  
+  const calculationDate = currentDate < endDate ? currentDate : endDate;
+
   // Calculate days elapsed (inclusive)
-  const daysElapsed = Math.max(1, Math.ceil((calculationDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1)
-  
-  return period.value.actual_spent / daysElapsed
-})
+  const daysElapsed = Math.max(
+    1,
+    Math.ceil(
+      (calculationDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    ) + 1
+  );
+
+  return period.value.actual_spent / daysElapsed;
+});
 
 async function loadBudgetSummary() {
-  loading.value = true
-  error.value = ''
-  
+  loading.value = true;
+  error.value = "";
+
   try {
-    const { budget: activeBudget, period: currentPeriod } = await budgetService.getCurrentBudgetWithPeriod()
-    budget.value = activeBudget
-    period.value = currentPeriod
-    
+    const { budget: activeBudget, period: currentPeriod } =
+      await budgetService.getCurrentBudgetWithPeriod();
+    budget.value = activeBudget;
+    period.value = currentPeriod;
+
     if (import.meta.env.DEV) {
-      console.log('Loaded budget summary:', { budget: activeBudget, period: currentPeriod })
+      console.log("Loaded budget summary:", {
+        budget: activeBudget,
+        period: currentPeriod,
+      });
     }
   } catch (err) {
-    console.error('Error loading budget summary:', err)
-    error.value = 'Failed to load budget summary'
+    console.error("Error loading budget summary:", err);
+    error.value = "Failed to load budget summary";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function formatDateRange(startDate: string, endDate: string) {
-  if (!startDate || !endDate) return ''
-  
-  const start = new Date(startDate + 'T00:00:00')
-  const end = new Date(endDate + 'T00:00:00')
-  
-  const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
-  
+  if (!startDate || !endDate) return "";
+
+  const start = new Date(startDate + "T00:00:00");
+  const end = new Date(endDate + "T00:00:00");
+
+  const options: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+  };
+
   // If same year, don't show year
-  const startFormatted = start.toLocaleDateString('en-US', options)
-  const endFormatted = end.toLocaleDateString('en-US', options)
-  
-  return `${startFormatted} - ${endFormatted}`
+  const startFormatted = start.toLocaleDateString("en-US", options);
+  const endFormatted = end.toLocaleDateString("en-US", options);
+
+  return `${startFormatted} - ${endFormatted}`;
 }
 
-onMounted(loadBudgetSummary)
+onMounted(loadBudgetSummary);
 
 // Watch for refresh trigger changes
-watch(() => props.refreshTrigger, () => {
-  if (props.refreshTrigger) {
-    loadBudgetSummary()
+watch(
+  () => props.refreshTrigger,
+  () => {
+    if (props.refreshTrigger) {
+      loadBudgetSummary();
+    }
   }
-})
+);
 
-defineExpose({ loadBudgetSummary })
+defineExpose({ loadBudgetSummary });
 </script>
 
 <style scoped>
@@ -155,7 +183,9 @@ h3 {
   font-size: 1.3rem;
 }
 
-.loading, .error, .no-budget {
+.loading,
+.error,
+.no-budget {
   text-align: center;
   padding: 20px;
   color: #888;
@@ -290,32 +320,32 @@ h3 {
     padding: 12px;
     margin: 15px 0;
   }
-  
+
   h3 {
     font-size: 1.2rem;
     margin-bottom: 12px;
   }
-  
+
   .budget-name {
     font-size: 16px;
   }
-  
+
   .stats-grid {
     gap: 6px;
   }
-  
+
   .stat-item {
     padding: 6px;
   }
-  
+
   .stat-value {
     font-size: 13px;
   }
-  
+
   .stat-label {
     font-size: 10px;
   }
-  
+
   .progress-text {
     font-size: 13px;
   }
