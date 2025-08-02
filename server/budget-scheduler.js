@@ -13,7 +13,8 @@ import { logger } from "./logger.js";
 import { 
   getCurrentTimezone,
   getCurrentDateInTimezone,
-  createEndOfDayInTimezone 
+  createEndOfDayInTimezone,
+  createStartOfDayInTimezone
 } from "./timezone-utils.js";
 
 class BudgetScheduler {
