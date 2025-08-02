@@ -26,42 +26,50 @@ export function getCurrentTimezone(db) {
  * @returns {Date} Date at start of day in the specified timezone
  */
 export function createStartOfDayInTimezone(date, timezone = 'UTC') {
-  const inputDate = new Date(date)
+  const inputDate = typeof date === 'string' ? date : date.toISOString().split('T')[0]
   
   if (timezone === 'UTC') {
-    const utcDate = new Date(inputDate.toISOString().split('T')[0] + 'T00:00:00.000Z')
+    const utcDate = new Date(inputDate + 'T00:00:00.000Z')
     return utcDate
   }
   
   try {
-    // Create date string in YYYY-MM-DD format
-    const dateStr = inputDate.toISOString().split('T')[0]
+    // SIMPLIFIED APPROACH: Use the date string directly with timezone context
+    // Create a temporary date to get timezone offset
+    const tempDate = new Date(inputDate + 'T12:00:00.000Z') // Noon UTC on the target date
     
-    // Use Intl.DateTimeFormat to get the correct date in the timezone
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
+    // Get the timezone offset for this specific date
+    const offsetMinutes = getTimezoneOffset(tempDate, timezone)
+    
+    // Create midnight in the target timezone
+    const startOfDayUTC = new Date(inputDate + 'T00:00:00.000Z')
+    startOfDayUTC.setMinutes(startOfDayUTC.getMinutes() + offsetMinutes)
+    
+    console.log('🔍 TIMEZONE DEBUG createStartOfDayInTimezone (SIMPLIFIED):', {
+      inputDate,
+      timezone,
+      offsetMinutes,
+      resultUTC: startOfDayUTC.toISOString(),
+      resultInTargetTimezone: startOfDayUTC.toLocaleString('en-US', { timeZone: timezone })
     })
     
-    const parts = formatter.formatToParts(inputDate)
-    const year = parts.find(p => p.type === 'year').value
-    const month = parts.find(p => p.type === 'month').value
-    const day = parts.find(p => p.type === 'day').value
-    
-    // Create a date string that represents midnight in the target timezone
-    const timezoneDate = new Date(`${year}-${month}-${day}T00:00:00`)
-    
-    // Convert to UTC by adjusting for timezone offset
-    const tempDate = new Date(timezoneDate.toLocaleString('sv-SE', { timeZone: timezone }))
-    const utcDate = new Date(tempDate.getTime() - (tempDate.getTimezoneOffset() * 60000))
-    
-    return utcDate
+    return startOfDayUTC
   } catch (err) {
     console.warn(`Failed to create start of day in timezone ${timezone}, falling back to UTC:`, err.message)
     return createStartOfDayInTimezone(date, 'UTC')
   }
+}
+
+/**
+ * Get timezone offset in minutes for a specific date
+ * @param {Date} date - Date to check
+ * @param {string} timezone - Target timezone
+ * @returns {number} Offset in minutes
+ */
+function getTimezoneOffset(date, timezone) {
+  const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }))
+  const tzDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }))
+  return (utcDate.getTime() - tzDate.getTime()) / (1000 * 60)
 }
 
 /**
@@ -71,26 +79,34 @@ export function createStartOfDayInTimezone(date, timezone = 'UTC') {
  * @returns {Date} Date at end of day in the specified timezone
  */
 export function createEndOfDayInTimezone(date, timezone = 'UTC') {
-  const startOfDay = createStartOfDayInTimezone(date, timezone)
+  const inputDate = typeof date === 'string' ? date : date.toISOString().split('T')[0]
   
   if (timezone === 'UTC') {
-    startOfDay.setUTCHours(23, 59, 59, 999)
-    return startOfDay
+    const utcDate = new Date(inputDate + 'T23:59:59.999Z')
+    return utcDate
   }
   
   try {
-    // Add almost 24 hours to get end of day
-    const endOfDay = new Date(startOfDay.getTime() + (24 * 60 * 60 * 1000) - 1)
+    // SIMPLIFIED APPROACH: Create end of day (11:59:59 PM) in the target timezone
+    // Create a temporary date to get timezone offset
+    const tempDate = new Date(inputDate + 'T12:00:00.000Z') // Noon UTC on the target date
     
-    // Debug logging for end of day calculation
-    console.log('🔍 TIMEZONE DEBUG createEndOfDayInTimezone:', {
-      inputDate: typeof date === 'string' ? date : date.toISOString(),
+    // Get the timezone offset for this specific date
+    const offsetMinutes = getTimezoneOffset(tempDate, timezone)
+    
+    // Create 11:59:59 PM in the target timezone
+    const endOfDayUTC = new Date(inputDate + 'T23:59:59.999Z')
+    endOfDayUTC.setMinutes(endOfDayUTC.getMinutes() + offsetMinutes)
+    
+    console.log('🔍 TIMEZONE DEBUG createEndOfDayInTimezone (SIMPLIFIED):', {
+      inputDate,
       timezone,
-      startOfDay: startOfDay.toISOString(),
-      endOfDay: endOfDay.toISOString()
+      offsetMinutes,
+      resultUTC: endOfDayUTC.toISOString(),
+      resultInTargetTimezone: endOfDayUTC.toLocaleString('en-US', { timeZone: timezone })
     })
     
-    return endOfDay
+    return endOfDayUTC
   } catch (err) {
     console.warn(`Failed to create end of day in timezone ${timezone}, falling back to UTC:`, err.message)
     return createEndOfDayInTimezone(date, 'UTC')
@@ -110,19 +126,19 @@ export function getCurrentDateInTimezone(timezone = 'UTC') {
   }
   
   try {
-    // Get the current time in the specified timezone
-    const timeInTimezone = new Date(now.toLocaleString('sv-SE', { timeZone: timezone }))
+    // FIXED: Return the actual UTC time - we don't need to convert it
+    // The issue was that we were double-converting the timezone
+    // We just need the current UTC time for comparison against properly calculated period boundaries
     
     // Debug logging for timezone conversion
-    console.log('🔍 TIMEZONE DEBUG getCurrentDateInTimezone:', {
+    console.log('🔍 TIMEZONE DEBUG getCurrentDateInTimezone (FIXED):', {
       timezone,
       originalUTC: now.toISOString(),
-      localeStringResult: now.toLocaleString('sv-SE', { timeZone: timezone }),
-      convertedDate: timeInTimezone.toISOString(),
-      timezoneOffsetMinutes: timeInTimezone.getTimezoneOffset()
+      timeInTargetTimezone: now.toLocaleString('en-US', { timeZone: timezone }),
+      returningUTC: now.toISOString()
     })
     
-    return timeInTimezone
+    return now
   } catch (err) {
     console.warn(`Failed to get current date in timezone ${timezone}, falling back to UTC:`, err.message)
     return now
