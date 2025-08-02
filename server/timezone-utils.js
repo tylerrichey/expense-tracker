@@ -81,6 +81,15 @@ export function createEndOfDayInTimezone(date, timezone = 'UTC') {
   try {
     // Add almost 24 hours to get end of day
     const endOfDay = new Date(startOfDay.getTime() + (24 * 60 * 60 * 1000) - 1)
+    
+    // Debug logging for end of day calculation
+    console.log('🔍 TIMEZONE DEBUG createEndOfDayInTimezone:', {
+      inputDate: typeof date === 'string' ? date : date.toISOString(),
+      timezone,
+      startOfDay: startOfDay.toISOString(),
+      endOfDay: endOfDay.toISOString()
+    })
+    
     return endOfDay
   } catch (err) {
     console.warn(`Failed to create end of day in timezone ${timezone}, falling back to UTC:`, err.message)
@@ -103,6 +112,16 @@ export function getCurrentDateInTimezone(timezone = 'UTC') {
   try {
     // Get the current time in the specified timezone
     const timeInTimezone = new Date(now.toLocaleString('sv-SE', { timeZone: timezone }))
+    
+    // Debug logging for timezone conversion
+    console.log('🔍 TIMEZONE DEBUG getCurrentDateInTimezone:', {
+      timezone,
+      originalUTC: now.toISOString(),
+      localeStringResult: now.toLocaleString('sv-SE', { timeZone: timezone }),
+      convertedDate: timeInTimezone.toISOString(),
+      timezoneOffsetMinutes: timeInTimezone.getTimezoneOffset()
+    })
+    
     return timeInTimezone
   } catch (err) {
     console.warn(`Failed to get current date in timezone ${timezone}, falling back to UTC:`, err.message)

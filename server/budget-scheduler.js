@@ -87,6 +87,37 @@ class BudgetScheduler {
 
   async updatePeriodStatuses() {
     try {
+      // Add detailed logging before updating statuses
+      const timezone = getCurrentTimezone(databaseService.db);
+      const currentDate = getCurrentDateInTimezone(timezone);
+      const periods = await databaseService.getBudgetPeriods();
+      
+      logger.log("info", "  🔍 DETAILED STATUS UPDATE DEBUG", {
+        timezone: timezone,
+        currentDateUTC: new Date().toISOString(),
+        currentDateInTimezone: currentDate.toISOString(),
+        currentDateInTimezoneLocal: currentDate.toLocaleString('en-US', { timeZone: timezone }),
+        periodsCount: periods.length
+      });
+      
+      // Log each period before status update
+      for (const period of periods) {
+        const startDate = createStartOfDayInTimezone(period.start_date, timezone);
+        const endDate = createEndOfDayInTimezone(period.end_date, timezone);
+        const isInPeriod = currentDate >= startDate && currentDate <= endDate;
+        
+        logger.log("info", `  🔍 Period ${period.id} analysis:`, {
+          periodStart: period.start_date,
+          periodEnd: period.end_date,
+          currentStatus: period.status,
+          startDateInTimezone: startDate.toISOString(),
+          endDateInTimezone: endDate.toISOString(),
+          currentDateInTimezone: currentDate.toISOString(),
+          isCurrentDateInPeriod: isInPeriod,
+          calculatedStatus: currentDate < startDate ? 'upcoming' : (isInPeriod ? 'active' : 'completed')
+        });
+      }
+
       await databaseService.updateAllPeriodStatuses();
       logger.log("info", "  📊 Updated all budget period statuses");
     } catch (err) {
