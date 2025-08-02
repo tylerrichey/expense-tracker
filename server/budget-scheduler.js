@@ -229,25 +229,44 @@ class BudgetScheduler {
         return;
       }
 
-      // Check if active budget has any upcoming or active periods
-      const periods = await databaseService.getBudgetPeriods(activeBudget.id);
-      const hasActivePeriod = periods.some((p) => p.status === "active");
-      const hasUpcomingPeriod = periods.some((p) => p.status === "upcoming");
+      // Get timezone and current date in that timezone
+      const timezone = getCurrentTimezone(databaseService.db);
+      const currentDate = getCurrentDateInTimezone(timezone);
 
+      // Check if active budget has any upcoming or active periods using timezone-aware logic
+      const periods = await databaseService.getBudgetPeriods(activeBudget.id);
+      
+      // Re-evaluate period statuses using current timezone-aware date to ensure accuracy
+      const now = currentDate;
+      let hasActivePeriod = false;
+      let hasUpcomingPeriod = false;
+      
+      for (const period of periods) {
+        const startDate = createStartOfDayInTimezone(period.start_date, timezone);
+        const endDate = createEndOfDayInTimezone(period.end_date, timezone);
+        
+        if (now >= startDate && now <= endDate) {
+          hasActivePeriod = true;
+        } else if (now < startDate) {
+          hasUpcomingPeriod = true;
+        }
+      }
+
+      // Only create new period if there are truly no active or upcoming periods
       if (!hasActivePeriod && !hasUpcomingPeriod) {
         if (activeBudget.vacation_mode) {
-          console.log(
+          logger.log(
+            "info",
             `  🏖️ Auto-continuing budget in vacation mode ${activeBudget.name} - no active/upcoming periods`
           );
         } else {
-          console.log(
+          logger.log(
+            "info", 
             `  🔄 Auto-continuing budget ${activeBudget.name} - no active/upcoming periods`
           );
         }
 
         // Create a new period starting now using timezone-aware date
-        const timezone = getCurrentTimezone(databaseService.db);
-        const currentDate = getCurrentDateInTimezone(timezone);
         const newPeriods = generateBudgetPeriods(activeBudget, currentDate, 1);
         const newPeriod = newPeriods[0];
 
@@ -255,6 +274,12 @@ class BudgetScheduler {
         logger.log(
           "info",
           `  ✅ Created auto-continuation period for ${activeBudget.name}`
+        );
+      } else {
+        // Log why we're not creating a period for debugging
+        logger.log(
+          "info",
+          `  ℹ️ Not auto-continuing ${activeBudget.name}: hasActive=${hasActivePeriod}, hasUpcoming=${hasUpcomingPeriod}, currentDate=${currentDate.toISOString()}, timezone=${timezone}`
         );
       }
     } catch (err) {
