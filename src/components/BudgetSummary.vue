@@ -41,7 +41,7 @@
           <div class="stat-label">Used</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">${{ remaining.toFixed(2) }}</div>
+          <div class="stat-value">${{ Math.abs(remaining).toFixed(2) }}</div>
           <div class="stat-label">
             {{ remaining >= 0 ? "Remaining" : "Over Budget" }}
           </div>

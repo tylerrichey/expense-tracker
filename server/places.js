@@ -40,6 +40,7 @@ class PlacesService {
         "meal_takeaway",
         "coffee_shop",
         "golf_course",
+        "wine_bar",
       ],
       maxResultCount: 20,
       locationRestriction: {
