@@ -109,11 +109,13 @@ const updateMessageDebug = ref("");
 const debugLogging = ref(false);
 
 const updateMessageClass = computed(() => {
-  if (updateMessageTimezone.value.includes("success")) {
+  const updateMessages =
+    updateMessageDebug.value + " " + updateMessageTimezone.value;
+  if (updateMessages.includes("success")) {
     return "text-green-600";
   } else if (
-    updateMessageTimezone.value.includes("error") ||
-    updateMessageTimezone.value.includes("failed")
+    updateMessages.includes("error") ||
+    updateMessages.includes("failed")
   ) {
     return "text-red-600";
   }
