@@ -48,13 +48,19 @@
             >
               <li
                 v-for="(place, index) in filteredPlaces"
-                :key="place"
+                :key="`${place.source}-${place.name}-${place.id || index}`"
                 :class="{ highlighted: selectedSuggestionIndex === index }"
                 @mousedown="selectSuggestion(place)"
                 @mouseenter="selectedSuggestionIndex = index"
                 class="suggestion-item"
               >
-                {{ place }}
+                <div class="suggestion-content">
+                  <div class="suggestion-name">{{ place.name }}</div>
+                  <div v-if="place.description && place.description !== place.name" class="suggestion-description">
+                    {{ place.description }}
+                  </div>
+                  <div class="suggestion-source">{{ place.source === 'google' ? '🌐 Google' : '📍 Recent' }}</div>
+                </div>
               </li>
             </ul>
           </div>
@@ -179,9 +185,10 @@ const currentLocation = ref<{ latitude: number; longitude: number } | null>(
 const showManualInput = ref(false);
 const manualPlaceName = ref("");
 const allPlaces = ref<string[]>([]);
-const filteredPlaces = ref<string[]>([]);
+const filteredPlaces = ref<{name: string, source: 'local' | 'google', id?: string, description?: string}[]>([]);
 const showSuggestions = ref(false);
 const selectedSuggestionIndex = ref(-1);
+const autocompleteTimeout = ref<NodeJS.Timeout | null>(null);
 const receiptImage = ref<File | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
@@ -507,20 +514,90 @@ async function loadAllPlaces() {
   }
 }
 
-function onPlaceNameInput() {
-  const inputValue = manualPlaceName.value.toLowerCase().trim();
-
-  if (inputValue.length > 0) {
-    filteredPlaces.value = allPlaces.value
-      .filter((place) => place.toLowerCase().includes(inputValue))
-      .slice(0, 5); // Limit to 5 suggestions
-    showSuggestions.value = filteredPlaces.value.length > 0;
-  } else {
-    filteredPlaces.value = [];
-    showSuggestions.value = false;
+async function onPlaceNameInput() {
+  const inputValue = manualPlaceName.value.trim();
+  
+  // Clear existing timeout
+  if (autocompleteTimeout.value) {
+    clearTimeout(autocompleteTimeout.value);
   }
 
+  if (inputValue.length === 0) {
+    filteredPlaces.value = [];
+    showSuggestions.value = false;
+    selectedSuggestionIndex.value = -1;
+    return;
+  }
+
+  // Filter local places immediately for responsiveness
+  const localMatches = allPlaces.value
+    .filter((place) => place.toLowerCase().includes(inputValue.toLowerCase()))
+    .slice(0, 3) // Limit local results to make room for Google results
+    .map(name => ({ name, source: 'local' as const }));
+
+  filteredPlaces.value = localMatches;
+  showSuggestions.value = localMatches.length > 0;
   selectedSuggestionIndex.value = -1;
+
+  // Trigger Google Places API call for inputs with 3+ characters
+  if (inputValue.length >= 3) {
+    autocompleteTimeout.value = setTimeout(async () => {
+      try {
+        const location = currentLocation.value;
+        const googleSuggestions = await databaseService.getPlaceAutocomplete(
+          inputValue,
+          location?.latitude,
+          location?.longitude
+        );
+
+        // Convert Google results to our format
+        const googleMatches = googleSuggestions
+          .slice(0, 4) // Limit Google results
+          .map(place => ({
+            name: place.name,
+            source: 'google' as const,
+            id: place.id,
+            description: place.description
+          }));
+
+        // Merge and deduplicate results
+        const allMatches: {name: string, source: 'local' | 'google', id?: string, description?: string}[] = [...localMatches];
+        
+        // Add Google results that don't already exist in local results
+        googleMatches.forEach(googlePlace => {
+          const exists = allMatches.some(localPlace => 
+            localPlace.name.toLowerCase() === googlePlace.name.toLowerCase()
+          );
+          if (!exists) {
+            allMatches.push(googlePlace);
+          }
+        });
+
+        // Sort by relevance: exact matches first, then alphabetical
+        allMatches.sort((a, b) => {
+          const aExact = a.name.toLowerCase() === inputValue.toLowerCase();
+          const bExact = b.name.toLowerCase() === inputValue.toLowerCase();
+          
+          if (aExact && !bExact) return -1;
+          if (!aExact && bExact) return 1;
+          
+          const aStarts = a.name.toLowerCase().startsWith(inputValue.toLowerCase());
+          const bStarts = b.name.toLowerCase().startsWith(inputValue.toLowerCase());
+          
+          if (aStarts && !bStarts) return -1;
+          if (!aStarts && bStarts) return 1;
+          
+          return a.name.localeCompare(b.name);
+        });
+
+        filteredPlaces.value = allMatches.slice(0, 7); // Total limit
+        showSuggestions.value = filteredPlaces.value.length > 0;
+      } catch (error) {
+        console.error('Error fetching Google Places autocomplete:', error);
+        // Keep local results on error
+      }
+    }, 300); // 300ms debounce
+  }
 }
 
 function onPlaceNameFocus() {
@@ -568,10 +645,16 @@ function onPlaceNameKeydown(event: KeyboardEvent) {
   }
 }
 
-function selectSuggestion(place: string) {
-  manualPlaceName.value = place;
+function selectSuggestion(place: {name: string, source: 'local' | 'google', id?: string, description?: string}) {
+  manualPlaceName.value = place.name;
   showSuggestions.value = false;
   selectedSuggestionIndex.value = -1;
+  
+  // Clear any pending timeout
+  if (autocompleteTimeout.value) {
+    clearTimeout(autocompleteTimeout.value);
+    autocompleteTimeout.value = null;
+  }
 }
 
 function handleDateInputClick(event: Event) {
@@ -688,6 +771,35 @@ input[type="date"]::-moz-calendar-picker-indicator {
 .suggestion-item.highlighted {
   background-color: var(--primary-blue);
   color: white;
+}
+
+.suggestion-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suggestion-name {
+  font-weight: 500;
+  font-size: var(--font-size-base);
+}
+
+.suggestion-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.suggestion-source {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.suggestion-item.highlighted .suggestion-description,
+.suggestion-item.highlighted .suggestion-source {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .location-select,

@@ -5,6 +5,8 @@ class PlacesService {
   constructor() {
     this.apiKey = process.env.GOOGLE_PLACES_API_KEY;
     this.baseURL = "https://places.googleapis.com/v1/places:searchNearby";
+    this.autocompleteURL =
+      "https://places.googleapis.com/v1/places:autocomplete";
   }
 
   calculateDistance(point1, point2) {
@@ -103,6 +105,87 @@ class PlacesService {
         error.response?.data || error.message
       );
       throw new Error("Failed to fetch nearby places");
+    }
+  }
+
+  async searchAutocomplete(
+    input,
+    latitude = null,
+    longitude = null,
+    radius = 1000
+  ) {
+    if (!this.apiKey) {
+      throw new Error("Google Places API key not configured");
+    }
+
+    if (!input || input.trim().length === 0) {
+      throw new Error("Search input is required");
+    }
+
+    const requestBody = {
+      input: input.trim(),
+    };
+
+    // Add location bias if coordinates are provided
+    if (latitude && longitude) {
+      requestBody.locationBias = {
+        circle: {
+          center: {
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude),
+          },
+          radius: radius,
+        },
+      };
+    }
+
+    const requestHeaders = {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": this.apiKey,
+    };
+
+    // Log the Google Places Autocomplete API request
+    logger.logRequest(this.autocompleteURL, requestHeaders, requestBody);
+
+    try {
+      const response = await axios.post(this.autocompleteURL, requestBody, {
+        headers: requestHeaders,
+      });
+
+      // Log the Google Places Autocomplete API response
+      logger.logResponse(
+        response.status,
+        response.statusText,
+        response.headers,
+        response.data
+      );
+
+      const suggestions =
+        response.data.suggestions
+          ?.map((suggestion) => {
+            const prediction = suggestion.placePrediction;
+            if (prediction) {
+              return {
+                id: prediction.placeId,
+                name:
+                  prediction.structuredFormat.mainText.text || "Unknown Place",
+                description: prediction.text?.text || "",
+              };
+            }
+            return null;
+          })
+          .filter(Boolean) || [];
+
+      return suggestions;
+    } catch (error) {
+      // Log detailed error information for Google Places Autocomplete API
+      logger.logError(error);
+
+      console.error(
+        "Error fetching autocomplete suggestions:",
+        error.response?.data || error.message
+      );
+      throw new Error("Failed to fetch autocomplete suggestions");
     }
   }
 }

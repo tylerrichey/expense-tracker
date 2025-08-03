@@ -321,6 +321,34 @@ app.get("/api/places/nearby", authenticateRequest, async (req, res) => {
   }
 });
 
+app.get("/api/places/autocomplete", authenticateRequest, async (req, res) => {
+  try {
+    const { input, latitude, longitude, radius } = req.query;
+
+    if (!input) {
+      return res
+        .status(400)
+        .json({ error: "Search input is required" });
+    }
+
+    const suggestions = await placesService.searchAutocomplete(
+      input,
+      latitude || null,
+      longitude || null,
+      radius ? parseInt(radius) : 1000
+    );
+
+    res.json(suggestions);
+  } catch (error) {
+    logger.log("error", "Error fetching autocomplete suggestions:", {
+      error: error.message,
+    });
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to fetch autocomplete suggestions" });
+  }
+});
+
 app.get(
   "/api/expenses/summary/:days",
   authenticateRequest,

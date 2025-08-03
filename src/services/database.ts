@@ -184,6 +184,27 @@ class DatabaseService {
 
     return await response.json()
   }
+
+  async getPlaceAutocomplete(input: string, latitude?: number, longitude?: number): Promise<{id: string, name: string, description: string}[]> {
+    const params = new URLSearchParams({
+      input: input
+    })
+    
+    if (latitude && longitude) {
+      params.set('latitude', latitude.toString())
+      params.set('longitude', longitude.toString())
+    }
+
+    const response = await fetch(`${this.baseURL}/places/autocomplete?${params}`, {
+      headers: this.getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch autocomplete suggestions')
+    }
+
+    return await response.json()
+  }
 }
 
 export const databaseService = new DatabaseService()
