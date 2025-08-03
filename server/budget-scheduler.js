@@ -10,12 +10,13 @@ import {
   setDatabaseInstance,
 } from "./budget-utils.js";
 import { logger } from "./logger.js";
-import { 
+import {
   getCurrentTimezone,
   getCurrentDateInTimezone,
   createEndOfDayInTimezone,
-  createStartOfDayInTimezone
+  createStartOfDayInTimezone,
 } from "./timezone-utils.js";
+import { debugLog } from "./debug-utils.js";
 
 class BudgetScheduler {
   constructor() {
@@ -91,22 +92,27 @@ class BudgetScheduler {
       const timezone = getCurrentTimezone(databaseService.db);
       const currentDate = getCurrentDateInTimezone(timezone);
       const periods = await databaseService.getBudgetPeriods();
-      
-      logger.log("info", "  🔍 DETAILED STATUS UPDATE DEBUG", {
+
+      debugLog("🔍 DETAILED STATUS UPDATE DEBUG", {
         timezone: timezone,
         currentDateUTC: new Date().toISOString(),
         currentDateInTimezone: currentDate.toISOString(),
-        currentDateInTimezoneLocal: currentDate.toLocaleString('en-US', { timeZone: timezone }),
-        periodsCount: periods.length
+        currentDateInTimezoneLocal: currentDate.toLocaleString("en-US", {
+          timeZone: timezone,
+        }),
+        periodsCount: periods.length,
       });
-      
+
       // Log each period before status update
       for (const period of periods) {
-        const startDate = createStartOfDayInTimezone(period.start_date, timezone);
+        const startDate = createStartOfDayInTimezone(
+          period.start_date,
+          timezone
+        );
         const endDate = createEndOfDayInTimezone(period.end_date, timezone);
         const isInPeriod = currentDate >= startDate && currentDate <= endDate;
-        
-        logger.log("info", `  🔍 Period ${period.id} analysis:`, {
+
+        debugLog(`🔍 Period ${period.id} analysis:`, {
           periodStart: period.start_date,
           periodEnd: period.end_date,
           currentStatus: period.status,
@@ -114,7 +120,12 @@ class BudgetScheduler {
           endDateInTimezone: endDate.toISOString(),
           currentDateInTimezone: currentDate.toISOString(),
           isCurrentDateInPeriod: isInPeriod,
-          calculatedStatus: currentDate < startDate ? 'upcoming' : (isInPeriod ? 'active' : 'completed')
+          calculatedStatus:
+            currentDate < startDate
+              ? "upcoming"
+              : isInPeriod
+              ? "active"
+              : "completed",
         });
       }
 
@@ -141,7 +152,10 @@ class BudgetScheduler {
           Math.abs(now - endDate) < this.checkInterval;
 
         if (isJustCompleted) {
-          logger.log("info", `  🏁 Period ${period.id} just completed in timezone ${timezone}`);
+          logger.log(
+            "info",
+            `  🏁 Period ${period.id} just completed in timezone ${timezone}`
+          );
           await this.handlePeriodCompletion(period);
         }
       }
@@ -267,16 +281,19 @@ class BudgetScheduler {
 
       // Check if active budget has any upcoming or active periods using timezone-aware logic
       const periods = await databaseService.getBudgetPeriods(activeBudget.id);
-      
+
       // Re-evaluate period statuses using current timezone-aware date to ensure accuracy
       const now = currentDate;
       let hasActivePeriod = false;
       let hasUpcomingPeriod = false;
-      
+
       for (const period of periods) {
-        const startDate = createStartOfDayInTimezone(period.start_date, timezone);
+        const startDate = createStartOfDayInTimezone(
+          period.start_date,
+          timezone
+        );
         const endDate = createEndOfDayInTimezone(period.end_date, timezone);
-        
+
         if (now >= startDate && now <= endDate) {
           hasActivePeriod = true;
         } else if (now < startDate) {
@@ -293,7 +310,7 @@ class BudgetScheduler {
           );
         } else {
           logger.log(
-            "info", 
+            "info",
             `  🔄 Auto-continuing budget ${activeBudget.name} - no active/upcoming periods`
           );
         }
@@ -311,7 +328,9 @@ class BudgetScheduler {
         // Log why we're not creating a period for debugging
         logger.log(
           "info",
-          `  ℹ️ Not auto-continuing ${activeBudget.name}: hasActive=${hasActivePeriod}, hasUpcoming=${hasUpcomingPeriod}, currentDate=${currentDate.toISOString()}, timezone=${timezone}`
+          `  ℹ️ Not auto-continuing ${
+            activeBudget.name
+          }: hasActive=${hasActivePeriod}, hasUpcoming=${hasUpcomingPeriod}, currentDate=${currentDate.toISOString()}, timezone=${timezone}`
         );
       }
     } catch (err) {

@@ -9,15 +9,16 @@
       <div class="settings-section">
         <h2>Timezone</h2>
         <p>
-          Set your timezone to ensure budget periods roll over at the correct local time.
+          Set your timezone to ensure budget periods roll over at the correct
+          local time.
         </p>
-        
+
         <div class="timezone-selector">
           <label for="timezone-select">
-            Current Timezone: {{ currentTimezone || 'UTC' }}
+            Current Timezone: {{ currentTimezone || "UTC" }}
           </label>
-          
-          <select 
+
+          <select
             id="timezone-select"
             v-model="selectedTimezone"
             @change="updateTimezone"
@@ -27,20 +28,25 @@
               {{ tz.label }}
             </option>
           </select>
-          
-          <div v-if="updating" class="update-message text-gray-500">
+
+          <div v-if="updatingTimezone" class="update-message text-gray-500">
             Updating timezone...
           </div>
-          
-          <div v-if="updateMessage" class="update-message" :class="updateMessageClass">
-            {{ updateMessage }}
+
+          <div
+            v-if="updateMessageTimezone"
+            class="update-message"
+            :class="updateMessageClass"
+          >
+            {{ updateMessageTimezone }}
           </div>
         </div>
 
         <div class="mt-4 p-3 bg-blue-50">
           <p class="text-blue-800">
-            <strong>Note:</strong> Changing your timezone will affect when budget periods start and end. 
-            Existing budget periods will continue using their original timezone until they complete.
+            <strong>Note:</strong> Changing your timezone will affect when
+            budget periods start and end. Existing budget periods will continue
+            using their original timezone until they complete.
           </p>
         </div>
       </div>
@@ -49,35 +55,40 @@
       <div class="settings-section">
         <h2>Debug Logging</h2>
         <p>
-          Enable detailed debug logging for troubleshooting. This will show additional 
-          information in server logs about expense processing, timezone calculations, 
-          and budget period operations.
+          Enable detailed debug logging for troubleshooting. This will show
+          additional information in server logs about expense processing,
+          timezone calculations, and budget period operations.
         </p>
-        
+
         <div class="debug-toggle">
           <label class="toggle-container">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               v-model="debugLogging"
               @change="updateDebugLogging"
               :disabled="updating"
             />
             <span class="toggle-slider"></span>
             <span class="toggle-label">
-              {{ debugLogging ? 'Debug logging enabled' : 'Debug logging disabled' }}
+              {{
+                debugLogging
+                  ? "Debug logging enabled"
+                  : "Debug logging disabled"
+              }}
             </span>
           </label>
-          
-          <div v-if="updating" class="update-message text-gray-500">
+
+          <div v-if="updatingDebug" class="update-message text-gray-500">
             Updating debug setting...
           </div>
-        </div>
 
-        <div class="mt-4 p-3 bg-orange-50">
-          <p class="text-orange-800">
-            <strong>Note:</strong> Debug logging may generate more server log output. 
-            Only enable this when troubleshooting issues or when requested by support.
-          </p>
+          <div
+            v-if="updateMessageDebug"
+            class="update-message"
+            :class="updateMessageClass"
+          >
+            {{ updateMessageDebug }}
+          </div>
         </div>
       </div>
     </div>
@@ -85,166 +96,173 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { AuthService } from '../services/auth'
+import { ref, onMounted, computed } from "vue";
+import { AuthService } from "../services/auth";
 
-const currentTimezone = ref('UTC')
-const selectedTimezone = ref('UTC')
-const timezones = ref([])
-const updating = ref(false)
-const updateMessage = ref('')
-const debugLogging = ref(false)
+const currentTimezone = ref("UTC");
+const selectedTimezone = ref("UTC");
+const timezones = ref([]);
+const updatingTimezone = ref(false);
+const updateMessageTimezone = ref("");
+const updatingDebug = ref(false);
+const updateMessageDebug = ref("");
+const debugLogging = ref(false);
 
 const updateMessageClass = computed(() => {
-  if (updateMessage.value.includes('success')) {
-    return 'text-green-600'
-  } else if (updateMessage.value.includes('error') || updateMessage.value.includes('failed')) {
-    return 'text-red-600'
+  if (updateMessageTimezone.value.includes("success")) {
+    return "text-green-600";
+  } else if (
+    updateMessageTimezone.value.includes("error") ||
+    updateMessageTimezone.value.includes("failed")
+  ) {
+    return "text-red-600";
   }
-  return 'text-gray-600'
-})
+  return "text-gray-600";
+});
 
 async function loadTimezones() {
   try {
-    const response = await fetch('/api/timezones', {
-      method: 'GET',
-      headers: AuthService.getAuthHeaders()
-    })
+    const response = await fetch("/api/timezones", {
+      method: "GET",
+      headers: AuthService.getAuthHeaders(),
+    });
 
     if (!response.ok) {
-      throw new Error('Failed to load timezones')
+      throw new Error("Failed to load timezones");
     }
 
-    timezones.value = await response.json()
+    timezones.value = await response.json();
   } catch (error) {
-    console.error('Error loading timezones:', error)
-    updateMessage.value = 'Error loading available timezones'
+    console.error("Error loading timezones:", error);
+    updateMessageTimezone.value = "Error loading available timezones";
   }
 }
 
 async function loadCurrentTimezone() {
   try {
-    const response = await fetch('/api/settings/timezone', {
-      method: 'GET',
-      headers: AuthService.getAuthHeaders()
-    })
+    const response = await fetch("/api/settings/timezone", {
+      method: "GET",
+      headers: AuthService.getAuthHeaders(),
+    });
 
     if (response.ok) {
-      const setting = await response.json()
-      currentTimezone.value = setting.value
-      selectedTimezone.value = setting.value
+      const setting = await response.json();
+      currentTimezone.value = setting.value;
+      selectedTimezone.value = setting.value;
     } else if (response.status === 404) {
       // Setting doesn't exist yet, use default
-      currentTimezone.value = 'UTC'
-      selectedTimezone.value = 'UTC'
+      currentTimezone.value = "UTC";
+      selectedTimezone.value = "UTC";
     } else {
-      throw new Error('Failed to load timezone setting')
+      throw new Error("Failed to load timezone setting");
     }
   } catch (error) {
-    console.error('Error loading current timezone:', error)
-    updateMessage.value = 'Error loading current timezone setting'
+    console.error("Error loading current timezone:", error);
+    updateMessageTimezone.value = "Error loading current timezone setting";
   }
 }
 
 async function loadDebugLoggingSetting() {
   try {
-    const response = await fetch('/api/settings/debug_logging', {
-      method: 'GET',
-      headers: AuthService.getAuthHeaders()
-    })
+    const response = await fetch("/api/settings/debug_logging", {
+      method: "GET",
+      headers: AuthService.getAuthHeaders(),
+    });
 
     if (response.ok) {
-      const setting = await response.json()
-      debugLogging.value = setting.value === 'true'
+      const setting = await response.json();
+      debugLogging.value = setting.value === "true";
     } else if (response.status === 404) {
       // Setting doesn't exist yet, use default (false)
-      debugLogging.value = false
+      debugLogging.value = false;
     } else {
-      throw new Error('Failed to load debug logging setting')
+      throw new Error("Failed to load debug logging setting");
     }
   } catch (error) {
-    console.error('Error loading debug logging setting:', error)
-    updateMessage.value = 'Error loading debug logging setting'
+    console.error("Error loading debug logging setting:", error);
+    updateMessageDebug.value = "Error loading debug logging setting";
   }
 }
 
 async function updateTimezone() {
   if (selectedTimezone.value === currentTimezone.value) {
-    return // No change
+    return; // No change
   }
 
-  updating.value = true
-  updateMessage.value = ''
+  updatingTimezone.value = true;
+  updateMessageTimezone.value = "";
 
   try {
-    const response = await fetch('/api/settings/timezone', {
-      method: 'PUT',
+    const response = await fetch("/api/settings/timezone", {
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
-        ...AuthService.getAuthHeaders()
+        "Content-Type": "application/json",
+        ...AuthService.getAuthHeaders(),
       },
-      body: JSON.stringify({ value: selectedTimezone.value })
-    })
+      body: JSON.stringify({ value: selectedTimezone.value }),
+    });
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Failed to update timezone')
+      const error = await response.json();
+      throw new Error(error.message || "Failed to update timezone");
     }
 
-    const updatedSetting = await response.json()
-    currentTimezone.value = updatedSetting.value
-    updateMessage.value = 'Timezone updated successfully'
+    const updatedSetting = await response.json();
+    currentTimezone.value = updatedSetting.value;
+    updateMessageTimezone.value = "Timezone updated successfully";
 
     // Clear success message after 3 seconds
     setTimeout(() => {
-      updateMessage.value = ''
-    }, 3000)
-
+      updateMessageTimezone.value = "";
+    }, 3000);
   } catch (error) {
-    console.error('Error updating timezone:', error)
-    updateMessage.value = `Error updating timezone: ${error.message}`
-    
+    console.error("Error updating timezone:", error);
+    updateMessageTimezone.value = `Error updating timezone: ${error.message}`;
+
     // Revert selection on error
-    selectedTimezone.value = currentTimezone.value
+    selectedTimezone.value = currentTimezone.value;
   } finally {
-    updating.value = false
+    updatingTimezone.value = false;
   }
 }
 
 async function updateDebugLogging() {
-  updating.value = true
-  updateMessage.value = ''
+  updatingDebug.value = true;
+  updateMessageDebug.value = "";
 
   try {
-    const response = await fetch('/api/settings/debug_logging', {
-      method: 'PUT',
+    const response = await fetch("/api/settings/debug_logging", {
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
-        ...AuthService.getAuthHeaders()
+        "Content-Type": "application/json",
+        ...AuthService.getAuthHeaders(),
       },
-      body: JSON.stringify({ value: debugLogging.value.toString() })
-    })
+      body: JSON.stringify({ value: debugLogging.value.toString() }),
+    });
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Failed to update debug logging setting')
+      const error = await response.json();
+      throw new Error(
+        error.message || "Failed to update debug logging setting"
+      );
     }
 
-    updateMessage.value = `Debug logging ${debugLogging.value ? 'enabled' : 'disabled'} successfully`
+    updateMessageDebug.value = `Debug logging ${
+      debugLogging.value ? "enabled" : "disabled"
+    } successfully`;
 
     // Clear success message after 3 seconds
     setTimeout(() => {
-      updateMessage.value = ''
-    }, 3000)
-
+      updateMessageDebug.value = "";
+    }, 3000);
   } catch (error) {
-    console.error('Error updating debug logging setting:', error)
-    updateMessage.value = `Error updating debug logging: ${error.message}`
-    
+    console.error("Error updating debug logging setting:", error);
+    updateMessageDebug.value = `Error updating debug logging: ${error.message}`;
+
     // Revert toggle on error
-    debugLogging.value = !debugLogging.value
+    debugLogging.value = !debugLogging.value;
   } finally {
-    updating.value = false
+    updatingDebug.value = false;
   }
 }
 
@@ -252,9 +270,9 @@ onMounted(async () => {
   await Promise.all([
     loadTimezones(),
     loadCurrentTimezone(),
-    loadDebugLoggingSetting()
-  ])
-})
+    loadDebugLoggingSetting(),
+  ]);
+});
 </script>
 
 <style scoped>
@@ -381,7 +399,7 @@ onMounted(async () => {
 }
 
 .toggle-slider::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 2px;
   left: 2px;
@@ -454,11 +472,11 @@ onMounted(async () => {
   .settings-page {
     padding: 16px;
   }
-  
+
   .timezone-selector select {
     max-width: 100%;
   }
-  
+
   .settings-section {
     padding: 1rem;
   }
