@@ -3,6 +3,8 @@
  * Replaces UTC-based calculations with timezone-aware ones
  */
 
+import { debugLog } from './debug-utils.js'
+
 /**
  * Get the current timezone setting from database
  * @param {Object} db - Database instance
@@ -45,7 +47,7 @@ export function createStartOfDayInTimezone(date, timezone = 'UTC') {
     const startOfDayUTC = new Date(inputDate + 'T00:00:00.000Z')
     startOfDayUTC.setMinutes(startOfDayUTC.getMinutes() + offsetMinutes)
     
-    console.log('🔍 TIMEZONE DEBUG createStartOfDayInTimezone (SIMPLIFIED):', {
+    debugLog('🔍 TIMEZONE DEBUG createStartOfDayInTimezone (SIMPLIFIED):', {
       inputDate,
       timezone,
       offsetMinutes,
@@ -98,7 +100,7 @@ export function createEndOfDayInTimezone(date, timezone = 'UTC') {
     const endOfDayUTC = new Date(inputDate + 'T23:59:59.999Z')
     endOfDayUTC.setMinutes(endOfDayUTC.getMinutes() + offsetMinutes)
     
-    console.log('🔍 TIMEZONE DEBUG createEndOfDayInTimezone (SIMPLIFIED):', {
+    debugLog('🔍 TIMEZONE DEBUG createEndOfDayInTimezone (SIMPLIFIED):', {
       inputDate,
       timezone,
       offsetMinutes,
@@ -131,7 +133,7 @@ export function getCurrentDateInTimezone(timezone = 'UTC') {
     // We just need the current UTC time for comparison against properly calculated period boundaries
     
     // Debug logging for timezone conversion
-    console.log('🔍 TIMEZONE DEBUG getCurrentDateInTimezone (FIXED):', {
+    debugLog('🔍 TIMEZONE DEBUG getCurrentDateInTimezone (FIXED):', {
       timezone,
       originalUTC: now.toISOString(),
       timeInTargetTimezone: now.toLocaleString('en-US', { timeZone: timezone }),
@@ -157,17 +159,15 @@ export function isDateInPeriodTimezoneAware(date, period, timezone = 'UTC') {
   const startDate = createStartOfDayInTimezone(period.start_date, timezone)
   const endDate = createEndOfDayInTimezone(period.end_date, timezone)
   
-  if (process.env.DEBUG_EXPENSES) {
-    console.log('🔍 EXPENSE DEBUG: isDateInPeriodTimezoneAware detailed:', {
-      checkDate: checkDate.toISOString(),
-      periodStart: period.start_date,
-      periodEnd: period.end_date,
-      timezone: timezone,
-      startDateCalculated: startDate.toISOString(),
-      endDateCalculated: endDate.toISOString(),
-      result: checkDate >= startDate && checkDate <= endDate
-    })
-  }
+  debugLog('🔍 EXPENSE DEBUG: isDateInPeriodTimezoneAware detailed:', {
+    checkDate: checkDate.toISOString(),
+    periodStart: period.start_date,
+    periodEnd: period.end_date,
+    timezone: timezone,
+    startDateCalculated: startDate.toISOString(),
+    endDateCalculated: endDate.toISOString(),
+    result: checkDate >= startDate && checkDate <= endDate
+  })
   
   return checkDate >= startDate && checkDate <= endDate
 }

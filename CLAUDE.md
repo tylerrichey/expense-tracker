@@ -83,3 +83,7 @@ npm start
 - `src/services/` - TypeScript services (auth, database)
 - `server/` - Express.js backend
 - `scripts/` - Utility scripts (test data generation)
+
+## Deployment Information
+
+- Production is at https://et.tylerrichey.com

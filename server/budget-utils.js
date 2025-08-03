@@ -13,6 +13,7 @@ import {
   updatePeriodStatusesInTimezone,
   formatDateForDBInTimezone
 } from './timezone-utils.js'
+import { debugLog } from './debug-utils.js'
 
 // Database instance - will be injected by the calling code
 let databaseInstance = null
@@ -31,15 +32,11 @@ export function setDatabaseInstance(db) {
  */
 function getTimezone() {
   if (!databaseInstance) {
-    if (process.env.DEBUG_EXPENSES) {
-      console.warn('🔍 EXPENSE DEBUG: Database instance not set, using UTC timezone')
-    }
+    debugLog('🔍 EXPENSE DEBUG: Database instance not set, using UTC timezone')
     return 'UTC'
   }
   const timezone = getCurrentTimezone(databaseInstance)
-  if (process.env.DEBUG_EXPENSES) {
-    console.log('🔍 EXPENSE DEBUG: Got timezone from database:', timezone)
-  }
+  debugLog('🔍 EXPENSE DEBUG: Got timezone from database:', timezone)
   return timezone
 }
 
@@ -144,14 +141,12 @@ export function generateBudgetPeriods(budget, fromDate = new Date(), periodCount
 export function isDateInPeriod(date, period) {
   const timezone = getTimezone()
   
-  if (process.env.DEBUG_EXPENSES) {
-    console.log('🔍 EXPENSE DEBUG: isDateInPeriod called:', {
-      date: date.toISOString(),
-      periodStart: period.start_date,
-      periodEnd: period.end_date,
-      timezone: timezone
-    })
-  }
+  debugLog('🔍 EXPENSE DEBUG: isDateInPeriod called:', {
+    date: date.toISOString(),
+    periodStart: period.start_date,
+    periodEnd: period.end_date,
+    timezone: timezone
+  })
   
   // SIMPLIFIED APPROACH: Convert everything to dates and compare in local timezone context
   // This avoids the complex timezone conversion issues
@@ -177,24 +172,20 @@ export function isDateInPeriod(date, period) {
     
     result = expenseDateInTimezone >= periodStartDate && expenseDateInTimezone <= periodEndDate
     
-    if (process.env.DEBUG_EXPENSES) {
-      console.log('🔍 EXPENSE DEBUG: Timezone date comparison:', {
-        expenseDateInTimezone: expenseDateInTimezone,
-        periodStartDate: periodStartDate,
-        periodEndDate: periodEndDate,
-        result: result
-      })
-    }
-  }
-  
-  if (process.env.DEBUG_EXPENSES) {
-    console.log('🔍 EXPENSE DEBUG: Final comparison result:', {
-      checkDate: checkDate.toISOString(),
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
+    debugLog('🔍 EXPENSE DEBUG: Timezone date comparison:', {
+      expenseDateInTimezone: expenseDateInTimezone,
+      periodStartDate: periodStartDate,
+      periodEndDate: periodEndDate,
       result: result
     })
   }
+  
+  debugLog('🔍 EXPENSE DEBUG: Final comparison result:', {
+    checkDate: checkDate.toISOString(),
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    result: result
+  })
   
   return result
 }
