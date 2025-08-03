@@ -902,10 +902,27 @@ app.put("/api/settings/:key", authenticateRequest, async (req, res) => {
     }
     
     const setting = await databaseService.setSetting(key, value);
+    
+    // Update logger's debug setting cache if debug_logging was changed
+    if (key === 'debug_logging') {
+      logger.setDebugEnabled(value === 'true');
+    }
+    
     res.json(setting);
   } catch (error) {
     logger.log("error", "Error updating setting:", { error: error.message });
     res.status(500).json({ error: "Failed to update setting" });
+  }
+});
+
+// Logs endpoint
+app.get("/api/logs", authenticateRequest, (req, res) => {
+  try {
+    const recentLogs = logger.getRecentLogs();
+    res.json({ logs: recentLogs });
+  } catch (error) {
+    logger.error("Error fetching recent logs", { error: error.message });
+    res.status(500).json({ error: "Failed to fetch recent logs" });
   }
 });
 

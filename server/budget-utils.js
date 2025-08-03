@@ -13,7 +13,7 @@ import {
   updatePeriodStatusesInTimezone,
   formatDateForDBInTimezone
 } from './timezone-utils.js'
-import { debugLog } from './debug-utils.js'
+import { logger } from './logger.js'
 
 // Database instance - will be injected by the calling code
 let databaseInstance = null
@@ -32,11 +32,11 @@ export function setDatabaseInstance(db) {
  */
 function getTimezone() {
   if (!databaseInstance) {
-    debugLog('🔍 EXPENSE DEBUG: Database instance not set, using UTC timezone')
+    logger.debug('🔍 EXPENSE DEBUG: Database instance not set, using UTC timezone')
     return 'UTC'
   }
   const timezone = getCurrentTimezone(databaseInstance)
-  debugLog('🔍 EXPENSE DEBUG: Got timezone from database:', timezone)
+  logger.debug('🔍 EXPENSE DEBUG: Got timezone from database', timezone)
   return timezone
 }
 
@@ -141,7 +141,7 @@ export function generateBudgetPeriods(budget, fromDate = new Date(), periodCount
 export function isDateInPeriod(date, period) {
   const timezone = getTimezone()
   
-  debugLog('🔍 EXPENSE DEBUG: isDateInPeriod called:', {
+  logger.debug('🔍 EXPENSE DEBUG: isDateInPeriod called', {
     date: date.toISOString(),
     periodStart: period.start_date,
     periodEnd: period.end_date,
@@ -172,7 +172,7 @@ export function isDateInPeriod(date, period) {
     
     result = expenseDateInTimezone >= periodStartDate && expenseDateInTimezone <= periodEndDate
     
-    debugLog('🔍 EXPENSE DEBUG: Timezone date comparison:', {
+    logger.debug('🔍 EXPENSE DEBUG: Timezone date comparison', {
       expenseDateInTimezone: expenseDateInTimezone,
       periodStartDate: periodStartDate,
       periodEndDate: periodEndDate,
@@ -180,7 +180,7 @@ export function isDateInPeriod(date, period) {
     })
   }
   
-  debugLog('🔍 EXPENSE DEBUG: Final comparison result:', {
+  logger.debug('🔍 EXPENSE DEBUG: Final comparison result', {
     checkDate: checkDate.toISOString(),
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),

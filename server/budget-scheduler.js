@@ -16,7 +16,6 @@ import {
   createEndOfDayInTimezone,
   createStartOfDayInTimezone,
 } from "./timezone-utils.js";
-import { debugLog } from "./debug-utils.js";
 
 class BudgetScheduler {
   constructor() {
@@ -93,7 +92,7 @@ class BudgetScheduler {
       const currentDate = getCurrentDateInTimezone(timezone);
       const periods = await databaseService.getBudgetPeriods();
 
-      debugLog("🔍 DETAILED STATUS UPDATE DEBUG", {
+      logger.debug("🔍 DETAILED STATUS UPDATE DEBUG", {
         timezone: timezone,
         currentDateUTC: new Date().toISOString(),
         currentDateInTimezone: currentDate.toISOString(),
@@ -112,7 +111,7 @@ class BudgetScheduler {
         const endDate = createEndOfDayInTimezone(period.end_date, timezone);
         const isInPeriod = currentDate >= startDate && currentDate <= endDate;
 
-        debugLog(`🔍 Period ${period.id} analysis:`, {
+        logger.debug(`🔍 Period ${period.id} analysis`, {
           periodStart: period.start_date,
           periodEnd: period.end_date,
           currentStatus: period.status,
@@ -211,10 +210,10 @@ class BudgetScheduler {
           }
         }
       } else {
-        console.log(`  ⏸️ Budget ${budget.name} is inactive, not continuing`);
+        logger.info(`Budget ${budget.name} is inactive, not continuing`);
       }
     } catch (err) {
-      console.error("  ❌ Error handling period completion:", err);
+      logger.error("Error handling period completion", { error: err.message });
     }
   }
 
@@ -231,9 +230,9 @@ class BudgetScheduler {
       // Create the next period
       await databaseService.createBudgetPeriod(nextPeriod);
 
-      console.log(`  ✅ Created continuation period for budget ${budget.name}`);
+      logger.info(`Created continuation period for budget ${budget.name}`);
     } catch (err) {
-      console.error("  ❌ Error continuing budget:", err);
+      logger.error("Error continuing budget", { error: err.message });
       throw err;
     }
   }
@@ -258,11 +257,9 @@ class BudgetScheduler {
 
       await databaseService.createBudgetPeriod(newPeriod);
 
-      console.log(
-        `  ✅ Transitioned from ${currentBudget.name} to ${upcomingBudget.name}`
-      );
+      logger.info(`Transitioned from ${currentBudget.name} to ${upcomingBudget.name}`);
     } catch (err) {
-      console.error("  ❌ Error transitioning to upcoming budget:", err);
+      logger.error("Error transitioning to upcoming budget", { error: err.message });
       throw err;
     }
   }
@@ -423,7 +420,7 @@ if (!databaseService.getOrphanExpenses) {
       const expenses = stmt.all();
       return Promise.resolve(expenses);
     } catch (err) {
-      console.error("Database: Error fetching orphan expenses:", err);
+      logger.error("Database: Error fetching orphan expenses", { error: err.message });
       return Promise.reject(err);
     }
   };
@@ -440,7 +437,7 @@ if (!databaseService.associateExpenseWithPeriod) {
       const result = stmt.run(periodId, expenseId);
       return Promise.resolve(result.changes > 0);
     } catch (err) {
-      console.error("Database: Error associating expense with period:", err);
+      logger.error("Database: Error associating expense with period", { error: err.message });
       return Promise.reject(err);
     }
   };

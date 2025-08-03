@@ -13,7 +13,6 @@ import {
   setDatabaseInstance
 } from './budget-utils.js'
 import { logger } from './logger.js'
-import { debugLog } from './debug-utils.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -47,6 +46,9 @@ class DatabaseService {
     
     // Set database instance for timezone-aware budget utilities
     setDatabaseInstance(this.db)
+    
+    // Initialize logger's debug setting from database
+    logger.initializeDebugSetting(this.db)
   }
 
   initializeDatabase() {
@@ -72,7 +74,7 @@ class DatabaseService {
       // Run migrations
       this.runMigrations()
     } catch (err) {
-      console.error('Error creating table:', err)
+      logger.error('Error creating table', { error: err.message })
     }
   }
 
@@ -154,7 +156,7 @@ class DatabaseService {
   async addExpense(expense) {
     try {
       // Log expense addition for debugging
-      debugLog('🔍 EXPENSE DEBUG: Adding expense with data:', { 
+      logger.debug('🔍 EXPENSE DEBUG: Adding expense with data', { 
         amount: expense.amount, 
         timestamp: expense.timestamp, 
         place_name: expense.place_name 
@@ -165,7 +167,7 @@ class DatabaseService {
       try {
         // First, get all available periods for debugging
         const allPeriods = await this.getBudgetPeriods()
-        debugLog('🔍 EXPENSE DEBUG: Available budget periods:', 
+        logger.debug('🔍 EXPENSE DEBUG: Available budget periods', 
           allPeriods.map(p => ({
             id: p.id,
             start_date: p.start_date,
@@ -176,7 +178,7 @@ class DatabaseService {
         )
         
         const matchingPeriod = await this.findPeriodForExpense(expense.timestamp)
-        debugLog('🔍 EXPENSE DEBUG: findPeriodForExpense result:', matchingPeriod ? {
+        logger.debug('🔍 EXPENSE DEBUG: findPeriodForExpense result', matchingPeriod ? {
           id: matchingPeriod.id,
           start_date: matchingPeriod.start_date,
           end_date: matchingPeriod.end_date,
@@ -187,7 +189,7 @@ class DatabaseService {
         if (matchingPeriod) {
           // Check if the associated budget is in vacation mode
           const budget = await this.getBudgetById(matchingPeriod.budget_id)
-          debugLog('🔍 EXPENSE DEBUG: Associated budget:', budget ? {
+          logger.debug('🔍 EXPENSE DEBUG: Associated budget', budget ? {
             id: budget.id,
             name: budget.name,
             vacation_mode: budget.vacation_mode,
@@ -195,11 +197,11 @@ class DatabaseService {
           } : 'NO BUDGET FOUND')
           
           if (budget && budget.vacation_mode) {
-            debugLog('🔍 EXPENSE DEBUG: Budget is in vacation mode, creating orphan expense')
+            logger.debug('🔍 EXPENSE DEBUG: Budget is in vacation mode, creating orphan expense')
             budgetPeriodId = null // Don't associate with budget period during vacation
           } else {
             budgetPeriodId = matchingPeriod.id
-            debugLog('🔍 EXPENSE DEBUG: Associating expense with budget period:', { 
+            logger.debug('🔍 EXPENSE DEBUG: Associating expense with budget period', { 
               budgetPeriodId, 
               expenseDate: expense.timestamp,
               periodStart: matchingPeriod.start_date,
@@ -208,14 +210,14 @@ class DatabaseService {
             })
           }
         } else {
-          debugLog('🔍 EXPENSE DEBUG: No matching budget period found for expense date:', { 
+          logger.debug('🔍 EXPENSE DEBUG: No matching budget period found for expense date', { 
             expenseDate: expense.timestamp,
             expenseDateParsed: new Date(expense.timestamp).toISOString()
           })
         }
       } catch (err) {
         // If no matching period exists, expense will be created as orphan
-        debugLog('🔍 EXPENSE DEBUG: Error finding budget period for expense date:', { 
+        logger.debug('🔍 EXPENSE DEBUG: Error finding budget period for expense date', { 
           error: err.message,
           expenseDate: expense.timestamp,
           stack: err.stack
@@ -239,7 +241,7 @@ class DatabaseService {
       )
       
       // Log the final result for debugging
-      debugLog('🔍 EXPENSE DEBUG: Expense saved successfully:', { 
+      logger.debug('🔍 EXPENSE DEBUG: Expense saved successfully', { 
         expenseId: result.lastInsertRowid,
         assignedToBudgetPeriodId: budgetPeriodId,
         timestamp: expense.timestamp,
@@ -847,7 +849,7 @@ class DatabaseService {
       const periods = await this.getBudgetPeriods()
       const targetDate = new Date(expenseDate)
       
-      debugLog('🔍 EXPENSE DEBUG: findPeriodForExpense called:', {
+      logger.debug('🔍 EXPENSE DEBUG: findPeriodForExpense called', {
         expenseDate,
         targetDateParsed: targetDate.toISOString(),
         availablePeriodsCount: periods.length
@@ -859,7 +861,7 @@ class DatabaseService {
         const endDate = new Date(period.end_date + 'T23:59:59Z')
         const inRange = targetDate >= startDate && targetDate <= endDate
         
-        debugLog('🔍 EXPENSE DEBUG: Checking period:', {
+        logger.debug('🔍 EXPENSE DEBUG: Checking period', {
           periodId: period.id,
           start: startDate.toISOString(),
           end: endDate.toISOString(),
@@ -872,7 +874,7 @@ class DatabaseService {
       // Find the period that contains this date
       const matchingPeriod = findPeriodForDate(targetDate, periods)
       
-      debugLog('🔍 EXPENSE DEBUG: findPeriodForDate returned:', matchingPeriod ? {
+      logger.debug('🔍 EXPENSE DEBUG: findPeriodForDate returned', matchingPeriod ? {
         id: matchingPeriod.id,
         start_date: matchingPeriod.start_date,
         end_date: matchingPeriod.end_date,
@@ -1042,7 +1044,7 @@ class DatabaseService {
       
       return settings
     } catch (err) {
-      console.error('Database: Error fetching all settings:', err)
+      logger.error('Database: Error fetching all settings', { error: err.message })
       throw err
     }
   }
@@ -1058,7 +1060,7 @@ class DatabaseService {
       
       return { key: row.key, value: row.value }
     } catch (err) {
-      console.error('Database: Error fetching setting:', err)
+      logger.error('Database: Error fetching setting', { error: err.message })
       throw err
     }
   }
@@ -1078,7 +1080,7 @@ class DatabaseService {
         throw new Error('Failed to update setting')
       }
     } catch (err) {
-      console.error('Database: Error setting value:', err)
+      logger.error('Database: Error setting value', { error: err.message })
       throw err
     }
   }
@@ -1090,7 +1092,7 @@ class DatabaseService {
       
       return result.changes > 0
     } catch (err) {
-      console.error('Database: Error deleting setting:', err)
+      logger.error('Database: Error deleting setting', { error: err.message })
       throw err
     }
   }

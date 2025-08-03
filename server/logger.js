@@ -14,25 +14,96 @@ class Logger {
     // Use the same path logic as the database
     let logPath;
     if (process.env.NODE_ENV === "production") {
-      logPath = `/app/data/google-places-api-${dateStr}.log`;
+      logPath = `/app/data/application-${dateStr}.log`;
     } else if (process.env.NODE_ENV === "development") {
-      logPath = join(__dirname, `google-places-api-test-${dateStr}.log`);
+      logPath = join(__dirname, `application-test-${dateStr}.log`);
     } else {
-      logPath = join(__dirname, `google-places-api-${dateStr}.log`);
+      logPath = join(__dirname, `application-${dateStr}.log`);
     }
 
     this.logPath = logPath;
-    this.log("info", `📋 Google Places API logs: ${logPath}`);
+
+    // In-memory storage for last 100 log entries
+    this.recentLogs = [];
+    this.maxRecentLogs = 100;
+
+    // Cache debug setting to avoid DB queries on every log
+    this.debugEnabled = process.env.DEBUG_EXPENSES === "true";
+    this.debugSettingLoaded = false;
 
     // Initialize log file if it doesn't exist
     if (!existsSync(logPath)) {
       writeFileSync(
         logPath,
-        `Google Places API Log - Started ${new Date().toISOString()}\n${"=".repeat(
+        `Application Log - Started ${new Date().toISOString()}\n${"=".repeat(
           80
         )}\n\n`
       );
     }
+  }
+
+  /**
+   * Initialize debug setting from database (called once at startup)
+   * @param {Object} db - Database instance from main application
+   */
+  async initializeDebugSetting(db) {
+    try {
+      const stmt = db.prepare("SELECT value FROM user_settings WHERE key = ?");
+      const row = stmt.get("debug_logging");
+      if (row) {
+        this.debugEnabled = row.value === "true";
+      }
+      this.debugSettingLoaded = true;
+      this.info(
+        `Debug logging initialized: ${
+          this.debugEnabled ? "enabled" : "disabled"
+        }`
+      );
+    } catch (error) {
+      // Use console.warn here to avoid circular logging
+      console.warn(
+        "Failed to load debug setting from database, using environment variable:",
+        error.message
+      );
+      this.debugSettingLoaded = true;
+    }
+  }
+
+  /**
+   * Update debug setting (called when setting is changed via API)
+   * @param {boolean} enabled - Whether debug logging should be enabled
+   */
+  setDebugEnabled(enabled) {
+    this.debugEnabled = enabled;
+    this.info(`Debug logging ${enabled ? "enabled" : "disabled"}`);
+  }
+
+  /**
+   * Check if debug logging is enabled (now uses cached value)
+   * @returns {boolean} True if debug logging is enabled
+   */
+  isDebugLoggingEnabled() {
+    return this.debugEnabled;
+  }
+
+  addToRecentLogs(level, message, context = {}) {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      level: level.toUpperCase(),
+      message,
+      context: Object.keys(context).length > 0 ? context : undefined,
+    };
+
+    this.recentLogs.push(logEntry);
+
+    // Keep only the last maxRecentLogs entries
+    if (this.recentLogs.length > this.maxRecentLogs) {
+      this.recentLogs.shift();
+    }
+  }
+
+  getRecentLogs() {
+    return [...this.recentLogs]; // Return a copy to prevent external modification
   }
 
   formatTimestamp() {
@@ -61,7 +132,7 @@ class Logger {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} ${timeZone}`;
   }
 
-  logRequest(url, headers, body) {
+  logGooglePlacesRequest(url, headers, body) {
     const timestamp = this.formatTimestamp();
     const logEntry = `
 🌍 === GOOGLE PLACES API REQUEST [${timestamp} PST] ===
@@ -82,7 +153,7 @@ ${"=".repeat(50)}
     appendFileSync(this.logPath, logEntry);
   }
 
-  logResponse(status, statusText, headers, data) {
+  logGooglePlacesResponse(status, statusText, headers, data) {
     const timestamp = this.formatTimestamp();
     const logEntry = `
 🌍 === GOOGLE PLACES API RESPONSE [${timestamp} PST] ===
@@ -97,7 +168,7 @@ ${"=".repeat(50)}
     appendFileSync(this.logPath, logEntry);
   }
 
-  logError(error) {
+  logGooglePlacesError(error) {
     const timestamp = this.formatTimestamp();
     let logEntry = `
 ❌ === GOOGLE PLACES API ERROR [${timestamp} PST] ===
@@ -132,6 +203,7 @@ Request Details: ${error.request}
     const levelUpper = level.toUpperCase();
 
     const icons = {
+      DEBUG: "🐛",
       INFO: "ℹ️",
       WARN: "⚠️",
       ERROR: "❌",
@@ -143,7 +215,40 @@ Request Details: ${error.request}
         : ""
     }`;
 
+    // Add to in-memory storage
+    this.addToRecentLogs(level, message, context);
+
+    // Always output to console
     console.log(logEntry);
+
+    // Write to file for non-debug messages or when debug is enabled
+    if (levelUpper !== "DEBUG" || this.isDebugLoggingEnabled()) {
+      try {
+        appendFileSync(this.logPath, logEntry + "\n");
+      } catch (error) {
+        // Use console.error here to avoid circular logging when file write fails
+        console.error("Failed to write to log file:", error);
+      }
+    }
+  }
+
+  debug(message, data = null) {
+    if (this.isDebugLoggingEnabled()) {
+      this.addToRecentLogs("debug", message, data !== null ? { data } : {});
+      this.log("debug", message, data ?? {});
+    }
+  }
+
+  info(message, context = {}) {
+    this.log("info", message, context);
+  }
+
+  warn(message, context = {}) {
+    this.log("warn", message, context);
+  }
+
+  error(message, context = {}) {
+    this.log("error", message, context);
   }
 }
 

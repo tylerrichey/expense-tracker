@@ -1,4 +1,5 @@
 import { databaseService } from './database.js';
+import { logger } from './logger.js';
 
 /**
  * Simple SQLite database admin interface
@@ -98,7 +99,7 @@ export function setupAdminRoutes(app, authenticateRequest) {
           return token;
         }
       } catch (error) {
-        console.warn('localStorage access blocked:', error);
+        logger.warn('localStorage access blocked', { error: error.message });
       }
       
       return null;
@@ -329,7 +330,7 @@ export function setupAdminRoutes(app, authenticateRequest) {
       try {
         localStorage.removeItem('expense-tracker-token');
       } catch (error) {
-        console.warn('Could not clear localStorage:', error);
+        logger.warn('Could not clear localStorage', { error: error.message });
       }
       
       alert('Logged out successfully. Redirecting to main application.');

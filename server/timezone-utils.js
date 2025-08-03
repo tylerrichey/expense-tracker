@@ -3,7 +3,7 @@
  * Replaces UTC-based calculations with timezone-aware ones
  */
 
-import { debugLog } from './debug-utils.js'
+import { logger } from './logger.js'
 
 /**
  * Get the current timezone setting from database
@@ -16,7 +16,7 @@ export function getCurrentTimezone(db) {
     const result = stmt.get('timezone')
     return result ? result.value : 'UTC'
   } catch (err) {
-    console.warn('Failed to get timezone setting, defaulting to UTC:', err.message)
+    logger.warn('Failed to get timezone setting, defaulting to UTC', { error: err.message })
     return 'UTC'
   }
 }
@@ -47,7 +47,7 @@ export function createStartOfDayInTimezone(date, timezone = 'UTC') {
     const startOfDayUTC = new Date(inputDate + 'T00:00:00.000Z')
     startOfDayUTC.setMinutes(startOfDayUTC.getMinutes() + offsetMinutes)
     
-    debugLog('🔍 TIMEZONE DEBUG createStartOfDayInTimezone (SIMPLIFIED):', {
+    logger.debug('🔍 TIMEZONE DEBUG createStartOfDayInTimezone (SIMPLIFIED)', {
       inputDate,
       timezone,
       offsetMinutes,
@@ -57,7 +57,7 @@ export function createStartOfDayInTimezone(date, timezone = 'UTC') {
     
     return startOfDayUTC
   } catch (err) {
-    console.warn(`Failed to create start of day in timezone ${timezone}, falling back to UTC:`, err.message)
+    logger.warn(`Failed to create start of day in timezone ${timezone}, falling back to UTC`, { error: err.message })
     return createStartOfDayInTimezone(date, 'UTC')
   }
 }
@@ -100,7 +100,7 @@ export function createEndOfDayInTimezone(date, timezone = 'UTC') {
     const endOfDayUTC = new Date(inputDate + 'T23:59:59.999Z')
     endOfDayUTC.setMinutes(endOfDayUTC.getMinutes() + offsetMinutes)
     
-    debugLog('🔍 TIMEZONE DEBUG createEndOfDayInTimezone (SIMPLIFIED):', {
+    logger.debug('🔍 TIMEZONE DEBUG createEndOfDayInTimezone (SIMPLIFIED)', {
       inputDate,
       timezone,
       offsetMinutes,
@@ -110,7 +110,7 @@ export function createEndOfDayInTimezone(date, timezone = 'UTC') {
     
     return endOfDayUTC
   } catch (err) {
-    console.warn(`Failed to create end of day in timezone ${timezone}, falling back to UTC:`, err.message)
+    logger.warn(`Failed to create end of day in timezone ${timezone}, falling back to UTC`, { error: err.message })
     return createEndOfDayInTimezone(date, 'UTC')
   }
 }
@@ -133,7 +133,7 @@ export function getCurrentDateInTimezone(timezone = 'UTC') {
     // We just need the current UTC time for comparison against properly calculated period boundaries
     
     // Debug logging for timezone conversion
-    debugLog('🔍 TIMEZONE DEBUG getCurrentDateInTimezone (FIXED):', {
+    logger.debug('🔍 TIMEZONE DEBUG getCurrentDateInTimezone (FIXED)', {
       timezone,
       originalUTC: now.toISOString(),
       timeInTargetTimezone: now.toLocaleString('en-US', { timeZone: timezone }),
@@ -142,7 +142,7 @@ export function getCurrentDateInTimezone(timezone = 'UTC') {
     
     return now
   } catch (err) {
-    console.warn(`Failed to get current date in timezone ${timezone}, falling back to UTC:`, err.message)
+    logger.warn(`Failed to get current date in timezone ${timezone}, falling back to UTC`, { error: err.message })
     return now
   }
 }
@@ -159,7 +159,7 @@ export function isDateInPeriodTimezoneAware(date, period, timezone = 'UTC') {
   const startDate = createStartOfDayInTimezone(period.start_date, timezone)
   const endDate = createEndOfDayInTimezone(period.end_date, timezone)
   
-  debugLog('🔍 EXPENSE DEBUG: isDateInPeriodTimezoneAware detailed:', {
+  logger.debug('🔍 EXPENSE DEBUG: isDateInPeriodTimezoneAware detailed', {
     checkDate: checkDate.toISOString(),
     periodStart: period.start_date,
     periodEnd: period.end_date,
@@ -259,7 +259,7 @@ export function formatDateForDBInTimezone(date, timezone = 'UTC') {
     
     return formatter.format(date)
   } catch (err) {
-    console.warn(`Failed to format date in timezone ${timezone}, falling back to UTC:`, err.message)
+    logger.warn(`Failed to format date in timezone ${timezone}, falling back to UTC`, { error: err.message })
     return date.toISOString().split('T')[0]
   }
 }

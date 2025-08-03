@@ -22,7 +22,7 @@
             id="timezone-select"
             v-model="selectedTimezone"
             @change="updateTimezone"
-            :disabled="updating"
+            :disabled="updatingTimezone"
           >
             <option v-for="tz in timezones" :key="tz.value" :value="tz.value">
               {{ tz.label }}
@@ -66,7 +66,7 @@
               type="checkbox"
               v-model="debugLogging"
               @change="updateDebugLogging"
-              :disabled="updating"
+              :disabled="updatingDebug"
             />
             <span class="toggle-slider"></span>
             <span class="toggle-label">
@@ -91,6 +91,70 @@
           </div>
         </div>
       </div>
+
+      <!-- Recent Logs Viewer -->
+      <div class="settings-section">
+        <h2>Recent Logs</h2>
+        <p>
+          View the last 100 log entries from the application server. Useful for
+          troubleshooting issues and monitoring application activity.
+        </p>
+
+        <div class="logs-controls">
+          <button
+            @click="loadRecentLogs"
+            :disabled="loadingLogs"
+            class="btn btn-primary"
+          >
+            {{ loadingLogs ? "Loading..." : "Refresh Logs" }}
+          </button>
+
+          <button
+            v-if="logs.length > 0"
+            @click="clearLogDisplay"
+            class="btn btn-secondary ml-2"
+          >
+            Clear Display
+          </button>
+        </div>
+
+        <div v-if="logError" class="error-message mt-2">
+          {{ logError }}
+        </div>
+
+        <div v-if="logs.length > 0" class="logs-container">
+          <div class="logs-header">
+            <span>Showing {{ logs.length }} most recent log entries</span>
+          </div>
+
+          <div class="logs-list">
+            <div
+              v-for="(log, index) in logs"
+              :key="index"
+              class="log-entry"
+              :class="`log-${log.level.toLowerCase()}`"
+            >
+              <div class="log-meta">
+                <span class="log-timestamp">{{
+                  formatTimestamp(log.timestamp)
+                }}</span>
+                <span class="log-level">{{ log.level }}</span>
+              </div>
+              <div class="log-message">{{ log.message }}</div>
+              <div v-if="log.context" class="log-context">
+                <details>
+                  <summary>Context</summary>
+                  <pre>{{ JSON.stringify(log.context, null, 2) }}</pre>
+                </details>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="!loadingLogs" class="no-logs-message">
+          No logs loaded. Click "Refresh Logs" to load recent entries.
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -107,6 +171,9 @@ const updateMessageTimezone = ref("");
 const updatingDebug = ref(false);
 const updateMessageDebug = ref("");
 const debugLogging = ref(false);
+const logs = ref([]);
+const loadingLogs = ref(false);
+const logError = ref("");
 
 const updateMessageClass = computed(() => {
   const updateMessages =
@@ -266,6 +333,40 @@ async function updateDebugLogging() {
   } finally {
     updatingDebug.value = false;
   }
+}
+
+async function loadRecentLogs() {
+  loadingLogs.value = true;
+  logError.value = "";
+
+  try {
+    const response = await fetch("/api/logs", {
+      method: "GET",
+      headers: AuthService.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to load recent logs");
+    }
+
+    const data = await response.json();
+    logs.value = (data.logs || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  } catch (error) {
+    console.error("Error loading recent logs:", error);
+    logError.value = `Error loading logs: ${error.message}`;
+  } finally {
+    loadingLogs.value = false;
+  }
+}
+
+function clearLogDisplay() {
+  logs.value = [];
+  logError.value = "";
+}
+
+function formatTimestamp(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleString();
 }
 
 onMounted(async () => {
@@ -470,6 +571,166 @@ onMounted(async () => {
   font-weight: 600;
 }
 
+/* Logs Section Styling */
+.logs-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-primary:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #545b62;
+}
+
+.error-message {
+  color: #dc3545;
+  padding: 0.5rem;
+  background: #2d1a1a;
+  border: 1px solid #dc3545;
+  border-radius: 4px;
+}
+
+.logs-container {
+  margin-top: 1rem;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  background: #1a1a1a;
+}
+
+.logs-header {
+  padding: 0.75rem;
+  border-bottom: 1px solid #3a3a3a;
+  background: #2a2a2a;
+  border-radius: 6px 6px 0 0;
+  color: #e0e0e0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.logs-list {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.log-entry {
+  padding: 0.75rem;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.log-timestamp {
+  color: #888;
+}
+
+.log-level {
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  font-size: 0.625rem;
+}
+
+.log-debug .log-level {
+  background: #6c757d;
+  color: white;
+}
+
+.log-info .log-level {
+  background: #007bff;
+  color: white;
+}
+
+.log-warn .log-level {
+  background: #ffc107;
+  color: #212529;
+}
+
+.log-error .log-level {
+  background: #dc3545;
+  color: white;
+}
+
+.log-message {
+  color: #e0e0e0;
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
+.log-context {
+  font-size: 0.75rem;
+}
+
+.log-context details {
+  color: #888;
+}
+
+.log-context summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 0.25rem 0;
+}
+
+.log-context summary:hover {
+  color: #bbb;
+}
+
+.log-context pre {
+  margin: 0.5rem 0 0 0;
+  padding: 0.5rem;
+  background: #0a0a0a;
+  border: 1px solid #3a3a3a;
+  border-radius: 3px;
+  color: #ccc;
+  font-size: 0.75rem;
+  overflow-x: auto;
+}
+
+.no-logs-message {
+  padding: 2rem;
+  text-align: center;
+  color: #888;
+  font-style: italic;
+}
+
 @media (max-width: 640px) {
   .settings-page {
     padding: 16px;
@@ -481,6 +742,20 @@ onMounted(async () => {
 
   .settings-section {
     padding: 1rem;
+  }
+
+  .logs-controls {
+    flex-direction: column;
+  }
+
+  .logs-list {
+    max-height: 300px;
+  }
+
+  .log-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
   }
 }
 </style>

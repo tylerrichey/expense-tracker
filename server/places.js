@@ -64,7 +64,7 @@ class PlacesService {
     };
 
     // Log the Google Places API request
-    logger.logRequest(this.baseURL, requestHeaders, requestBody);
+    logger.logGooglePlacesRequest(this.baseURL, requestHeaders, requestBody);
 
     try {
       const response = await axios.post(this.baseURL, requestBody, {
@@ -72,7 +72,7 @@ class PlacesService {
       });
 
       // Log the Google Places API response
-      logger.logResponse(
+      logger.logGooglePlacesResponse(
         response.status,
         response.statusText,
         response.headers,
@@ -98,12 +98,11 @@ class PlacesService {
       return places.sort((a, b) => a.distance - b.distance);
     } catch (error) {
       // Log detailed error information for Google Places API
-      logger.logError(error);
+      logger.logGooglePlacesError(error);
 
-      console.error(
-        "Error fetching nearby places:",
-        error.response?.data || error.message
-      );
+      logger.error("Error fetching nearby places", {
+        error: error.response?.data || error.message,
+      });
       throw new Error("Failed to fetch nearby places");
     }
   }
@@ -145,7 +144,11 @@ class PlacesService {
     };
 
     // Log the Google Places Autocomplete API request
-    logger.logRequest(this.autocompleteURL, requestHeaders, requestBody);
+    logger.logGooglePlacesRequest(
+      this.autocompleteURL,
+      requestHeaders,
+      requestBody
+    );
 
     try {
       const response = await axios.post(this.autocompleteURL, requestBody, {
@@ -153,7 +156,7 @@ class PlacesService {
       });
 
       // Log the Google Places Autocomplete API response
-      logger.logResponse(
+      logger.logGooglePlacesResponse(
         response.status,
         response.statusText,
         response.headers,
@@ -179,12 +182,11 @@ class PlacesService {
       return suggestions;
     } catch (error) {
       // Log detailed error information for Google Places Autocomplete API
-      logger.logError(error);
+      logger.logGooglePlacesError(error);
 
-      console.error(
-        "Error fetching autocomplete suggestions:",
-        error.response?.data || error.message
-      );
+      logger.error("Error fetching autocomplete suggestions", {
+        error: error.response?.data || error.message,
+      });
       throw new Error("Failed to fetch autocomplete suggestions");
     }
   }
