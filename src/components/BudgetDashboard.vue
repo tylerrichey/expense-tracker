@@ -183,7 +183,7 @@ const daysRemaining = computed(() => {
   if (!props.currentPeriod) return 0
   
   const today = new Date()
-  const endDate = new Date(props.currentPeriod.end_date + 'T23:59:59')
+  const endDate = new Date(props.currentPeriod.end_date + 'T23:59:59.999')
   const diffTime = endDate - today
   const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
   
@@ -193,7 +193,7 @@ const daysRemaining = computed(() => {
 const dailyAverage = computed(() => {
   if (!props.currentPeriod) return 0
   
-  const startDate = new Date(props.currentPeriod.start_date)
+  const startDate = new Date(props.currentPeriod.start_date + 'T00:00:00')
   const today = new Date()
   const daysPassed = Math.max(1, Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)))
   
@@ -203,14 +203,19 @@ const dailyAverage = computed(() => {
 const projectedTotal = computed(() => {
   if (!props.currentPeriod) return null
   
-  const totalDays = props.currentBudget?.duration_days || 7
+  // Calculate actual period duration from start/end dates
+  const startDate = new Date(props.currentPeriod.start_date + 'T00:00:00')
+  const endDate = new Date(props.currentPeriod.end_date + 'T23:59:59.999')
+  const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
   
-  // Use the same daysPassed calculation as dailyAverage for consistency
-  const startDate = new Date(props.currentPeriod.start_date)
+  // Calculate days passed more accurately
   const today = new Date()
   const daysPassed = Math.max(1, Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)))
   
-  if (daysPassed <= 0) return currentSpent.value
+  // Don't project beyond the current period
+  if (daysPassed >= totalDays) {
+    return currentSpent.value
+  }
   
   return (currentSpent.value / daysPassed) * totalDays
 })
