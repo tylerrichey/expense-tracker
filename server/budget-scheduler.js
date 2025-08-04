@@ -230,6 +230,11 @@ class BudgetScheduler {
       // Create the next period
       await databaseService.createBudgetPeriod(nextPeriod);
 
+      // Set budget as upcoming to show continuation on calendar
+      await databaseService.updateBudget(budget.id, {
+        is_upcoming: true,
+      });
+
       logger.info(`Created continuation period for budget ${budget.name}`);
     } catch (err) {
       logger.error("Error continuing budget", { error: err.message });
@@ -317,6 +322,12 @@ class BudgetScheduler {
         const newPeriod = newPeriods[0];
 
         await databaseService.createBudgetPeriod(newPeriod);
+
+        // Set budget as upcoming to show continuation on calendar
+        await databaseService.updateBudget(activeBudget.id, {
+          is_upcoming: true,
+        });
+
         logger.log(
           "info",
           `  ✅ Created auto-continuation period for ${activeBudget.name}`
