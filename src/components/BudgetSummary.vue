@@ -98,12 +98,12 @@ const dailyAverage = computed(() => {
   // Use the earlier of current date or end date for calculation
   const calculationDate = currentDate < endDate ? currentDate : endDate;
 
-  // Calculate days elapsed (inclusive)
+  // Calculate days elapsed
   const daysElapsed = Math.max(
     1,
     Math.ceil(
       (calculationDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-    ) + 1
+    )
   );
 
   return period.value.actual_spent / daysElapsed;
