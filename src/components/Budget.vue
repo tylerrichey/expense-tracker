@@ -42,15 +42,15 @@
           <div class="history-info">
             <div class="history-name">{{ period.budget_name }}</div>
             <div class="history-dates">
-              {{ formatDate(period.start_date) }} - {{ formatDate(period.end_date) }}
+              {{ formatDateRange(period.start_date, period.end_date) }}
             </div>
           </div>
           <div class="history-spending">
             <div class="history-amount">
               ${{ formatAmount(period.actual_spent || 0) }} / ${{ formatAmount(period.target_amount) }}
             </div>
-            <div class="history-percentage" :class="{ 'over-budget': (period.actual_spent || 0) > period.target_amount }">
-              {{ Math.round(((period.actual_spent || 0) / period.target_amount) * 100) }}%
+            <div class="history-percentage" :class="{ 'over-budget': isOverBudget(period) }">
+              {{ Math.round(getSpendingPercentage(period)) }}%
             </div>
           </div>
         </div>
@@ -72,6 +72,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import BudgetDashboard from './BudgetDashboard.vue'
 import BudgetManager from './BudgetManager.vue'
 import { budgetService, type Budget, type BudgetPeriod } from '../services/budget'
+import { formatAmount, formatDateRange, getSpendingPercentage, isOverBudget } from '../services/budgetUiService'
 
 // Props
 const props = defineProps<{
@@ -314,19 +315,6 @@ function showSuccessMessage(message: string) {
   // For now, we'll just console.log success messages
   // In the future, this could be a toast notification system
   console.log('Success:', message)
-}
-
-// Formatting helpers for Recent History
-function formatAmount(amount: number) {
-  return typeof amount === 'number' ? amount.toFixed(2) : '0.00'
-}
-
-function formatDate(dateString: string) {
-  if (!dateString) return ''
-  return new Date(dateString + 'T00:00:00').toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
-  })
 }
 </script>
 

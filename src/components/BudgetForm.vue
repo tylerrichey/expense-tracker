@@ -74,7 +74,7 @@
         <div class="budget-preview card card-compact">
           <h4 class="preview-title">Budget Preview:</h4>
           <p><strong>{{ budgetData.name || 'Unnamed Budget' }}</strong></p>
-          <p>Amount: ${{ budgetData.amount ? budgetData.amount.toFixed(2) : '0.00' }}</p>
+          <p>Amount: ${{ formatAmount(budgetData.amount) }}</p>
           <p>Starts: {{ getWeekdayName(budgetData.start_weekday) }}</p>
           <p>Duration: {{ budgetData.duration_days }} days</p>
           <p v-if="budgetPreview">
@@ -98,76 +98,68 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { getWeekdayName, getUpcomingPeriod, formatDate, formatAmount } from '../services/budgetUiService'
+import type { Budget } from '../services/budget'
 
-const props = defineProps({
-  initialData: {
-    type: Object,
-    default: () => ({
-      name: '',
-      amount: null,
-      start_weekday: 1,
-      duration_days: 7
-    })
-  },
-  isEditing: {
-    type: Boolean,
-    default: false
-  }
-})
+interface BudgetFormData {
+  name: string;
+  amount: number | null;
+  start_weekday: number;
+  duration_days: number;
+}
+
+const props = defineProps<{
+  initialData?: Partial<Budget>
+  isEditing?: boolean
+}>()
 
 const emit = defineEmits(['submit', 'cancel'])
 
 // Form data
-const budgetData = ref({ ...props.initialData })
+const budgetData = ref<BudgetFormData>({
+  name: props.initialData?.name || '',
+  amount: props.initialData?.amount || null,
+  start_weekday: props.initialData?.start_weekday ?? 1,
+  duration_days: props.initialData?.duration_days ?? 7,
+})
 const isSubmitting = ref(false)
 const error = ref('')
 
 // Form validation
 const isFormValid = computed(() => {
-  return budgetData.value.name?.trim() &&
-         budgetData.value.amount > 0 &&
-         budgetData.value.start_weekday >= 0 &&
-         budgetData.value.start_weekday <= 6 &&
-         budgetData.value.duration_days >= 7 &&
-         budgetData.value.duration_days <= 28
+  return (
+    budgetData.value.name?.trim() &&
+    budgetData.value.amount &&
+    budgetData.value.amount > 0 &&
+    budgetData.value.start_weekday !== undefined &&
+    budgetData.value.start_weekday >= 0 &&
+    budgetData.value.start_weekday <= 6 &&
+    budgetData.value.duration_days !== undefined &&
+    budgetData.value.duration_days >= 7 &&
+    budgetData.value.duration_days <= 28
+  )
 })
 
 // Budget preview calculation
 const budgetPreview = computed(() => {
   if (!isFormValid.value) return null
-  
+
   try {
-    const today = new Date()
-    const startWeekday = budgetData.value.start_weekday
-    const duration = budgetData.value.duration_days
-    
-    // Calculate next period start (simplified)
-    const currentWeekday = today.getDay()
-    let daysUntilStart = (startWeekday - currentWeekday + 7) % 7
-    if (daysUntilStart === 0) daysUntilStart = 0 // Start today if it's the right weekday
-    
-    const startDate = new Date(today)
-    startDate.setDate(today.getDate() + daysUntilStart)
-    
-    const endDate = new Date(startDate)
-    endDate.setDate(startDate.getDate() + duration - 1)
-    
+    // We pass null for the active period because in the form context,
+    // we just want a generic preview of the next cycle.
+    const period = getUpcomingPeriod(budgetData.value, null)
+
     return {
-      start_date: startDate.toLocaleDateString(),
-      end_date: endDate.toLocaleDateString()
+      start_date: formatDate(period.start_date.toISOString().split('T')[0]),
+      end_date: formatDate(period.end_date.toISOString().split('T')[0]),
     }
   } catch (err) {
+    console.error('Error calculating budget preview:', err)
     return null
   }
 })
-
-// Helper function
-function getWeekdayName(weekday) {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-  return days[weekday] || 'Invalid'
-}
 
 // Form submission
 async function submitBudget() {
@@ -178,7 +170,7 @@ async function submitBudget() {
   
   try {
     await emit('submit', { ...budgetData.value })
-  } catch (err) {
+  } catch (err: any) {
     error.value = err.message || 'Failed to save budget'
   } finally {
     isSubmitting.value = false
@@ -187,7 +179,10 @@ async function submitBudget() {
 
 // Watch for prop changes
 watch(() => props.initialData, (newData) => {
-  budgetData.value = { ...newData }
+    budgetData.value.name = newData?.name || ''
+    budgetData.value.amount = newData?.amount || null
+    budgetData.value.start_weekday = newData?.start_weekday ?? 1
+    budgetData.value.duration_days = newData?.duration_days ?? 7
 }, { deep: true })
 </script>
 

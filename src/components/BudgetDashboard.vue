@@ -18,7 +18,7 @@
         <div class="budget-info">
           <h2>{{ currentBudget.name }}</h2>
           <p class="budget-period" v-if="currentPeriod">
-            {{ formatDate(currentPeriod.start_date) }} - {{ formatDate(currentPeriod.end_date) }}
+            {{ formatDateRange(currentPeriod.start_date, currentPeriod.end_date) }}
           </p>
         </div>
         <div class="budget-actions">
@@ -127,155 +127,95 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import type { Budget, BudgetPeriod } from '../services/budget'
+import {
+  formatAmount,
+  formatDateRange,
+  getDailyAverage,
+  getDaysRemaining,
+  getProjectedTotal,
+  getRemainingAmount,
+  getSpendingPercentage,
+  isOverBudget as isPeriodOverBudget
+} from '../services/budgetUiService'
 
-const props = defineProps({
-  currentBudget: {
-    type: Object,
-    default: null
-  },
-  currentPeriod: {
-    type: Object,
-    default: null
-  },
-  loading: {
-    type: Boolean,
-    default: false
-  }
-})
+const props = defineProps<{
+  currentBudget: Budget | null
+  currentPeriod: BudgetPeriod | null
+  loading: boolean
+}>()
 
 const emit = defineEmits(['create-budget', 'manage-budget', 'vacation-mode-toggle'])
 
 // Local state
 const updating = ref(false)
 
-// Computed properties
-const currentSpent = computed(() => {
-  return props.currentPeriod?.actual_spent || 0
-})
+// Computed properties using the service
+const currentSpent = computed(() => props.currentPeriod?.actual_spent || 0)
+const targetAmount = computed(() => props.currentPeriod?.target_amount || props.currentBudget?.amount || 0)
 
-const targetAmount = computed(() => {
-  return props.currentPeriod?.target_amount || props.currentBudget?.amount || 0
-})
-
-const remaining = computed(() => {
-  return targetAmount.value - currentSpent.value
-})
-
-const progressPercentage = computed(() => {
-  if (targetAmount.value === 0) return 0
-  return Math.min((currentSpent.value / targetAmount.value) * 100, 100)
-})
-
-const isOverBudget = computed(() => {
-  return currentSpent.value > targetAmount.value
-})
+const remaining = computed(() => getRemainingAmount(props.currentPeriod))
+const progressPercentage = computed(() => getSpendingPercentage(props.currentPeriod))
+const isOverBudget = computed(() => isPeriodOverBudget(props.currentPeriod))
+const daysRemaining = computed(() => (props.currentPeriod ? getDaysRemaining(props.currentPeriod) : 0))
+const dailyAverage = computed(() => getDailyAverage(props.currentPeriod))
+const projectedTotal = computed(() => getProjectedTotal(props.currentPeriod))
 
 const progressColor = computed(() => {
   if (isOverBudget.value) return '#dc3545'
-  if (progressPercentage.value > 80) return '#fd7e14'
-  if (progressPercentage.value > 60) return '#ffc107'
+  const percentage = progressPercentage.value
+  if (percentage > 80) return '#fd7e14'
+  if (percentage > 60) return '#ffc107'
   return '#28a745'
 })
 
-const daysRemaining = computed(() => {
-  if (!props.currentPeriod) return 0
-  
-  const today = new Date()
-  const endDate = new Date(props.currentPeriod.end_date + 'T23:59:59.999')
-  const diffTime = endDate - today
-  const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
-  
-  return diffDays
-})
-
-const dailyAverage = computed(() => {
-  if (!props.currentPeriod) return 0
-  
-  const startDate = new Date(props.currentPeriod.start_date + 'T00:00:00')
-  const today = new Date()
-  const daysPassed = Math.max(1, Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)))
-  
-  return currentSpent.value / daysPassed
-})
-
-const projectedTotal = computed(() => {
-  if (!props.currentPeriod) return null
-  
-  // Calculate actual period duration from start/end dates
-  const startDate = new Date(props.currentPeriod.start_date + 'T00:00:00')
-  const endDate = new Date(props.currentPeriod.end_date + 'T23:59:59.999')
-  const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
-  
-  // Calculate days passed more accurately
-  const today = new Date()
-  const daysPassed = Math.max(1, Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)))
-  
-  // Don't project beyond the current period
-  if (daysPassed >= totalDays) {
-    return currentSpent.value
-  }
-  
-  return (currentSpent.value / daysPassed) * totalDays
-})
-
 const insights = computed(() => {
-  const insights = []
-  
+  const newInsights: { id: string, type: string, icon: string, message: string }[] = []
+
   if (isOverBudget.value) {
-    insights.push({
+    newInsights.push({
       id: 'over-budget',
       type: 'warning',
       icon: '⚠️',
-      message: `You're $${formatAmount(Math.abs(remaining.value))} over budget`
+      message: `You're $${formatAmount(Math.abs(remaining.value))} over budget`,
     })
   } else if (progressPercentage.value > 80) {
-    insights.push({
+    newInsights.push({
       id: 'almost-over',
       type: 'warning',
       icon: '⚡',
-      message: `You're at ${Math.round(progressPercentage.value)}% of your budget`
+      message: `You're at ${Math.round(progressPercentage.value)}% of your budget`,
     })
   }
-  
-  if (projectedTotal.value && projectedTotal.value > targetAmount.value * 1.1) {
-    insights.push({
+
+  const projTotal = projectedTotal.value
+  if (projTotal && projTotal > targetAmount.value * 1.1) {
+    newInsights.push({
       id: 'projected-over',
       type: 'info',
       icon: '📈',
-      message: `At current pace, you'll spend $${formatAmount(projectedTotal.value)}`
+      message: `At current pace, you'll spend $${formatAmount(projTotal)}`,
     })
   }
-  
-  if (dailyAverage.value > 0 && remaining.value > 0) {
-    const suggestedDaily = remaining.value / Math.max(1, daysRemaining.value)
+
+  if (dailyAverage.value > 0 && remaining.value > 0 && daysRemaining.value > 0) {
+    const suggestedDaily = remaining.value / daysRemaining.value
     if (dailyAverage.value > suggestedDaily * 1.5) {
-      insights.push({
+      newInsights.push({
         id: 'slow-down',
         type: 'tip',
         icon: '💡',
-        message: `Try spending under $${formatAmount(suggestedDaily)} daily to stay on track`
+        message: `Try spending under $${formatAmount(suggestedDaily)} daily to stay on track`,
       })
     }
   }
-  
-  return insights.slice(0, 3) // Limit to 3 insights
+
+  return newInsights.slice(0, 3) // Limit to 3 insights
 })
 
 // Methods
-function formatAmount(amount) {
-  return typeof amount === 'number' ? amount.toFixed(2) : '0.00'
-}
-
-function formatDate(dateString) {
-  if (!dateString) return ''
-  return new Date(dateString + 'T00:00:00').toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
-  })
-}
-
 async function toggleVacationMode() {
   if (!props.currentBudget || updating.value) return
   
