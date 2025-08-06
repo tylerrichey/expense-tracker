@@ -29,8 +29,8 @@
             <div class="budget-info">
               <h4>{{ activeBudget.name }}</h4>
               <p class="budget-details">
-                ${{ formatAmount(activeBudget.amount) }} • 
-                {{ getWeekdayName(activeBudget.start_weekday) }} • 
+                ${{ formatAmount(activeBudget.amount) }} •
+                {{ getWeekdayName(activeBudget.start_weekday, 'short') }} •
                 {{ activeBudget.duration_days }} days
               </p>
               <p v-if="activeBudget.vacation_mode" class="vacation-badge">
@@ -41,8 +41,8 @@
               <button @click="editBudget(activeBudget)" class="btn btn-secondary btn-sm edit-btn">
                 Edit
               </button>
-              <button 
-                @click="toggleVacationMode(activeBudget)" 
+              <button
+                @click="toggleVacationMode(activeBudget)"
                 class="btn btn-sm vacation-btn"
                 :class="{ active: activeBudget.vacation_mode }"
               >
@@ -50,17 +50,17 @@
               </button>
             </div>
           </div>
-          
+
           <!-- Current Period Info -->
           <div v-if="currentPeriod" class="period-info">
             <div class="period-dates">
               <span class="period-label">Current Period:</span>
-              {{ formatDate(currentPeriod.start_date) }} - {{ formatDate(currentPeriod.end_date) }}
+              {{ formatDateRange(currentPeriod.start_date, currentPeriod.end_date) }}
             </div>
             <div class="period-spending">
               <div class="spending-bar">
-                <div 
-                  class="spending-progress" 
+                <div
+                  class="spending-progress"
                   :style="{ width: spendingPercentage + '%' }"
                   :class="{ 'over-budget': isOverBudget }"
                 ></div>
@@ -82,21 +82,21 @@
             <div class="budget-info">
               <h4>{{ upcomingBudget.name }}</h4>
               <p class="budget-details">
-                ${{ formatAmount(upcomingBudget.amount) }} • 
-                {{ getWeekdayName(upcomingBudget.start_weekday) }} • 
+                ${{ formatAmount(upcomingBudget.amount) }} •
+                {{ getWeekdayName(upcomingBudget.start_weekday, 'short') }} •
                 {{ upcomingBudget.duration_days }} days
               </p>
               <p class="upcoming-start-date">
-                Will start: {{ getUpcomingStartDate() }}
+                Will start: {{ upcomingStartDate }}
               </p>
             </div>
             <div class="budget-actions">
               <button @click="editBudget(upcomingBudget)" class="edit-btn">
                 Edit
               </button>
-              <button 
-                v-if="!activeBudget" 
-                @click="activateBudget(upcomingBudget)" 
+              <button
+                v-if="!activeBudget"
+                @click="activateBudget(upcomingBudget)"
                 class="activate-btn"
               >
                 Activate Now
@@ -117,8 +117,8 @@
             <div class="budget-info">
               <h4>{{ budget.name }}</h4>
               <p class="budget-details">
-                ${{ formatAmount(budget.amount) }} • 
-                {{ getWeekdayName(budget.start_weekday) }} • 
+                ${{ formatAmount(budget.amount) }} •
+                {{ getWeekdayName(budget.start_weekday, 'short') }} •
                 {{ budget.duration_days }} days
               </p>
               <p class="budget-status">Draft</p>
@@ -130,9 +130,9 @@
               <button @click="scheduleForNext(budget)" class="schedule-btn">
                 Set as Upcoming
               </button>
-              <button 
-                v-if="!budget.has_history" 
-                @click="deleteBudget(budget)" 
+              <button
+                v-if="!budget.has_history"
+                @click="deleteBudget(budget)"
                 class="delete-btn"
               >
                 Delete
@@ -161,36 +161,31 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
 import BudgetForm from './BudgetForm.vue'
+import type { Budget, BudgetPeriod } from '../services/budget'
+import {
+  formatAmount,
+  formatDate,
+  formatDateRange,
+  getWeekdayName,
+  getSpendingPercentage,
+  isOverBudget as isPeriodOverBudget,
+  getUpcomingPeriod,
+} from '../services/budgetUiService'
 
-const props = defineProps({
-  budgets: {
-    type: Array,
-    default: () => []
-  },
-  currentPeriod: {
-    type: Object,
-    default: null
-  },
-  historicalPeriods: {
-    type: Array,
-    default: () => []
-  },
-  loading: {
-    type: Boolean,
-    default: false
-  },
-  autoShowCreateForm: {
-    type: Boolean,
-    default: false
-  }
-})
+const props = defineProps<{
+  budgets: Budget[]
+  currentPeriod: BudgetPeriod | null
+  historicalPeriods: BudgetPeriod[]
+  loading: boolean
+  autoShowCreateForm: boolean
+}>()
 
 const emit = defineEmits([
   'create-budget',
-  'update-budget', 
+  'update-budget',
   'delete-budget',
   'activate-budget',
   'schedule-budget',
@@ -200,7 +195,7 @@ const emit = defineEmits([
 
 // Local state
 const showCreateForm = ref(false)
-const editingBudget = ref(null)
+const editingBudget = ref<Budget | null>(null)
 
 // Watch for auto-show prop changes
 watch(() => props.autoShowCreateForm, (shouldShow) => {
@@ -220,20 +215,16 @@ const upcomingBudget = computed(() => {
 
 const otherBudgets = computed(() => {
   return props.budgets.filter(b => {
-    // Include budgets that are neither active nor upcoming
-    // OR budgets that are active but not upcoming (so they can be set as upcoming again)
     return (!b.is_active && !b.is_upcoming) || (b.is_active && !b.is_upcoming)
   })
 })
 
 const spendingPercentage = computed(() => {
-  if (!props.currentPeriod || !props.currentPeriod.target_amount) return 0
-  return Math.min(((props.currentPeriod.actual_spent || 0) / props.currentPeriod.target_amount) * 100, 100)
+    return getSpendingPercentage(props.currentPeriod)
 })
 
 const isOverBudget = computed(() => {
-  if (!props.currentPeriod) return false
-  return (props.currentPeriod.actual_spent || 0) > props.currentPeriod.target_amount
+    return isPeriodOverBudget(props.currentPeriod)
 })
 
 const isUpcomingBudgetAlsoActive = computed(() => {
@@ -241,34 +232,24 @@ const isUpcomingBudgetAlsoActive = computed(() => {
   return upcomingBudget.value.is_active
 })
 
+const upcomingStartDate = computed(() => {
+  if (!upcomingBudget.value) return ''
+  const period = getUpcomingPeriod(upcomingBudget.value, activeBudget.value ? props.currentPeriod : null)
+  return formatDate(period.start_date.toISOString().split('T')[0])
+})
+
+
 // Methods
-function formatAmount(amount) {
-  return typeof amount === 'number' ? amount.toFixed(2) : '0.00'
-}
-
-function formatDate(dateString) {
-  if (!dateString) return ''
-  return new Date(dateString + 'T00:00:00').toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
-  })
-}
-
-function getWeekdayName(weekday) {
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  return days[weekday] || 'Invalid'
-}
-
 function closeModal() {
   showCreateForm.value = false
   editingBudget.value = null
 }
 
-function editBudget(budget) {
+function editBudget(budget: Budget) {
   editingBudget.value = { ...budget }
 }
 
-async function handleBudgetSubmit(budgetData) {
+async function handleBudgetSubmit(budgetData: Partial<Budget>) {
   try {
     if (editingBudget.value) {
       const isActive = activeBudget.value?.id === editingBudget.value.id
@@ -283,7 +264,7 @@ async function handleBudgetSubmit(budgetData) {
   }
 }
 
-async function activateBudget(budget) {
+async function activateBudget(budget: Budget) {
   if (confirm(`Activate "${budget.name}" now? This will replace the current active budget.`)) {
     try {
       await emit('activate-budget', budget.id)
@@ -293,13 +274,13 @@ async function activateBudget(budget) {
   }
 }
 
-async function scheduleForNext(budget) {
+async function scheduleForNext(budget: Budget) {
   if (upcomingBudget.value) {
     if (!confirm(`Replace "${upcomingBudget.value.name}" as the upcoming budget with "${budget.name}"?`)) {
       return
     }
   }
-  
+
   try {
     await emit('schedule-budget', budget.id)
   } catch (error) {
@@ -307,13 +288,13 @@ async function scheduleForNext(budget) {
   }
 }
 
-async function cancelUpcoming(budget) {
+async function cancelUpcoming(budget: Budget) {
   const isAlsoActive = budget.is_active
   const action = isAlsoActive ? 'remove as upcoming' : 'cancel'
-  const message = isAlsoActive 
+  const message = isAlsoActive
     ? `Remove "${budget.name}" as upcoming budget? It will remain active for the current period.`
     : `Cancel "${budget.name}" as upcoming budget?`
-    
+
   if (confirm(message)) {
     try {
       await emit('cancel-upcoming', budget.id)
@@ -323,7 +304,7 @@ async function cancelUpcoming(budget) {
   }
 }
 
-async function deleteBudget(budget) {
+async function deleteBudget(budget: Budget) {
   if (confirm(`Delete "${budget.name}"? This cannot be undone.`)) {
     try {
       await emit('delete-budget', budget.id)
@@ -333,44 +314,12 @@ async function deleteBudget(budget) {
   }
 }
 
-async function toggleVacationMode(budget) {
+async function toggleVacationMode(budget: Budget) {
   try {
     await emit('vacation-mode-toggle', budget.id, !budget.vacation_mode)
   } catch (error) {
     console.error('Failed to toggle vacation mode:', error)
   }
-}
-
-function getUpcomingStartDate() {
-  if (!upcomingBudget.value) return ''
-  
-  // If there's an active budget with current period, start after it ends
-  if (activeBudget.value && props.currentPeriod) {
-    const endDate = new Date(props.currentPeriod.end_date + 'T00:00:00')
-    endDate.setDate(endDate.getDate() + 1) // Day after current period ends
-    return endDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }
-  
-  // If no active budget, calculate next occurrence of the start weekday
-  const today = new Date()
-  const targetWeekday = upcomingBudget.value.start_weekday
-  const currentWeekday = today.getDay()
-  
-  let daysUntilStart = (targetWeekday - currentWeekday + 7) % 7
-  if (daysUntilStart === 0) daysUntilStart = 7 // Start next week if today is the target day
-  
-  const startDate = new Date(today)
-  startDate.setDate(today.getDate() + daysUntilStart)
-  
-  return startDate.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric',
-    year: 'numeric'
-  })
 }
 </script>
 
@@ -483,7 +432,7 @@ function getUpcomingStartDate() {
 }
 
 .budget-info h4 {
-  margin: 0 0 4px 0;  
+  margin: 0 0 4px 0;
   color: #e0e0e0;
   font-size: 18px;
 }
@@ -684,18 +633,18 @@ function getUpcomingStartDate() {
   .budget-manager {
     padding: 16px;
   }
-  
+
   .manager-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
   }
-  
+
   .budget-main {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .budget-actions {
     justify-content: flex-start;
   }
