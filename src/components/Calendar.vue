@@ -1,7 +1,25 @@
 <template>
   <div class="calendar-page">
+    <!-- View Toggle -->
+    <div class="view-toggle">
+      <button 
+        @click="currentView = 'calendar'" 
+        class="view-btn"
+        :class="{ active: currentView === 'calendar' }"
+      >
+        📅 Calendar View
+      </button>
+      <button 
+        @click="currentView = 'table'" 
+        class="view-btn"
+        :class="{ active: currentView === 'table' }"
+      >
+        📊 Table View
+      </button>
+    </div>
+
     <!-- Calendar Component -->
-    <div class="calendar-container">
+    <div v-show="currentView === 'calendar'" class="calendar-container">
       <!-- Calendar Header -->
       <div class="calendar-header">
         <button @click="previousMonth" class="nav-btn">‹</button>
@@ -153,6 +171,10 @@
       </div>
     </div>
 
+    <!-- Table View -->
+    <div v-show="currentView === 'table'">
+      <ExpenseTableView :expenses="expenses" />
+    </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="loading">
@@ -166,6 +188,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { budgetService } from '../services/budget'
 import { databaseService } from '../services/database'
+import ExpenseTableView from './ExpenseTableView.vue'
 
 // Props for refresh trigger
 const props = defineProps({
@@ -176,6 +199,7 @@ const props = defineProps({
 })
 
 // Reactive data
+const currentView = ref('calendar')
 const currentMonth = ref(new Date())
 const selectedPeriod = ref(null)
 const tooltipPosition = ref(null)
@@ -539,6 +563,39 @@ onUnmounted(() => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+}
+
+.view-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  justify-content: center;
+}
+
+.view-btn {
+  background: #3a3a3a;
+  color: #e0e0e0;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-btn:hover {
+  background: #4a4a4a;
+  border-color: #007bff;
+}
+
+.view-btn.active {
+  background: #007bff;
+  border-color: #007bff;
+  color: white;
 }
 
 .page-header {

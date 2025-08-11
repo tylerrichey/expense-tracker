@@ -254,6 +254,9 @@ firestore-debug.log
 # Claude Code configuration
 .claude/
 
+# Crush agent configuration
+.crush/
+
 # Build-generated files
 src/build-info.json
 public/build-info.json

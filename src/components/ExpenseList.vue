@@ -50,26 +50,27 @@
   </div>
 
   <!-- Image Modal -->
-  <div v-if="showImageModal" class="modal-overlay" @click="closeImageModal">
-    <div class="modal-content image-modal" @click.stop>
-      <button class="modal-close" @click="closeImageModal" title="Close">×</button>
-      <img :src="currentImageUrl" alt="Receipt image" class="modal-image" />
-    </div>
-  </div>
+  <ImageModal 
+    :show-image-modal="showImageModal"
+    :current-image-url="currentImageUrl"
+    @close="closeImageModal"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { databaseService } from '../services/database'
 import { Expense } from '../types/expense'
+import { useImageModal } from '../composables/useImageModal'
+import ImageModal from './ImageModal.vue'
 
 const expenses = ref<Expense[]>([])
 const loading = ref(false)
 const error = ref('')
 const deletingId = ref<number | null>(null)
-const loadingImageId = ref<number | null>(null)
-const showImageModal = ref(false)
-const currentImageUrl = ref('')
+
+// Image modal functionality
+const { loadingImageId, showImageModal, currentImageUrl, viewImage, closeImageModal } = useImageModal()
 
 const props = defineProps<{
   refreshTrigger?: number
@@ -118,31 +119,6 @@ async function deleteExpense(id: number) {
   }
 }
 
-async function viewImage(expenseId: number) {
-  loadingImageId.value = expenseId
-  
-  try {
-    const imageUrl = await databaseService.getExpenseImage(expenseId)
-    currentImageUrl.value = imageUrl
-    showImageModal.value = true
-  } catch (err) {
-    console.error('Error loading image:', err)
-    error.value = 'Failed to load image'
-    setTimeout(() => {
-      error.value = ''
-    }, 3000)
-  } finally {
-    loadingImageId.value = null
-  }
-}
-
-function closeImageModal() {
-  showImageModal.value = false
-  if (currentImageUrl.value) {
-    URL.revokeObjectURL(currentImageUrl.value) // Clean up object URL
-    currentImageUrl.value = ''
-  }
-}
 
 function formatDate(date: Date): string {
   const now = new Date()
@@ -295,39 +271,6 @@ defineExpose({ loadExpenses })
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 200px;
-  }
-}
-
-/* Image Modal Styles */
-.image-modal {
-  position: relative;
-  width: auto;
-  height: auto;
-  max-width: 90vw;
-  max-height: 90vh;
-  backdrop-filter: blur(2px);
-}
-
-.modal-image {
-  max-width: calc(90vw - 40px);
-  max-height: calc(90vh - 40px);
-  width: auto;
-  height: auto;
-  display: block;
-  object-fit: contain;
-  border-radius: var(--radius-sm);
-}
-
-/* Mobile modal adjustments */
-@media (max-width: 768px) {
-  .image-modal {
-    max-width: 95vw;
-    max-height: 95vh;
-  }
-  
-  .modal-image {
-    max-width: calc(95vw - 20px);
-    max-height: calc(95vh - 20px);
   }
 }
 </style>
