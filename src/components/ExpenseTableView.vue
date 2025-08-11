@@ -678,6 +678,11 @@ async function handleDeleteExpense(expenseId) {
     padding: 6px 8px;
   }
 
+  .expense-table th {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
   .date-cell {
     min-width: 90px;
     width: 90px;
@@ -706,9 +711,10 @@ async function handleDeleteExpense(expenseId) {
   }
 
   .location-name {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 13px;
+    word-break: break-word;
+    white-space: normal;
+    line-height: 1.3;
     max-width: 100%;
   }
 
@@ -740,6 +746,10 @@ async function handleDeleteExpense(expenseId) {
     display: none;
   }
 
+  .expense-table th {
+    font-size: 12px;
+  }
+
   .date-cell {
     min-width: 75px;
     width: 75px;
@@ -757,6 +767,11 @@ async function handleDeleteExpense(expenseId) {
     min-width: 70px;
     width: 70px;
     font-size: 13px;
+  }
+
+  .location-name {
+    font-size: 12px;
+    line-height: 1.2;
   }
 
   .expense-table th,
