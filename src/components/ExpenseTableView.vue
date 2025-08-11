@@ -158,6 +158,7 @@
       :show="showExpenseDetails"
       :expense="selectedExpense"
       :loading-image-id="loadingImageId"
+      :deleting-id="deletingId"
       @close="closeExpenseDetails"
       @view-receipt="viewImage"
       @delete-expense="handleDeleteExpense"
@@ -168,6 +169,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useImageModal } from '../composables/useImageModal'
+import { databaseService } from '../services/database'
 import ImageModal from './ImageModal.vue'
 import ExpenseDetailsModal from './ExpenseDetailsModal.vue'
 
@@ -179,12 +181,16 @@ const props = defineProps({
   }
 })
 
+// Emits
+const emit = defineEmits(['expense-deleted'])
+
 // Image modal functionality
 const { loadingImageId, showImageModal, currentImageUrl, viewImage, closeImageModal } = useImageModal()
 
 // Expense details modal
 const showExpenseDetails = ref(false)
 const selectedExpense = ref({})
+const deletingId = ref(null)
 
 // Reactive data
 const searchQuery = ref('')
@@ -313,6 +319,14 @@ function getSortIcon(field) {
 
 function formatDate(timestamp) {
   const date = new Date(timestamp)
+  // Use shorter format on mobile devices
+  if (window.innerWidth <= 768) {
+    return date.toLocaleDateString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      year: '2-digit'
+    })
+  }
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -340,11 +354,23 @@ function closeExpenseDetails() {
 }
 
 async function handleDeleteExpense(expenseId) {
-  // For now, just close the modal - in a real app you'd call the delete API
-  // and emit an event to the parent to refresh data
-  console.log('Delete expense:', expenseId)
-  closeExpenseDetails()
-  // TODO: Emit delete event to parent component
+  if (!confirm('Are you sure you want to delete this expense?')) {
+    return
+  }
+
+  deletingId.value = expenseId
+  
+  try {
+    await databaseService.deleteExpense(expenseId)
+    closeExpenseDetails()
+    emit('expense-deleted')
+  } catch (err) {
+    console.error('Error deleting expense:', err)
+    // Could add error handling UI here
+    alert('Failed to delete expense. Please try again.')
+  } finally {
+    deletingId.value = null
+  }
 }
 </script>
 
@@ -649,7 +675,41 @@ async function handleDeleteExpense(expenseId) {
 
   .expense-table th,
   .expense-table td {
-    padding: 8px 12px;
+    padding: 6px 8px;
+  }
+
+  .date-cell {
+    min-width: 90px;
+    width: 90px;
+  }
+
+  .date-primary {
+    font-size: 13px;
+    margin-bottom: 1px;
+  }
+
+  .date-secondary {
+    font-size: 11px;
+  }
+
+  .amount-cell {
+    min-width: 80px;
+    width: 80px;
+    font-size: 14px;
+  }
+
+  .location-cell {
+    min-width: auto;
+    width: auto;
+    flex: 1;
+    max-width: none;
+  }
+
+  .location-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   .address-column {
@@ -678,6 +738,30 @@ async function handleDeleteExpense(expenseId) {
 
   .filter-separator {
     display: none;
+  }
+
+  .date-cell {
+    min-width: 75px;
+    width: 75px;
+  }
+
+  .date-primary {
+    font-size: 12px;
+  }
+
+  .date-secondary {
+    font-size: 10px;
+  }
+
+  .amount-cell {
+    min-width: 70px;
+    width: 70px;
+    font-size: 13px;
+  }
+
+  .expense-table th,
+  .expense-table td {
+    padding: 4px 6px;
   }
 }
 </style>
