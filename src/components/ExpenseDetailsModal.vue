@@ -52,10 +52,10 @@
         <button 
           @click="handleDeleteExpense"
           class="action-btn delete-btn"
-          :disabled="deletingExpense"
+          :disabled="deletingId === expense.id"
         >
           <span class="btn-icon">🗑️</span>
-          <span class="btn-text">{{ deletingExpense ? 'Deleting...' : 'Delete' }}</span>
+          <span class="btn-text">{{ deletingId === expense.id ? 'Deleting...' : 'Delete' }}</span>
         </button>
       </div>
     </div>
@@ -77,12 +77,14 @@ const props = defineProps({
   loadingImageId: {
     type: Number,
     default: null
+  },
+  deletingId: {
+    type: Number,
+    default: null
   }
 })
 
 const emit = defineEmits(['close', 'view-receipt', 'delete-expense'])
-
-const deletingExpense = ref(false)
 
 function closeModal() {
   emit('close')
@@ -94,18 +96,8 @@ function handleViewReceipt() {
   }
 }
 
-async function handleDeleteExpense() {
-  if (!confirm('Are you sure you want to delete this expense?')) {
-    return
-  }
-  
-  deletingExpense.value = true
-  try {
-    emit('delete-expense', props.expense.id)
-  } finally {
-    // The parent will handle the actual deletion and closing the modal
-    deletingExpense.value = false
-  }
+function handleDeleteExpense() {
+  emit('delete-expense', props.expense.id)
 }
 
 function formatFullDate(timestamp) {
