@@ -359,14 +359,34 @@ class DatabaseService {
   getAllUniquePlaces() {
     try {
       const stmt = this.db.prepare(`
-        SELECT DISTINCT place_name
+        SELECT DISTINCT place_name, place_id, place_address
         FROM expenses 
         WHERE place_name IS NOT NULL AND place_name != ''
         ORDER BY place_name ASC
       `)
       const rows = stmt.all()
       
-      const places = rows.map(row => row.place_name)
+      // Group by place_name and pick the first non-null place_id and place_address
+      const placesMap = new Map();
+      rows.forEach(row => {
+        if (!placesMap.has(row.place_name)) {
+          placesMap.set(row.place_name, {
+            name: row.place_name,
+            id: row.place_id,
+            address: row.place_address
+          });
+        } else {
+          const existing = placesMap.get(row.place_name);
+          if (!existing.id && row.place_id) {
+            existing.id = row.place_id;
+          }
+          if (!existing.address && row.place_address) {
+            existing.address = row.place_address;
+          }
+        }
+      });
+      
+      const places = Array.from(placesMap.values())
       
       return Promise.resolve(places)
     } catch (err) {

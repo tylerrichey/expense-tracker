@@ -173,7 +173,7 @@ class DatabaseService {
     return await response.json()
   }
 
-  async getAllUniquePlaces(): Promise<string[]> {
+  async getAllUniquePlaces(): Promise<{name: string, id?: string, address?: string}[]> {
     const response = await fetch(`${this.baseURL}/places/all`, {
       headers: this.getAuthHeaders()
     })
@@ -185,7 +185,7 @@ class DatabaseService {
     return await response.json()
   }
 
-  async getPlaceAutocomplete(input: string, latitude?: number, longitude?: number): Promise<{id: string, name: string, description: string}[]> {
+  async getPlaceAutocomplete(input: string, latitude?: number, longitude?: number, includeDetails: boolean = true): Promise<{id: string, name: string, description: string, address?: string, location?: any, types?: string[]}[]> {
     const params = new URLSearchParams({
       input: input
     })
@@ -193,6 +193,10 @@ class DatabaseService {
     if (latitude && longitude) {
       params.set('latitude', latitude.toString())
       params.set('longitude', longitude.toString())
+    }
+    
+    if (includeDetails) {
+      params.set('includeDetails', 'true')
     }
 
     const response = await fetch(`${this.baseURL}/places/autocomplete?${params}`, {

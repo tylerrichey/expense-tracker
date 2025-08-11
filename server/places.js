@@ -107,11 +107,52 @@ class PlacesService {
     }
   }
 
+  async getPlaceDetails(placeId) {
+    if (!this.apiKey) {
+      throw new Error("Google Places API key not configured");
+    }
+
+    if (!placeId) {
+      throw new Error("Place ID is required");
+    }
+
+    const detailsURL = `https://places.googleapis.com/v1/places/${placeId}`;
+    
+    const requestHeaders = {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": this.apiKey,
+      "X-Goog-FieldMask": "id,displayName,formattedAddress,location,types",
+    };
+
+    try {
+      const response = await axios.get(detailsURL, {
+        headers: requestHeaders,
+      });
+
+      const place = response.data;
+      return {
+        id: place.id,
+        name: place.displayName?.text || "Unknown Place",
+        address: place.formattedAddress || "",
+        location: place.location,
+        types: place.types || [],
+      };
+    } catch (error) {
+      logger.logGooglePlacesError(error);
+      logger.error("Error fetching place details", {
+        placeId,
+        error: error.response?.data || error.message,
+      });
+      throw new Error("Failed to fetch place details");
+    }
+  }
+
   async searchAutocomplete(
     input,
     latitude = null,
     longitude = null,
-    radius = 1000
+    radius = 1000,
+    includeDetails = false
   ) {
     if (!this.apiKey) {
       throw new Error("Google Places API key not configured");
@@ -173,11 +214,36 @@ class PlacesService {
                 name:
                   prediction.structuredFormat.mainText.text || "Unknown Place",
                 description: prediction.text?.text || "",
+                address: prediction.text?.text || "", // Use the full text as the address fallback
               };
             }
             return null;
           })
           .filter(Boolean) || [];
+
+      // If includeDetails is true, fetch full place details for each suggestion
+      if (includeDetails) {
+        const detailedSuggestions = await Promise.all(
+          suggestions.map(async (suggestion) => {
+            try {
+              const details = await this.getPlaceDetails(suggestion.id);
+              return {
+                ...suggestion,
+                address: details.address,
+                location: details.location,
+                types: details.types,
+              };
+            } catch (error) {
+              logger.error(`Failed to fetch details for place ${suggestion.id}`, {
+                error: error.message,
+              });
+              // Return original suggestion if details fetch fails
+              return suggestion;
+            }
+          })
+        );
+        return detailedSuggestions;
+      }
 
       return suggestions;
     } catch (error) {

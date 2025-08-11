@@ -323,7 +323,7 @@ app.get("/api/places/nearby", authenticateRequest, async (req, res) => {
 
 app.get("/api/places/autocomplete", authenticateRequest, async (req, res) => {
   try {
-    const { input, latitude, longitude, radius } = req.query;
+    const { input, latitude, longitude, radius, includeDetails } = req.query;
 
     if (!input) {
       return res
@@ -335,7 +335,8 @@ app.get("/api/places/autocomplete", authenticateRequest, async (req, res) => {
       input,
       latitude || null,
       longitude || null,
-      radius ? parseInt(radius) : 1000
+      radius ? parseInt(radius) : 1000,
+      includeDetails === 'true'
     );
 
     res.json(suggestions);

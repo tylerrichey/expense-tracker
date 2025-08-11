@@ -184,12 +184,13 @@ const currentLocation = ref<{ latitude: number; longitude: number } | null>(
 );
 const showManualInput = ref(false);
 const manualPlaceName = ref("");
-const allPlaces = ref<string[]>([]);
-const filteredPlaces = ref<{name: string, source: 'local' | 'google', id?: string, description?: string}[]>([]);
+const allPlaces = ref<{name: string, id?: string, address?: string}[]>([]);
+const filteredPlaces = ref<{name: string, source: 'local' | 'google', id?: string, description?: string, address?: string, location?: any, types?: string[]}[]>([]);
 const showSuggestions = ref(false);
 const selectedSuggestionIndex = ref(-1);
 const autocompleteTimeout = ref<NodeJS.Timeout | null>(null);
 const receiptImage = ref<File | null>(null);
+const selectedPlaceData = ref<{id?: string, name?: string, address?: string, location?: any} | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
 // Detect if we're on mobile for better camera handling
@@ -423,8 +424,9 @@ async function submitExpense() {
       amount: amount.value,
       latitude: location?.latitude,
       longitude: location?.longitude,
-      place_id:
-        typeof selectedPlace.value === "object"
+      place_id: showManualInput.value 
+        ? selectedPlaceData.value?.id
+        : typeof selectedPlace.value === "object"
           ? selectedPlace.value.id
           : undefined,
       place_name: showManualInput.value
@@ -432,19 +434,14 @@ async function submitExpense() {
         : typeof selectedPlace.value === "object"
         ? selectedPlace.value.name
         : undefined,
-      place_address:
-        typeof selectedPlace.value === "object"
+      place_address: showManualInput.value
+        ? selectedPlaceData.value?.address
+        : typeof selectedPlace.value === "object"
           ? selectedPlace.value.address
           : undefined,
       timestamp: timestamp,
     };
 
-    if (import.meta.env.DEV) {
-      console.log(
-        "Saving expense with data:",
-        JSON.stringify(expenseData, null, 2)
-      );
-    }
 
     // Step 1: Save the expense and get the ID
     const savedExpense = await databaseService.addExpense(expenseData);
@@ -478,6 +475,7 @@ async function submitExpense() {
     // Reset location fields based on current mode
     if (showManualInput.value) {
       manualPlaceName.value = "";
+      selectedPlaceData.value = null;
     } else {
       // Reset dropdown to empty selection
       selectedPlace.value = "";
@@ -531,9 +529,15 @@ async function onPlaceNameInput() {
 
   // Filter local places immediately for responsiveness
   const localMatches = allPlaces.value
-    .filter((place) => place.toLowerCase().includes(inputValue.toLowerCase()))
+    .filter((place) => place.name.toLowerCase().includes(inputValue.toLowerCase()))
     .slice(0, 3) // Limit local results to make room for Google results
-    .map(name => ({ name, source: 'local' as const }));
+    .map(place => ({ 
+      name: place.name, 
+      source: 'local' as const,
+      id: place.id,
+      address: place.address,
+      description: place.address // Use address as description for local places
+    }));
 
   filteredPlaces.value = localMatches;
   showSuggestions.value = localMatches.length > 0;
@@ -549,6 +553,7 @@ async function onPlaceNameInput() {
           location?.latitude,
           location?.longitude
         );
+        
 
         // Convert Google results to our format
         const googleMatches = googleSuggestions
@@ -557,11 +562,14 @@ async function onPlaceNameInput() {
             name: place.name,
             source: 'google' as const,
             id: place.id,
-            description: place.description
+            description: place.description,
+            address: place.address,
+            location: place.location,
+            types: place.types
           }));
 
         // Merge and deduplicate results
-        const allMatches: {name: string, source: 'local' | 'google', id?: string, description?: string}[] = [...localMatches];
+        const allMatches: {name: string, source: 'local' | 'google', id?: string, description?: string, address?: string, location?: any, types?: string[]}[] = [...localMatches];
         
         // Add Google results that don't already exist in local results
         googleMatches.forEach(googlePlace => {
@@ -645,8 +653,18 @@ function onPlaceNameKeydown(event: KeyboardEvent) {
   }
 }
 
-function selectSuggestion(place: {name: string, source: 'local' | 'google', id?: string, description?: string}) {
+function selectSuggestion(place: {name: string, source: 'local' | 'google', id?: string, description?: string, address?: string, location?: any, types?: string[]}) {
   manualPlaceName.value = place.name;
+  
+  // Store additional place data for when the expense is submitted
+  selectedPlaceData.value = {
+    id: place.id,
+    name: place.name,
+    address: place.address || place.description, // Fallback to description if address not available
+    location: place.location
+  };
+  
+  
   showSuggestions.value = false;
   selectedSuggestionIndex.value = -1;
   
