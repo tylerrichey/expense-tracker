@@ -31,73 +31,85 @@
           />
         </div>
         <div class="date-filter">
-          <input
-            v-model="startDate"
-            type="date"
-            class="date-input"
-          />
+          <input v-model="startDate" type="date" class="date-input" />
           <span class="filter-separator">to</span>
-          <input
-            v-model="endDate"
-            type="date"
-            class="date-input"
-          />
+          <input v-model="endDate" type="date" class="date-input" />
         </div>
       </div>
     </div>
 
     <!-- Table Summary -->
-    <div class="table-summary">
+    <!-- <div class="table-summary">
       <span class="results-count">{{ filteredExpenses.length }} expenses</span>
       <span class="total-amount">${{ totalAmount.toFixed(2) }}</span>
-    </div>
+    </div> -->
 
     <!-- Data Table -->
     <div class="table-container">
       <table class="expense-table">
         <thead>
           <tr>
-            <th @click="sortBy('timestamp')" class="sortable" :class="getSortClass('timestamp')">
+            <th
+              @click="sortBy('timestamp')"
+              class="sortable"
+              :class="getSortClass('timestamp')"
+            >
               Date
-              <span class="sort-icon">{{ getSortIcon('timestamp') }}</span>
+              <span class="sort-icon">{{ getSortIcon("timestamp") }}</span>
             </th>
-            <th @click="sortBy('amount')" class="sortable" :class="getSortClass('amount')">
+            <th
+              @click="sortBy('amount')"
+              class="sortable"
+              :class="getSortClass('amount')"
+            >
               Amount
-              <span class="sort-icon">{{ getSortIcon('amount') }}</span>
+              <span class="sort-icon">{{ getSortIcon("amount") }}</span>
             </th>
-            <th @click="sortBy('place_name')" class="sortable" :class="getSortClass('place_name')">
+            <th
+              @click="sortBy('place_name')"
+              class="sortable"
+              :class="getSortClass('place_name')"
+            >
               Location
-              <span class="sort-icon">{{ getSortIcon('place_name') }}</span>
+              <span class="sort-icon">{{ getSortIcon("place_name") }}</span>
             </th>
             <th class="address-column">Address</th>
-            <th class="actions-column">Actions</th>
+            <th class="actions-column">Receipt</th>
           </tr>
         </thead>
         <tbody>
-          <tr 
-            v-for="expense in paginatedExpenses" 
+          <tr
+            v-for="expense in paginatedExpenses"
             :key="expense.id"
             class="expense-row"
             @click="openExpenseDetails(expense)"
           >
             <td class="date-cell">
-              <div class="date-primary">{{ formatDate(expense.timestamp) }}</div>
-              <div class="date-secondary">{{ formatTime(expense.timestamp) }}</div>
+              <div class="date-primary">
+                {{ formatDate(expense.timestamp) }}
+              </div>
+              <div class="date-secondary">
+                {{ formatTime(expense.timestamp) }}
+              </div>
             </td>
             <td class="amount-cell">${{ expense.amount.toFixed(2) }}</td>
             <td class="location-cell">
-              <div class="location-name">{{ expense.place_name || 'Unknown' }}</div>
+              <div class="location-name">
+                {{ expense.place_name || "Unknown" }}
+              </div>
             </td>
-            <td class="address-cell address-column">{{ expense.place_address || '-' }}</td>
+            <td class="address-cell address-column">
+              {{ expense.place_address || "-" }}
+            </td>
             <td class="actions-cell actions-column">
-              <button 
-                v-if="expense.has_image && expense.id" 
+              <button
+                v-if="expense.has_image && expense.id"
                 @click.stop="viewImage(expense.id)"
                 class="action-btn receipt-btn"
                 :disabled="loadingImageId === expense.id"
                 title="View Receipt"
               >
-                {{ loadingImageId === expense.id ? '...' : '📄' }}
+                {{ loadingImageId === expense.id ? "..." : "📄" }}
               </button>
             </td>
           </tr>
@@ -111,34 +123,34 @@
 
     <!-- Pagination -->
     <div v-if="totalPages > 1" class="pagination">
-      <button 
-        @click="currentPage = 1" 
+      <button
+        @click="currentPage = 1"
         :disabled="currentPage === 1"
         class="page-btn"
       >
         First
       </button>
-      <button 
-        @click="currentPage--" 
+      <button
+        @click="currentPage--"
         :disabled="currentPage === 1"
         class="page-btn"
       >
         Previous
       </button>
-      
+
       <span class="page-info">
         Page {{ currentPage }} of {{ totalPages }}
       </span>
-      
-      <button 
-        @click="currentPage++" 
+
+      <button
+        @click="currentPage++"
         :disabled="currentPage === totalPages"
         class="page-btn"
       >
         Next
       </button>
-      <button 
-        @click="currentPage = totalPages" 
+      <button
+        @click="currentPage = totalPages"
         :disabled="currentPage === totalPages"
         class="page-btn"
       >
@@ -147,7 +159,7 @@
     </div>
 
     <!-- Image Modal -->
-    <ImageModal 
+    <ImageModal
       :show-image-modal="showImageModal"
       :current-image-url="currentImageUrl"
       @close="closeImageModal"
@@ -167,209 +179,219 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { useImageModal } from '../composables/useImageModal'
-import { databaseService } from '../services/database'
-import ImageModal from './ImageModal.vue'
-import ExpenseDetailsModal from './ExpenseDetailsModal.vue'
+import { ref, computed, watch } from "vue";
+import { useImageModal } from "../composables/useImageModal";
+import { databaseService } from "../services/database";
+import ImageModal from "./ImageModal.vue";
+import ExpenseDetailsModal from "./ExpenseDetailsModal.vue";
 
 // Props
 const props = defineProps({
   expenses: {
     type: Array,
-    required: true
-  }
-})
+    required: true,
+  },
+});
 
 // Emits
-const emit = defineEmits(['expense-deleted'])
+const emit = defineEmits(["expense-deleted"]);
 
 // Image modal functionality
-const { loadingImageId, showImageModal, currentImageUrl, viewImage, closeImageModal } = useImageModal()
+const {
+  loadingImageId,
+  showImageModal,
+  currentImageUrl,
+  viewImage,
+  closeImageModal,
+} = useImageModal();
 
 // Expense details modal
-const showExpenseDetails = ref(false)
-const selectedExpense = ref({})
-const deletingId = ref(null)
+const showExpenseDetails = ref(false);
+const selectedExpense = ref({});
+const deletingId = ref(null);
 
 // Reactive data
-const searchQuery = ref('')
-const minAmount = ref(null)
-const maxAmount = ref(null)
-const startDate = ref('')
-const endDate = ref('')
+const searchQuery = ref("");
+const minAmount = ref(null);
+const maxAmount = ref(null);
+const startDate = ref("");
+const endDate = ref("");
 
-const sortField = ref('timestamp')
-const sortDirection = ref('desc') // 'asc' or 'desc'
+const sortField = ref("timestamp");
+const sortDirection = ref("desc"); // 'asc' or 'desc'
 
-const currentPage = ref(1)
-const itemsPerPage = 50
+const currentPage = ref(1);
+const itemsPerPage = 50;
 
 // Computed properties
 const filteredExpenses = computed(() => {
-  let filtered = [...props.expenses]
+  let filtered = [...props.expenses];
 
   // Text search
   if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(expense => 
-      (expense.place_name || '').toLowerCase().includes(query) ||
-      (expense.place_address || '').toLowerCase().includes(query)
-    )
+    const query = searchQuery.value.toLowerCase();
+    filtered = filtered.filter(
+      (expense) =>
+        (expense.place_name || "").toLowerCase().includes(query) ||
+        (expense.place_address || "").toLowerCase().includes(query)
+    );
   }
 
   // Amount range filter
-  if (minAmount.value !== null && minAmount.value !== '') {
-    filtered = filtered.filter(expense => expense.amount >= minAmount.value)
+  if (minAmount.value !== null && minAmount.value !== "") {
+    filtered = filtered.filter((expense) => expense.amount >= minAmount.value);
   }
-  if (maxAmount.value !== null && maxAmount.value !== '') {
-    filtered = filtered.filter(expense => expense.amount <= maxAmount.value)
+  if (maxAmount.value !== null && maxAmount.value !== "") {
+    filtered = filtered.filter((expense) => expense.amount <= maxAmount.value);
   }
 
   // Date range filter
   if (startDate.value) {
-    const start = new Date(startDate.value)
-    start.setHours(0, 0, 0, 0)
-    filtered = filtered.filter(expense => {
-      const expenseDate = new Date(expense.timestamp)
-      expenseDate.setHours(0, 0, 0, 0)
-      return expenseDate >= start
-    })
+    const start = new Date(startDate.value);
+    start.setHours(0, 0, 0, 0);
+    filtered = filtered.filter((expense) => {
+      const expenseDate = new Date(expense.timestamp);
+      expenseDate.setHours(0, 0, 0, 0);
+      return expenseDate >= start;
+    });
   }
   if (endDate.value) {
-    const end = new Date(endDate.value)
-    end.setHours(23, 59, 59, 999)
-    filtered = filtered.filter(expense => {
-      const expenseDate = new Date(expense.timestamp)
-      return expenseDate <= end
-    })
+    const end = new Date(endDate.value);
+    end.setHours(23, 59, 59, 999);
+    filtered = filtered.filter((expense) => {
+      const expenseDate = new Date(expense.timestamp);
+      return expenseDate <= end;
+    });
   }
 
   // Sort
   filtered.sort((a, b) => {
-    let aVal, bVal
+    let aVal, bVal;
 
     switch (sortField.value) {
-      case 'amount':
-        aVal = a.amount
-        bVal = b.amount
-        break
-      case 'place_name':
-        aVal = (a.place_name || '').toLowerCase()
-        bVal = (b.place_name || '').toLowerCase()
-        break
-      case 'timestamp':
+      case "amount":
+        aVal = a.amount;
+        bVal = b.amount;
+        break;
+      case "place_name":
+        aVal = (a.place_name || "").toLowerCase();
+        bVal = (b.place_name || "").toLowerCase();
+        break;
+      case "timestamp":
       default:
-        aVal = new Date(a.timestamp).getTime()
-        bVal = new Date(b.timestamp).getTime()
-        break
+        aVal = new Date(a.timestamp).getTime();
+        bVal = new Date(b.timestamp).getTime();
+        break;
     }
 
-    if (aVal < bVal) return sortDirection.value === 'asc' ? -1 : 1
-    if (aVal > bVal) return sortDirection.value === 'asc' ? 1 : -1
-    return 0
-  })
+    if (aVal < bVal) return sortDirection.value === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortDirection.value === "asc" ? 1 : -1;
+    return 0;
+  });
 
-  return filtered
-})
+  return filtered;
+});
 
 const totalAmount = computed(() => {
-  return filteredExpenses.value.reduce((sum, expense) => sum + expense.amount, 0)
-})
+  return filteredExpenses.value.reduce(
+    (sum, expense) => sum + expense.amount,
+    0
+  );
+});
 
 const totalPages = computed(() => {
-  return Math.ceil(filteredExpenses.value.length / itemsPerPage)
-})
+  return Math.ceil(filteredExpenses.value.length / itemsPerPage);
+});
 
 const paginatedExpenses = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return filteredExpenses.value.slice(start, end)
-})
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return filteredExpenses.value.slice(start, end);
+});
 
 // Watch for filter changes to reset page
 watch([searchQuery, minAmount, maxAmount, startDate, endDate], () => {
-  currentPage.value = 1
-})
+  currentPage.value = 1;
+});
 
 // Methods
 function sortBy(field) {
   if (sortField.value === field) {
-    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+    sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc";
   } else {
-    sortField.value = field
-    sortDirection.value = field === 'amount' ? 'desc' : 'asc' // Default to desc for amount, asc for others
+    sortField.value = field;
+    sortDirection.value = field === "amount" ? "desc" : "asc"; // Default to desc for amount, asc for others
   }
-  currentPage.value = 1
+  currentPage.value = 1;
 }
 
 function getSortClass(field) {
   if (sortField.value === field) {
-    return sortDirection.value === 'asc' ? 'sort-asc' : 'sort-desc'
+    return sortDirection.value === "asc" ? "sort-asc" : "sort-desc";
   }
-  return ''
+  return "";
 }
 
 function getSortIcon(field) {
   if (sortField.value === field) {
-    return sortDirection.value === 'asc' ? '↑' : '↓'
+    return sortDirection.value === "asc" ? "↑" : "↓";
   }
-  return '↕'
+  return "↕";
 }
 
 function formatDate(timestamp) {
-  const date = new Date(timestamp)
+  const date = new Date(timestamp);
   // Use shorter format on mobile devices
   if (window.innerWidth <= 768) {
-    return date.toLocaleDateString('en-US', {
-      month: 'numeric',
-      day: 'numeric',
-      year: '2-digit'
-    })
+    return date.toLocaleDateString("en-US", {
+      month: "numeric",
+      day: "numeric",
+      year: "2-digit",
+    });
   }
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  })
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function formatTime(timestamp) {
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  })
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 function openExpenseDetails(expense) {
-  selectedExpense.value = expense
-  showExpenseDetails.value = true
+  selectedExpense.value = expense;
+  showExpenseDetails.value = true;
 }
 
 function closeExpenseDetails() {
-  showExpenseDetails.value = false
-  selectedExpense.value = {}
+  showExpenseDetails.value = false;
+  selectedExpense.value = {};
 }
 
 async function handleDeleteExpense(expenseId) {
-  if (!confirm('Are you sure you want to delete this expense?')) {
-    return
+  if (!confirm("Are you sure you want to delete this expense?")) {
+    return;
   }
 
-  deletingId.value = expenseId
-  
+  deletingId.value = expenseId;
+
   try {
-    await databaseService.deleteExpense(expenseId)
-    closeExpenseDetails()
-    emit('expense-deleted')
+    await databaseService.deleteExpense(expenseId);
+    closeExpenseDetails();
+    emit("expense-deleted");
   } catch (err) {
-    console.error('Error deleting expense:', err)
+    console.error("Error deleting expense:", err);
     // Could add error handling UI here
-    alert('Failed to delete expense. Please try again.')
+    alert("Failed to delete expense. Please try again.");
   } finally {
-    deletingId.value = null
+    deletingId.value = null;
   }
 }
 </script>

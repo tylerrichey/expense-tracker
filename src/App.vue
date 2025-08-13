@@ -1,13 +1,10 @@
 <template>
   <div id="app">
-    <LoginForm 
-      v-if="!isAuthenticated" 
-      @authenticated="handleAuthenticated" 
-    />
+    <LoginForm v-if="!isAuthenticated" @authenticated="handleAuthenticated" />
     <div v-else>
       <main>
-        <HorizontalNav 
-          :nav-items="navItems" 
+        <HorizontalNav
+          :nav-items="navItems"
           default-active="home"
           @expense-added="handleExpenseAdded"
           @expense-deleted="handleExpenseDeleted"
@@ -19,73 +16,72 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, markRaw, computed } from 'vue'
-import LoginForm from './components/LoginForm.vue'
-import HorizontalNav from './components/HorizontalNav.vue'
-import Home from './components/Home.vue'
-import Budget from './components/Budget.vue'
-import Calendar from './components/Calendar.vue'
-import Reports from './components/Reports.vue'
-import SettingsPage from './components/SettingsPage.vue'
-import AppFooter from './components/AppFooter.vue'
-import { AuthService } from './services/auth'
+import { ref, onMounted, markRaw, computed } from "vue";
+import LoginForm from "./components/LoginForm.vue";
+import HorizontalNav from "./components/HorizontalNav.vue";
+import Home from "./components/Home.vue";
+import Budget from "./components/Budget.vue";
+import Calendar from "./components/Calendar.vue";
+import Reports from "./components/Reports.vue";
+import SettingsPage from "./components/SettingsPage.vue";
+import AppFooter from "./components/AppFooter.vue";
+import { AuthService } from "./services/auth";
 
-const refreshTrigger = ref(0)
-const isAuthenticated = ref(false)
+const refreshTrigger = ref(0);
+const isAuthenticated = ref(false);
 
 const navItems = computed(() => [
   {
-    id: 'home',
-    title: 'Home',
+    id: "home",
+    title: "Home",
     component: markRaw(Home),
     props: {
-      refreshTrigger: refreshTrigger.value
-    }
+      refreshTrigger: refreshTrigger.value,
+    },
   },
   {
-    id: 'budget',
-    title: 'Budget',
+    id: "budget",
+    title: "Budget",
     component: markRaw(Budget),
     props: {
-      refreshTrigger: refreshTrigger.value
-    }
+      refreshTrigger: refreshTrigger.value,
+    },
   },
   {
-    id: 'calendar',
-    title: 'Calendar',
+    id: "calendar",
+    title: "Expenses",
     component: markRaw(Calendar),
     props: {
-      refreshTrigger: refreshTrigger.value
-    }
+      refreshTrigger: refreshTrigger.value,
+    },
   },
   {
-    id: 'reports',
-    title: 'Reports',
-    component: markRaw(Reports)
+    id: "reports",
+    title: "Reports",
+    component: markRaw(Reports),
   },
   {
-    id: 'settings',
-    title: 'Settings',
-    component: markRaw(SettingsPage)
-  }
-])
+    id: "settings",
+    title: "Settings",
+    component: markRaw(SettingsPage),
+  },
+]);
 
 onMounted(() => {
-  isAuthenticated.value = AuthService.isAuthenticated()
-})
+  isAuthenticated.value = AuthService.isAuthenticated();
+});
 
 function handleExpenseAdded() {
-  refreshTrigger.value++
+  refreshTrigger.value++;
 }
 
 function handleExpenseDeleted() {
-  refreshTrigger.value++
+  refreshTrigger.value++;
 }
 
 function handleAuthenticated() {
-  isAuthenticated.value = true
+  isAuthenticated.value = true;
 }
-
 </script>
 
 <style>
