@@ -11,6 +11,7 @@ import { budgetScheduler } from "./budget-scheduler.js";
 import { logger } from "./logger.js";
 import { getCommonTimezones, isValidTimezone } from "./timezone-utils.js";
 import { setupAdminRoutes } from "./admin-routes.js";
+import { imageProcessor } from "./image-processor.js";
 
 // Set NODE_ENV to development if not set (for dev server)
 if (!process.env.NODE_ENV) {
@@ -156,11 +157,38 @@ app.post(
         } (${(imageFile.size / 1024).toFixed(1)}KB)`
       );
 
-      // Update the expense with the image data
+      // Process the image for optimization
+      let processedImageBuffer;
+      try {
+        // Validate the uploaded file is a valid image
+        const isValid = await imageProcessor.isValidImage(imageFile.buffer);
+        if (!isValid) {
+          logger.log("error", "Invalid image file uploaded");
+          return res.status(400).json({ error: "Invalid image file" });
+        }
+
+        // Get optimal processing options for this image
+        const optimalOptions = await imageProcessor.getOptimalOptions(imageFile.buffer);
+        
+        // Process the image with compression and optimization
+        processedImageBuffer = await imageProcessor.processImage(imageFile.buffer, optimalOptions);
+        
+      } catch (processingError) {
+        logger.log("error", "Image processing failed:", { 
+          error: processingError.message,
+          expenseId,
+          fileName: imageFile.originalname
+        });
+        // Fallback to original image if processing fails
+        processedImageBuffer = imageFile.buffer;
+        logger.log("info", "Using original image as fallback");
+      }
+
+      // Update the expense with the processed image data
       const expenseIdNum = parseInt(expenseId);
       const success = await databaseService.updateExpenseImage(
         expenseIdNum,
-        imageFile.buffer
+        processedImageBuffer
       );
 
       if (!success) {
@@ -207,30 +235,42 @@ app.get("/api/expenses/:id/image", authenticateRequest, async (req, res) => {
         .json({ error: "Image not found for this expense" });
     }
 
-    // Detect image format from binary data
-    let contentType = "image/jpeg"; // default fallback
-    if (imageBuffer.length >= 8) {
-      const header = imageBuffer.slice(0, 8);
+    // Detect image format from binary data with improved WebP detection
+    let contentType = "image/webp"; // default to webp since we're processing to webp
+    if (imageBuffer.length >= 12) {
+      const header = imageBuffer.slice(0, 12);
+      
+      // JPEG detection: FF D8 FF
       if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) {
         contentType = "image/jpeg";
-      } else if (
+      } 
+      // PNG detection: 89 50 4E 47
+      else if (
         header[0] === 0x89 &&
         header[1] === 0x50 &&
         header[2] === 0x4e &&
         header[3] === 0x47
       ) {
         contentType = "image/png";
-      } else if (
+      } 
+      // GIF detection: 47 49 46
+      else if (
         header[0] === 0x47 &&
         header[1] === 0x49 &&
         header[2] === 0x46
       ) {
         contentType = "image/gif";
-      } else if (
-        header[0] === 0x52 &&
-        header[1] === 0x49 &&
-        header[2] === 0x46 &&
-        header[3] === 0x46
+      } 
+      // WebP detection: RIFF....WEBP
+      else if (
+        header[0] === 0x52 && // R
+        header[1] === 0x49 && // I
+        header[2] === 0x46 && // F
+        header[3] === 0x46 && // F
+        header[8] === 0x57 && // W
+        header[9] === 0x45 && // E
+        header[10] === 0x42 && // B
+        header[11] === 0x50   // P
       ) {
         contentType = "image/webp";
       }
