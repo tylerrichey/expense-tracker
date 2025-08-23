@@ -29,8 +29,9 @@ RUN npm ci --only=production && npm cache clean --force
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Copy server files
+# Copy server files and scripts
 COPY server ./server
+COPY scripts ./scripts
 
 # Create directory for SQLite database
 RUN mkdir -p /app/data

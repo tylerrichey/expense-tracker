@@ -250,6 +250,10 @@ async function getUserConfirmation() {
   })
 
   return new Promise((resolve) => {
+    const dbPath = databaseService.getDatabasePath()
+    const isProduction = process.env.NODE_ENV === 'production'
+    const environment = isProduction ? 'PRODUCTION' : 'DEVELOPMENT'
+    
     console.log('\n🚨 IMAGE MIGRATION WARNING 🚨')
     console.log('=====================================')
     console.log('This script will:')
@@ -261,7 +265,15 @@ async function getUserConfirmation() {
     console.log('• Make sure you have a database backup before proceeding')
     console.log('• This operation cannot be undone')
     console.log('• The migration may take several minutes depending on image count')
-    console.log('\n📋 Current database:', databaseService.getDatabasePath())
+    console.log(`\n🌍 Environment: ${environment}`)
+    console.log('📋 Database path:', dbPath)
+    
+    if (isProduction) {
+      console.log('\n🔴 PRODUCTION ENVIRONMENT DETECTED!')
+      console.log('• You are about to modify your live production database')
+      console.log('• Consider stopping the application during migration to prevent conflicts')
+      console.log('• Backup will be created automatically, but ensure you have external backups')
+    }
     
     rl.question('\nDo you want to proceed with the migration? (yes/no): ', (answer) => {
       rl.close()

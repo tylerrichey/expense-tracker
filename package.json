@@ -15,6 +15,7 @@
     "generate-test-data": "node scripts/generate-test-data.js",
     "generate-build-info": "node scripts/generate-build-info.js",
     "migrate-images": "node scripts/migrate-existing-images.js",
+    "migrate-images-prod": "NODE_ENV=production node scripts/migrate-existing-images.js",
     "test-image-compression": "node scripts/test-image-compression.js",
     "tesseract": "node scripts/tesseract-test.js",
     "google-docai": "node scripts/google-docai-test.js",
