@@ -17,6 +17,8 @@
     "migrate-images": "node scripts/migrate-existing-images.js",
     "migrate-images-prod": "NODE_ENV=production node scripts/migrate-existing-images.js",
     "debug-migration": "node scripts/debug-migration.js",
+    "db-maintenance": "node scripts/database-maintenance.js",
+    "db-vacuum": "node scripts/database-maintenance.js vacuum",
     "test-image-compression": "node scripts/test-image-compression.js",
     "tesseract": "node scripts/tesseract-test.js",
     "google-docai": "node scripts/google-docai-test.js",

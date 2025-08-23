@@ -208,6 +208,11 @@ class ImageMigration {
       // Print final statistics
       this.printFinalStats()
 
+      // Reclaim database space if any images were processed
+      if (this.stats.processed > 0) {
+        await this.reclaimDatabaseSpace()
+      }
+
     } catch (error) {
       console.error('💥 Migration failed:', error.message)
       throw error
@@ -240,6 +245,54 @@ class ImageMigration {
     }
 
     console.log('\n✨ Your database images have been optimized and orientation-corrected!')
+  }
+
+  /**
+   * Reclaim database space after image optimization
+   */
+  async reclaimDatabaseSpace() {
+    try {
+      console.log('\n🗜️  Reclaiming database space...')
+      
+      // Get database file size before VACUUM
+      const dbPath = databaseService.getDatabasePath()
+      const fs = await import('fs')
+      const statsBefore = fs.statSync(dbPath)
+      const sizeBefore = statsBefore.size
+      
+      console.log(`📦 Database size before cleanup: ${(sizeBefore / 1024 / 1024).toFixed(2)}MB`)
+      
+      // Access the database instance directly for VACUUM operation
+      const db = databaseService.db
+      
+      console.log('🔄 Running VACUUM operation (this may take a few seconds)...')
+      const startTime = Date.now()
+      
+      // Run VACUUM to reclaim space
+      db.exec('VACUUM')
+      
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1)
+      
+      // Get database file size after VACUUM
+      const statsAfter = fs.statSync(dbPath)
+      const sizeAfter = statsAfter.size
+      const spaceSaved = sizeBefore - sizeAfter
+      
+      console.log(`✅ VACUUM completed in ${duration}s`)
+      console.log(`📦 Database size after cleanup: ${(sizeAfter / 1024 / 1024).toFixed(2)}MB`)
+      console.log(`💾 Space reclaimed: ${(spaceSaved / 1024 / 1024).toFixed(2)}MB`)
+      
+      if (spaceSaved > 0) {
+        console.log(`🎉 Total database size reduction: ${((spaceSaved / sizeBefore) * 100).toFixed(1)}%`)
+      } else {
+        console.log('ℹ️  No additional space could be reclaimed')
+      }
+      
+    } catch (error) {
+      console.log('⚠️  Warning: Could not reclaim database space:', error.message)
+      console.log('   This is not critical - the image optimization was successful')
+      console.log('   You can manually run VACUUM later if needed')
+    }
   }
 }
 
