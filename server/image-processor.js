@@ -39,11 +39,16 @@ class ImageProcessor {
         quality: opts.quality
       })
 
-      // Create Sharp processing pipeline
+      // Create Sharp processing pipeline with orientation correction
       let pipeline = sharp(imageBuffer)
+        .rotate() // Auto-rotate based on EXIF orientation
+
+      logger.log('info', '🔄 Applied EXIF orientation correction')
 
       // Resize if image is larger than max dimensions
-      if (metadata.width > opts.maxWidth || metadata.height > opts.maxHeight) {
+      // Note: After rotation, we need to check the corrected dimensions
+      const rotatedMetadata = await pipeline.metadata()
+      if (rotatedMetadata.width > opts.maxWidth || rotatedMetadata.height > opts.maxHeight) {
         pipeline = pipeline.resize(opts.maxWidth, opts.maxHeight, {
           fit: 'inside',
           withoutEnlargement: true
