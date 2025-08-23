@@ -111,20 +111,15 @@ class ImageMigration {
       const originalSize = originalImageBuffer.length
       this.stats.totalSizeBefore += originalSize
 
-      // Check if image is already optimized (WebP format with small size might indicate already processed)
-      const isWebP = originalImageBuffer[0] === 0x52 && 
-                     originalImageBuffer[1] === 0x49 && 
-                     originalImageBuffer[2] === 0x46 && 
-                     originalImageBuffer[3] === 0x46 &&
-                     originalImageBuffer[8] === 0x57 && 
-                     originalImageBuffer[9] === 0x45 && 
-                     originalImageBuffer[10] === 0x42 && 
-                     originalImageBuffer[11] === 0x50
+      // Get image info to determine format reliably
+      const imageInfo = await imageProcessor.getImageInfo(originalImageBuffer)
+      console.log(`📸 Expense ${expenseId}: ${imageInfo.format} ${imageInfo.width}x${imageInfo.height} (${(originalSize/1024).toFixed(1)}KB)`)
 
-      if (isWebP && originalSize < 500000) { // If already WebP and under 500KB, probably already optimized
+      // Check if image is already optimized WebP
+      if (imageInfo.format === 'webp' && originalSize < 500000) { // If already WebP and under 500KB, probably already optimized
         this.stats.skipped++
         this.stats.totalSizeAfter += originalSize
-        console.log(`⏭️  Expense ${expenseId}: Already optimized WebP (${(originalSize/1024).toFixed(1)}KB)`)
+        console.log(`⏭️  Expense ${expenseId}: Already optimized WebP, skipping`)
         return
       }
 
@@ -136,10 +131,7 @@ class ImageMigration {
         return
       }
 
-      // Get image info before processing
-      const imageInfo = await imageProcessor.getImageInfo(originalImageBuffer)
-      
-      // Process the image with optimization
+      // Process the image with optimization (imageInfo already obtained above)
       const optimalOptions = await imageProcessor.getOptimalOptions(originalImageBuffer)
       const processedImageBuffer = await imageProcessor.processImage(originalImageBuffer, optimalOptions)
       
@@ -148,11 +140,20 @@ class ImageMigration {
       const compressionRatio = ((originalSize - processedSize) / originalSize * 100).toFixed(1)
 
       // Update the database with processed image
+      console.log(`💾 Expense ${expenseId}: Updating database with ${(processedSize/1024).toFixed(1)}KB processed image...`)
       const success = await databaseService.updateExpenseImage(expenseId, processedImageBuffer)
       
       if (success) {
         this.stats.processed++
         console.log(`✅ Expense ${expenseId}: ${imageInfo.format} ${imageInfo.width}x${imageInfo.height} → WebP (${(originalSize/1024).toFixed(1)}KB → ${(processedSize/1024).toFixed(1)}KB, ${compressionRatio}% compression)`)
+        
+        // Verify the update by re-reading the image
+        const verificationBuffer = await databaseService.getExpenseImage(expenseId)
+        if (verificationBuffer && verificationBuffer.length === processedSize) {
+          console.log(`✅ Expense ${expenseId}: Database update verified`)
+        } else {
+          console.log(`⚠️  Expense ${expenseId}: Database verification failed - size mismatch`)
+        }
       } else {
         this.stats.failed++
         console.log(`❌ Expense ${expenseId}: Database update failed`)
