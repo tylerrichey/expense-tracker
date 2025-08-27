@@ -8,6 +8,7 @@ export interface Expense {
   place_address?: string
   receipt_image?: Uint8Array | null
   has_image?: boolean
+  rating?: number
   timestamp: Date
 }
 

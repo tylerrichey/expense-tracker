@@ -87,7 +87,8 @@ class DatabaseService {
       'ALTER TABLE expenses ADD COLUMN place_id TEXT',
       'ALTER TABLE expenses ADD COLUMN place_name TEXT', 
       'ALTER TABLE expenses ADD COLUMN place_address TEXT',
-      'ALTER TABLE expenses ADD COLUMN receipt_image BLOB'
+      'ALTER TABLE expenses ADD COLUMN receipt_image BLOB',
+      'ALTER TABLE expenses ADD COLUMN rating INTEGER'
     ]
     
     columns.forEach(query => {
@@ -225,8 +226,8 @@ class DatabaseService {
       }
       
       const stmt = this.db.prepare(`
-        INSERT INTO expenses (amount, latitude, longitude, place_id, place_name, place_address, timestamp, budget_period_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO expenses (amount, latitude, longitude, place_id, place_name, place_address, rating, timestamp, budget_period_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       
       const result = stmt.run(
@@ -236,6 +237,7 @@ class DatabaseService {
         expense.place_id,
         expense.place_name,
         expense.place_address,
+        expense.rating,
         expense.timestamp,
         budgetPeriodId
       )
@@ -268,6 +270,7 @@ class DatabaseService {
         place_id: row.place_id,
         place_name: row.place_name,
         place_address: row.place_address,
+        rating: row.rating,
         has_image: Boolean(row.has_image),
         timestamp: new Date(row.timestamp)
       }))
@@ -295,6 +298,7 @@ class DatabaseService {
         place_id: row.place_id,
         place_name: row.place_name,
         place_address: row.place_address,
+        rating: row.rating,
         has_image: Boolean(row.has_image),
         timestamp: new Date(row.timestamp)
       }))
@@ -1114,6 +1118,96 @@ class DatabaseService {
     } catch (err) {
       logger.error('Database: Error deleting setting', { error: err.message })
       throw err
+    }
+  }
+
+  // ==================== PLACES CRUD OPERATIONS ====================
+
+  upsertPlace(placeData) {
+    try {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO places (id, name, address, types, location, updated_at)
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `)
+      
+      const result = stmt.run(
+        placeData.id,
+        placeData.name,
+        placeData.address || null,
+        JSON.stringify(placeData.types || []),
+        JSON.stringify(placeData.location || null)
+      )
+      
+      logger.log('info', `Database: Upserted place ${placeData.id}: ${placeData.name}`)
+      return Promise.resolve({ success: true, placeId: placeData.id })
+    } catch (err) {
+      logger.log('error', 'Database: Error upserting place:', { error: err.message, placeId: placeData.id })
+      return Promise.reject(err)
+    }
+  }
+
+  getPlace(placeId) {
+    try {
+      const stmt = this.db.prepare('SELECT * FROM places WHERE id = ?')
+      const place = stmt.get(placeId)
+      
+      if (!place) {
+        return Promise.resolve(null)
+      }
+      
+      // Parse JSON fields
+      const parsedPlace = {
+        ...place,
+        types: place.types ? JSON.parse(place.types) : [],
+        location: place.location ? JSON.parse(place.location) : null
+      }
+      
+      return Promise.resolve(parsedPlace)
+    } catch (err) {
+      logger.log('error', 'Database: Error fetching place:', { error: err.message, placeId })
+      return Promise.reject(err)
+    }
+  }
+
+  getPlacesByType(type) {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT * FROM places 
+        WHERE types LIKE ?
+        ORDER BY updated_at DESC
+      `)
+      const places = stmt.all(`%"${type}"%`)
+      
+      // Parse JSON fields for each place
+      const parsedPlaces = places.map(place => ({
+        ...place,
+        types: place.types ? JSON.parse(place.types) : [],
+        location: place.location ? JSON.parse(place.location) : null
+      }))
+      
+      return Promise.resolve(parsedPlaces)
+    } catch (err) {
+      logger.log('error', 'Database: Error fetching places by type:', { error: err.message, type })
+      return Promise.reject(err)
+    }
+  }
+
+  getAllPlaces() {
+    try {
+      const stmt = this.db.prepare('SELECT * FROM places ORDER BY updated_at DESC')
+      const places = stmt.all()
+      
+      // Parse JSON fields for each place
+      const parsedPlaces = places.map(place => ({
+        ...place,
+        types: place.types ? JSON.parse(place.types) : [],
+        location: place.location ? JSON.parse(place.location) : null
+      }))
+      
+      return Promise.resolve(parsedPlaces)
+    } catch (err) {
+      logger.log('error', 'Database: Error fetching all places:', { error: err.message })
+      return Promise.reject(err)
     }
   }
 }

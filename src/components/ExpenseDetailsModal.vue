@@ -32,6 +32,18 @@
           <span class="detail-value">{{ expense.place_address }}</span>
         </div>
         
+        <div class="expense-detail-row" v-if="expense.rating">
+          <span class="detail-label">Rating:</span>
+          <span class="detail-value rating-value">
+            <span class="modal-rating-stars">
+              <span v-for="star in 5" :key="star" :class="['star', { filled: star <= expense.rating }]">
+                ⭐
+              </span>
+            </span>
+            <span class="rating-text">({{ expense.rating }}/5)</span>
+          </span>
+        </div>
+        
         <div class="expense-detail-row" v-if="expense.latitude && expense.longitude">
           <span class="detail-label">Coordinates:</span>
           <span class="detail-value">{{ expense.latitude.toFixed(4) }}, {{ expense.longitude.toFixed(4) }}</span>
@@ -223,6 +235,33 @@ function formatTime(timestamp) {
   color: #28a745;
   font-weight: 600;
   font-size: 20px;
+}
+
+.rating-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-rating-stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.modal-rating-stars .star {
+  font-size: 16px;
+  opacity: 0.3;
+}
+
+.modal-rating-stars .star.filled {
+  opacity: 1;
+}
+
+.rating-text {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
 }
 
 .modal-actions {

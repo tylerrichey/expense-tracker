@@ -83,6 +83,18 @@
           </button>
           <button
             type="button"
+            @click="toggleRating"
+            class="rating-button"
+            :title="rating ? `Rating: ${rating}/5 stars` : 'Add rating'"
+            :class="{ 
+              active: showRatingSelector,
+              'has-rating': rating > 0
+            }"
+          >
+            ⭐
+          </button>
+          <button
+            type="button"
             @click="triggerImageUpload"
             class="image-button"
             :title="
@@ -124,6 +136,18 @@
           </button>
           <button
             type="button"
+            @click="toggleRating"
+            class="rating-button"
+            :title="rating ? `Rating: ${rating}/5 stars` : 'Add rating'"
+            :class="{ 
+              active: showRatingSelector,
+              'has-rating': rating > 0
+            }"
+          >
+            ⭐
+          </button>
+          <button
+            type="button"
             @click="triggerImageUpload"
             class="image-button"
             :title="
@@ -144,6 +168,31 @@
           class="selected-place-info"
         >
           📍 {{ manualPlaceName }}
+        </div>
+        <div
+          v-if="showRatingSelector"
+          class="rating-selector"
+        >
+          <div class="rating-stars">
+            <button
+              v-for="star in 5"
+              :key="star"
+              type="button"
+              @click="selectRating(star)"
+              :class="['star-button', { filled: star <= rating }]"
+              :title="`Rate ${star} star${star > 1 ? 's' : ''}`"
+            >
+              ⭐
+            </button>
+            <button
+              type="button"
+              @click="clearRating"
+              class="clear-rating-button"
+              title="Remove rating"
+            >
+              ✖
+            </button>
+          </div>
         </div>
       </div>
       <button type="submit" :disabled="isSubmitting" class="btn btn-primary btn-full">
@@ -192,6 +241,8 @@ const autocompleteTimeout = ref<NodeJS.Timeout | null>(null);
 const receiptImage = ref<File | null>(null);
 const selectedPlaceData = ref<{id?: string, name?: string, address?: string, location?: any} | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
+const rating = ref<number>(0);
+const showRatingSelector = ref(false);
 
 // Detect if we're on mobile for better camera handling
 const isMobile = computed(() => {
@@ -439,6 +490,7 @@ async function submitExpense() {
         : typeof selectedPlace.value === "object"
           ? selectedPlace.value.address
           : undefined,
+      rating: rating.value > 0 ? rating.value : undefined,
       timestamp: timestamp,
     };
 
@@ -486,6 +538,10 @@ async function submitExpense() {
     if (fileInput.value) {
       fileInput.value.value = "";
     }
+
+    // Reset rating
+    rating.value = 0;
+    showRatingSelector.value = false;
 
     emit("expenseAdded");
   } catch (error) {
@@ -699,6 +755,20 @@ function handleFormKeydown(event: KeyboardEvent) {
   }
 }
 
+function toggleRating() {
+  showRatingSelector.value = !showRatingSelector.value;
+}
+
+function selectRating(stars: number) {
+  rating.value = stars;
+  showRatingSelector.value = false;
+}
+
+function clearRating() {
+  rating.value = 0;
+  showRatingSelector.value = false;
+}
+
 onMounted(() => {
   loadCurrentLocationAndPlaces();
   loadAllPlaces();
@@ -835,7 +905,8 @@ input[type="date"]::-moz-calendar-picker-indicator {
 
 .refresh-button,
 .toggle-button,
-.image-button {
+.image-button,
+.rating-button {
   background: transparent;
   border: 1px solid var(--border-secondary);
   border-radius: var(--radius-sm);
@@ -855,7 +926,8 @@ input[type="date"]::-moz-calendar-picker-indicator {
 
 .refresh-button:hover:not(:disabled),
 .toggle-button:hover,
-.image-button:hover {
+.image-button:hover,
+.rating-button:hover {
   background: var(--bg-hover);
   border-color: var(--primary-blue);
   color: var(--primary-blue);
@@ -870,8 +942,35 @@ input[type="date"]::-moz-calendar-picker-indicator {
 
 .refresh-button:active,
 .toggle-button:active,
-.image-button:active {
+.image-button:active,
+.rating-button:active {
   transform: scale(0.95);
+}
+
+.rating-button.active {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+  color: white;
+}
+
+.rating-button.has-rating {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: #ffd700;
+  color: #ffd700;
+  box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+}
+
+.rating-button.has-rating:hover {
+  background: rgba(255, 215, 0, 0.2);
+  border-color: #ffd700;
+  color: #ffd700;
+}
+
+.rating-button.has-rating.active {
+  background: #ffd700;
+  border-color: #ffd700;
+  color: #333;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }
 
 .selected-place-info {
@@ -882,6 +981,60 @@ input[type="date"]::-moz-calendar-picker-indicator {
   font-size: var(--font-size-base);
   color: var(--text-secondary);
   border-left: 3px solid var(--primary-blue);
+}
+
+.rating-selector {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--primary-blue);
+}
+
+.rating-stars {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.star-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+  opacity: 0.3;
+  touch-action: manipulation;
+}
+
+.star-button:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.star-button.filled {
+  opacity: 1;
+}
+
+.clear-rating-button {
+  background: transparent;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  padding: 4px 8px;
+  margin-left: var(--spacing-sm);
+  transition: all var(--transition-base);
+  touch-action: manipulation;
+}
+
+.clear-rating-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
 }
 
 /* Mobile optimizations */

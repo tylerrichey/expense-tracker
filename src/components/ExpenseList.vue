@@ -24,6 +24,13 @@
             <div v-else-if="expense.latitude && expense.longitude" class="expense-location">
               📍 {{ expense.latitude.toFixed(4) }}, {{ expense.longitude.toFixed(4) }}
             </div>
+            <div v-if="expense.rating" class="expense-rating">
+              <span class="rating-stars">
+                <span v-for="star in 5" :key="star" :class="['star', { filled: star <= expense.rating }]">
+                  ⭐
+                </span>
+              </span>
+            </div>
           </div>
         </div>
         <div class="expense-actions">
@@ -217,6 +224,24 @@ defineExpose({ loadExpenses })
   color: var(--text-muted);
   line-height: var(--line-height-sm);
   word-break: break-all;
+}
+
+.expense-rating {
+  margin-top: 4px;
+}
+
+.rating-stars {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.rating-stars .star {
+  font-size: 12px;
+  opacity: 0.3;
+}
+
+.rating-stars .star.filled {
+  opacity: 1;
 }
 
 /* Mobile optimizations */

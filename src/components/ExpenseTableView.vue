@@ -73,7 +73,14 @@
               Location
               <span class="sort-icon">{{ getSortIcon("place_name") }}</span>
             </th>
-            <th class="address-column">Address</th>
+            <th 
+              @click="sortBy('rating')"
+              class="sortable rating-column"
+              :class="getSortClass('rating')"
+            >
+              Rating
+              <span class="sort-icon">{{ getSortIcon("rating") }}</span>
+            </th>
             <th class="actions-column">Receipt</th>
           </tr>
         </thead>
@@ -98,8 +105,13 @@
                 {{ expense.place_name || "Unknown" }}
               </div>
             </td>
-            <td class="address-cell address-column">
-              {{ expense.place_address || "-" }}
+            <td class="rating-cell rating-column">
+              <div v-if="expense.rating" class="rating-display">
+                <span v-for="star in 5" :key="star" :class="['star', { filled: star <= expense.rating }]">
+                  ⭐
+                </span>
+              </div>
+              <div v-else class="no-rating">-</div>
             </td>
             <td class="actions-cell actions-column">
               <button
@@ -573,13 +585,29 @@ async function handleDeleteExpense(expenseId) {
   font-weight: 500;
 }
 
-.address-cell {
-  color: #b0b0b0;
+.rating-cell {
+  text-align: center;
+  min-width: 120px;
+}
+
+.rating-display {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.rating-display .star {
   font-size: 14px;
-  max-width: 200px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  opacity: 0.3;
+}
+
+.rating-display .star.filled {
+  opacity: 1;
+}
+
+.no-rating {
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .actions-cell {
@@ -740,7 +768,7 @@ async function handleDeleteExpense(expenseId) {
     max-width: 100%;
   }
 
-  .address-column {
+  .rating-column {
     display: none;
   }
 
