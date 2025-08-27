@@ -49,10 +49,11 @@ describe('Rating Functionality', () => {
     // Set form values
     await wrapper.find('input[type="number"]').setValue('25.50')
     await wrapper.find('input[type="date"]').setValue('2025-08-27')
-    await wrapper.find('input[placeholder="Enter location name"]').setValue('Test Store')
     
-    // Simulate rating selection by calling the component method directly
+    // Set manual input mode and simulate rating selection
     const vm = wrapper.vm as any
+    vm.showManualInput = true
+    vm.manualPlaceName = 'Test Store'
     vm.rating = 4
     
     // Submit the form
@@ -88,7 +89,11 @@ describe('Rating Functionality', () => {
     // Set form values without rating
     await wrapper.find('input[type="number"]').setValue('15.25')
     await wrapper.find('input[type="date"]').setValue('2025-08-27')
-    await wrapper.find('input[placeholder="Enter location name"]').setValue('Another Store')
+    
+    // Set manual input mode to avoid triggering place autocomplete
+    const vm = wrapper.vm as any
+    vm.showManualInput = true
+    vm.manualPlaceName = 'Another Store'
     
     // Submit the form (rating defaults to 0)
     await wrapper.find('form').trigger('submit')
