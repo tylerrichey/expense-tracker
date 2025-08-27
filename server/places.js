@@ -1,5 +1,6 @@
 import axios from "axios";
 import { logger } from "./logger.js";
+import { databaseService } from "./database.js";
 
 class PlacesService {
   constructor() {
@@ -22,6 +23,17 @@ class PlacesService {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c; // Distance in meters
+  }
+
+  async savePlaceToDatabase(placeData) {
+    try {
+      await databaseService.upsertPlace(placeData);
+    } catch (error) {
+      logger.error('Error saving place to database', { 
+        placeId: placeData.id, 
+        error: error.message 
+      });
+    }
   }
 
   async searchNearbyPlaces(latitude, longitude, radius = 200) {
@@ -94,6 +106,17 @@ class PlacesService {
           distance: this.calculateDistance(userLocation, place.location),
         })) || [];
 
+      // Save places to database (don't await to avoid slowing down response)
+      places.forEach(place => {
+        this.savePlaceToDatabase({
+          id: place.id,
+          name: place.name,
+          address: place.address,
+          types: place.types,
+          location: place.location
+        });
+      });
+
       // Sort by distance (closest first)
       return places.sort((a, b) => a.distance - b.distance);
     } catch (error) {
@@ -130,13 +153,18 @@ class PlacesService {
       });
 
       const place = response.data;
-      return {
+      const placeData = {
         id: place.id,
         name: place.displayName?.text || "Unknown Place",
         address: place.formattedAddress || "",
         location: place.location,
         types: place.types || [],
       };
+
+      // Save place to database (don't await to avoid slowing down response)
+      this.savePlaceToDatabase(placeData);
+
+      return placeData;
     } catch (error) {
       logger.logGooglePlacesError(error);
       logger.error("Error fetching place details", {
@@ -227,12 +255,24 @@ class PlacesService {
           suggestions.map(async (suggestion) => {
             try {
               const details = await this.getPlaceDetails(suggestion.id);
-              return {
+              const detailedSuggestion = {
                 ...suggestion,
                 address: details.address,
                 location: details.location,
                 types: details.types,
               };
+              
+              // Save the detailed place data to database
+              // Note: getPlaceDetails already saves basic data, but this ensures we have the complete info
+              this.savePlaceToDatabase({
+                id: details.id,
+                name: details.name,
+                address: details.address,
+                types: details.types,
+                location: details.location
+              });
+              
+              return detailedSuggestion;
             } catch (error) {
               logger.error(`Failed to fetch details for place ${suggestion.id}`, {
                 error: error.message,
@@ -244,6 +284,17 @@ class PlacesService {
         );
         return detailedSuggestions;
       }
+
+      // For basic suggestions without details, save what we have (without types)
+      suggestions.forEach(suggestion => {
+        this.savePlaceToDatabase({
+          id: suggestion.id,
+          name: suggestion.name,
+          address: suggestion.address,
+          types: [], // No types available without details
+          location: null // No location available without details
+        });
+      });
 
       return suggestions;
     } catch (error) {
