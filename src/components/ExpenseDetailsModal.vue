@@ -32,16 +32,60 @@
           <span class="detail-value">{{ expense.place_address }}</span>
         </div>
         
-        <div class="expense-detail-row" v-if="expense.rating">
+        <div class="expense-detail-row">
           <span class="detail-label">Rating:</span>
-          <span class="detail-value rating-value">
-            <span class="modal-rating-stars">
-              <span v-for="star in 5" :key="star" :class="['star', { filled: star <= expense.rating }]">
-                ⭐
-              </span>
-            </span>
-            <span class="rating-text">({{ expense.rating }}/5)</span>
-          </span>
+          <div class="detail-value rating-value">
+            <!-- Read-only rating display -->
+            <div v-if="!isEditingRating" class="rating-display">
+              <div v-if="expense.rating" class="rating-content">
+                <span class="modal-rating-stars">
+                  <span v-for="star in 5" :key="star" :class="['star', { filled: star <= expense.rating }]">
+                    ⭐
+                  </span>
+                </span>
+                <span class="rating-text">({{ expense.rating }}/5)</span>
+              </div>
+              <div v-else class="no-rating">
+                <span class="rating-text">No rating</span>
+              </div>
+              <button @click="startEditingRating" class="edit-rating-btn" title="Edit rating">
+                ✏️
+              </button>
+            </div>
+            
+            <!-- Rating editing interface -->
+            <div v-else class="rating-edit">
+              <div class="rating-stars-edit">
+                <span v-for="star in 5" :key="star" 
+                      :class="['star-edit', { 
+                        filled: editingRating && star <= editingRating,
+                        hover: editingRating && star <= editingRating 
+                      }]"
+                      @click="setEditingRating(star)"
+                      @mouseover="editingRating = star"
+                      :title="`Rate ${star} star${star > 1 ? 's' : ''}`">
+                  ⭐
+                </span>
+                <button @click="setEditingRating(null)" 
+                        :class="['clear-rating-btn', { active: editingRating === null }]"
+                        title="Remove rating">
+                  ❌
+                </button>
+              </div>
+              <div class="rating-edit-actions">
+                <button @click="saveRating" 
+                        :disabled="updatingRating"
+                        class="save-rating-btn">
+                  {{ updatingRating ? 'Saving...' : 'Save' }}
+                </button>
+                <button @click="cancelEditingRating" 
+                        :disabled="updatingRating"
+                        class="cancel-rating-btn">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
         
         <div class="expense-detail-row" v-if="expense.latitude && expense.longitude">
@@ -76,6 +120,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { databaseService } from '../services/database'
 
 const props = defineProps({
   show: {
@@ -96,7 +141,12 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'view-receipt', 'delete-expense'])
+const emit = defineEmits(['close', 'view-receipt', 'delete-expense', 'rating-updated'])
+
+// Rating editing state
+const isEditingRating = ref(false)
+const editingRating = ref(null)
+const updatingRating = ref(false)
 
 function closeModal() {
   emit('close')
@@ -129,6 +179,41 @@ function formatTime(timestamp) {
     minute: '2-digit',
     hour12: true
   })
+}
+
+function startEditingRating() {
+  isEditingRating.value = true
+  editingRating.value = props.expense.rating
+}
+
+function cancelEditingRating() {
+  isEditingRating.value = false
+  editingRating.value = null
+}
+
+function setEditingRating(rating) {
+  editingRating.value = rating
+}
+
+async function saveRating() {
+  if (updatingRating.value) return
+  
+  try {
+    updatingRating.value = true
+    await databaseService.updateExpenseRating(props.expense.id, editingRating.value)
+    
+    // Update the expense object locally for immediate UI feedback
+    props.expense.rating = editingRating.value
+    
+    isEditingRating.value = false
+    editingRating.value = null
+    emit('rating-updated')
+  } catch (error) {
+    console.error('Failed to update rating:', error)
+    alert('Failed to update rating. Please try again.')
+  } finally {
+    updatingRating.value = false
+  }
 }
 </script>
 
@@ -262,6 +347,131 @@ function formatTime(timestamp) {
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 500;
+}
+
+/* Rating editing styles */
+.rating-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.rating-content, .no-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-rating-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  font-size: 14px;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.edit-rating-btn:hover {
+  opacity: 1;
+  background: #444;
+}
+
+.rating-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  align-items: flex-end;
+}
+
+.rating-stars-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.star-edit {
+  font-size: 20px;
+  cursor: pointer;
+  opacity: 0.3;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.star-edit:hover,
+.star-edit.hover {
+  opacity: 0.8;
+}
+
+.star-edit.filled {
+  opacity: 1;
+}
+
+.clear-rating-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  opacity: 0.4;
+  transition: all 0.2s;
+}
+
+.clear-rating-btn:hover,
+.clear-rating-btn.active {
+  opacity: 1;
+  background: #dc3545;
+}
+
+.rating-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.save-rating-btn,
+.cancel-rating-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-rating-btn {
+  background: #28a745;
+  color: white;
+}
+
+.save-rating-btn:hover:not(:disabled) {
+  background: #1e7e34;
+}
+
+.save-rating-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancel-rating-btn {
+  background: #6c757d;
+  color: white;
+}
+
+.cancel-rating-btn:hover:not(:disabled) {
+  background: #545b62;
+}
+
+.cancel-rating-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .modal-actions {

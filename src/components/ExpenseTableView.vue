@@ -186,6 +186,7 @@
       @close="closeExpenseDetails"
       @view-receipt="viewImage"
       @delete-expense="handleDeleteExpense"
+      @rating-updated="handleRatingUpdated"
     />
   </div>
 </template>
@@ -206,7 +207,7 @@ const props = defineProps({
 });
 
 // Emits
-const emit = defineEmits(["expense-deleted"]);
+const emit = defineEmits(["expense-deleted", "expense-updated"]);
 
 // Image modal functionality
 const {
@@ -405,6 +406,11 @@ async function handleDeleteExpense(expenseId) {
   } finally {
     deletingId.value = null;
   }
+}
+
+function handleRatingUpdated() {
+  // Emit event to parent component to refresh expense data
+  emit("expense-updated");
 }
 </script>
 

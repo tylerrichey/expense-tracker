@@ -173,7 +173,7 @@
 
     <!-- Table View -->
     <div v-show="currentView === 'table'">
-      <ExpenseTableView :expenses="expenses" @expense-deleted="handleExpenseDeleted" />
+      <ExpenseTableView :expenses="expenses" @expense-deleted="handleExpenseDeleted" @expense-updated="handleExpenseUpdated" />
     </div>
 
     <!-- Loading State -->
@@ -478,6 +478,10 @@ function getSpendingIntensity(date) {
 
 // Event handlers
 function handleExpenseDeleted() {
+  loadCalendarData()
+}
+
+function handleExpenseUpdated() {
   loadCalendarData()
 }
 

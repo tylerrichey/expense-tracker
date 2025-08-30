@@ -441,6 +441,28 @@ class DatabaseService {
     }
   }
 
+  updateExpenseRating(expenseId, rating) {
+    try {
+      const stmt = this.db.prepare(`
+        UPDATE expenses 
+        SET rating = ?
+        WHERE id = ?
+      `)
+      
+      const result = stmt.run(rating, expenseId)
+      
+      if (result.changes === 0) {
+        return Promise.resolve(false) // Expense not found
+      }
+      
+      logger.log('info', `Database: Updated expense ${expenseId} rating to ${rating}`)
+      return Promise.resolve(true)
+    } catch (err) {
+      logger.log('error', 'Database: Error updating expense rating:', { error: err.message })
+      return Promise.reject(err)
+    }
+  }
+
   // ==================== BUDGET CRUD OPERATIONS ====================
 
   createBudget(budget) {

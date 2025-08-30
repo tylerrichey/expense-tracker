@@ -10,7 +10,8 @@
       <div 
         v-for="expense in expenses" 
         :key="expense.id" 
-        class="expense-item card card-compact"
+        class="expense-item card card-compact clickable"
+        @click="openExpenseDetails(expense)"
       >
         <div class="expense-content">
           <div class="expense-amount">${{ expense.amount.toFixed(2) }}</div>
@@ -37,7 +38,7 @@
           <button 
             v-if="expense.has_image"
             class="btn btn-primary btn-sm image-button"
-            @click="viewImage(expense.id!)"
+            @click.stop="viewImage(expense.id!)"
             :disabled="loadingImageId === expense.id"
             title="View receipt image"
           >
@@ -45,7 +46,7 @@
           </button>
           <button 
             class="btn btn-danger btn-sm delete-button"
-            @click="deleteExpense(expense.id!)"
+            @click.stop="deleteExpense(expense.id!)"
             :disabled="deletingId === expense.id"
             title="Delete expense"
           >
@@ -62,6 +63,19 @@
     :current-image-url="currentImageUrl"
     @close="closeImageModal"
   />
+
+  <!-- Expense Details Modal -->
+  <ExpenseDetailsModal
+    :show="showDetailsModal"
+    :expense="selectedExpense!"
+    :loading-image-id="loadingImageId"
+    :deleting-id="deletingId"
+    @close="closeDetailsModal"
+    @view-receipt="handleViewReceipt"
+    @delete-expense="handleDeleteExpense"
+    @rating-updated="handleRatingUpdated"
+    v-if="selectedExpense"
+  />
 </template>
 
 <script setup lang="ts">
@@ -70,6 +84,7 @@ import { databaseService } from '../services/database'
 import { Expense } from '../types/expense'
 import { useImageModal } from '../composables/useImageModal'
 import ImageModal from './ImageModal.vue'
+import ExpenseDetailsModal from './ExpenseDetailsModal.vue'
 
 const expenses = ref<Expense[]>([])
 const loading = ref(false)
@@ -78,6 +93,10 @@ const deletingId = ref<number | null>(null)
 
 // Image modal functionality
 const { loadingImageId, showImageModal, currentImageUrl, viewImage, closeImageModal } = useImageModal()
+
+// Details modal functionality
+const showDetailsModal = ref(false)
+const selectedExpense = ref<Expense | null>(null)
 
 const props = defineProps<{
   refreshTrigger?: number
@@ -127,6 +146,29 @@ async function deleteExpense(id: number) {
 }
 
 
+function openExpenseDetails(expense: Expense) {
+  selectedExpense.value = expense
+  showDetailsModal.value = true
+}
+
+function closeDetailsModal() {
+  showDetailsModal.value = false
+  selectedExpense.value = null
+}
+
+function handleViewReceipt(expenseId: number) {
+  viewImage(expenseId)
+}
+
+function handleDeleteExpense(expenseId: number) {
+  deleteExpense(expenseId)
+  closeDetailsModal()
+}
+
+function handleRatingUpdated() {
+  loadExpenses()
+}
+
 function formatDate(date: Date): string {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -173,6 +215,16 @@ defineExpose({ loadExpenses })
   align-items: center;
   margin-bottom: var(--spacing-sm);
   touch-action: manipulation;
+}
+
+.expense-item.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.expense-item.clickable:hover {
+  background: var(--card-hover-bg, rgba(255, 255, 255, 0.05));
+  transform: translateY(-1px);
 }
 
 .expense-content {

@@ -335,6 +335,33 @@ app.delete("/api/expenses/:id", authenticateRequest, async (req, res) => {
   }
 });
 
+app.put("/api/expenses/:id/rating", authenticateRequest, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { rating } = req.body;
+
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ error: "Valid expense ID is required" });
+    }
+
+    // Validate rating - should be null or between 1-5
+    if (rating !== null && (typeof rating !== 'number' || rating < 1 || rating > 5 || !Number.isInteger(rating))) {
+      return res.status(400).json({ error: "Rating must be null or an integer between 1 and 5" });
+    }
+
+    const success = await databaseService.updateExpenseRating(id, rating);
+
+    if (success) {
+      res.json({ message: "Rating updated successfully", id, rating });
+    } else {
+      res.status(404).json({ error: "Expense not found" });
+    }
+  } catch (error) {
+    logger.log("error", "Error updating expense rating:", { error: error.message });
+    res.status(500).json({ error: "Failed to update rating" });
+  }
+});
+
 app.get("/api/places/nearby", authenticateRequest, async (req, res) => {
   try {
     const { latitude, longitude, radius } = req.query;

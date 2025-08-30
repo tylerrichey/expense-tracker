@@ -128,6 +128,19 @@ class DatabaseService {
     }
   }
 
+  async updateExpenseRating(id: number, rating: number | null): Promise<void> {
+    const response = await fetch(`${this.baseURL}/expenses/${id}/rating`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ rating })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to update rating')
+    }
+  }
+
   async getNearbyPlaces(latitude: number, longitude: number, radius?: number): Promise<Place[]> {
     const params = new URLSearchParams({
       latitude: latitude.toString(),
