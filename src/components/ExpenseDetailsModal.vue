@@ -32,6 +32,26 @@
           <span class="detail-value">{{ expense.place_address }}</span>
         </div>
         
+        <div class="expense-detail-row" v-if="expense.cuisine_type">
+          <span class="detail-label">Cuisine:</span>
+          <span class="detail-value">
+            <span class="classification-tag cuisine-tag">{{ expense.cuisine_type }}</span>
+            <span v-if="expense.ai_confidence_cuisine" class="confidence-score">
+              {{ Math.round(expense.ai_confidence_cuisine * 100) }}% confident
+            </span>
+          </span>
+        </div>
+        
+        <div class="expense-detail-row" v-if="expense.meal_time">
+          <span class="detail-label">Meal Time:</span>
+          <span class="detail-value">
+            <span class="classification-tag meal-tag">{{ expense.meal_time }}</span>
+            <span v-if="expense.ai_confidence_meal" class="confidence-score">
+              {{ Math.round(expense.ai_confidence_meal * 100) }}% confident
+            </span>
+          </span>
+        </div>
+        
         <div class="expense-detail-row">
           <span class="detail-label">Rating:</span>
           <div class="detail-value rating-value">
@@ -596,4 +616,31 @@ async function saveRating() {
   .expense-detail-row {
     padding: 8px 0;
   }
+}
+
+/* Classification Tags Styling */
+.classification-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  margin-right: 8px;
+}
+
+.cuisine-tag {
+  background: #2563eb;
+  color: white;
+}
+
+.meal-tag {
+  background: #059669;
+  color: white;
+}
+
+.confidence-score {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
 }</style>

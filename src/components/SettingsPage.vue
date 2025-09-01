@@ -92,6 +92,204 @@
         </div>
       </div>
 
+      <!-- AI Classification Settings -->
+      <div class="settings-section">
+        <h2>AI Classification</h2>
+        <p>
+          Configure AI-powered classification of expenses by cuisine type and meal time.
+          Requires an OpenAI-compatible API key.
+        </p>
+
+        <div class="ai-settings">
+          <!-- AI Provider Settings -->
+          <div class="setting-group">
+            <h3>AI Provider Configuration</h3>
+            
+            <div class="form-group">
+              <label for="ai-provider">Provider</label>
+              <select
+                id="ai-provider"
+                v-model="aiSettings.provider"
+                @change="updateAIProviderURL"
+                :disabled="updatingAI"
+              >
+                <option value="openai">OpenAI</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="custom">Custom URL</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="ai-base-url">Base URL</label>
+              <input
+                id="ai-base-url"
+                type="url"
+                v-model="aiSettings.baseUrl"
+                placeholder="https://api.openai.com/v1"
+                :disabled="updatingAI"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="ai-api-key">API Key</label>
+              <input
+                id="ai-api-key"
+                type="password"
+                v-model="aiSettings.apiKey"
+                placeholder="Enter your API key"
+                :disabled="updatingAI"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="ai-model">Model</label>
+              <div class="model-selector">
+                <select
+                  id="ai-model"
+                  v-model="aiSettings.model"
+                  :disabled="updatingAI"
+                >
+                  <option value="">Select a model...</option>
+                  <option 
+                    v-for="model in availableModels" 
+                    :key="model.id" 
+                    :value="model.id"
+                  >
+                    {{ model.name }} ({{ model.owned_by }})
+                  </option>
+                </select>
+                <button
+                  @click="refreshModels"
+                  :disabled="loadingModels || !aiSettings.apiKey"
+                  class="btn btn-sm refresh-models-btn"
+                  title="Refresh available models"
+                >
+                  {{ loadingModels ? '...' : '🔄' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="ai-toggle">
+              <label class="toggle-container">
+                <input
+                  type="checkbox"
+                  v-model="aiSettings.enabled"
+                  :disabled="updatingAI"
+                />
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">
+                  {{ aiSettings.enabled ? "AI Classification Enabled" : "AI Classification Disabled" }}
+                </span>
+              </label>
+            </div>
+
+            <button
+              @click="saveAISettings"
+              :disabled="updatingAI || !aiSettings.apiKey"
+              class="btn btn-primary"
+            >
+              {{ updatingAI ? "Saving..." : "Save AI Settings" }}
+            </button>
+          </div>
+
+          <!-- Classification Options -->
+          <div class="setting-group">
+            <h3>Classification Options</h3>
+            
+            <div class="classification-lists">
+              <div class="list-group">
+                <label>Cuisine Types</label>
+                <div class="tag-list">
+                  <span
+                    v-for="(cuisine, index) in classificationOptions.cuisineTypes"
+                    :key="index"
+                    class="tag"
+                  >
+                    {{ cuisine }}
+                    <button @click="removeCuisineType(index)" class="tag-remove">×</button>
+                  </span>
+                </div>
+                <div class="add-item">
+                  <input
+                    v-model="newCuisineType"
+                    @keyup.enter="addCuisineType"
+                    placeholder="Add cuisine type"
+                    type="text"
+                  />
+                  <button @click="addCuisineType" class="btn btn-sm">Add</button>
+                </div>
+              </div>
+
+              <div class="list-group">
+                <label>Meal Times</label>
+                <div class="tag-list">
+                  <span
+                    v-for="(mealTime, index) in classificationOptions.mealTimes"
+                    :key="index"
+                    class="tag"
+                  >
+                    {{ mealTime }}
+                    <button @click="removeMealTime(index)" class="tag-remove">×</button>
+                  </span>
+                </div>
+                <div class="add-item">
+                  <input
+                    v-model="newMealTime"
+                    @keyup.enter="addMealTime"
+                    placeholder="Add meal time"
+                    type="text"
+                  />
+                  <button @click="addMealTime" class="btn btn-sm">Add</button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              @click="saveClassificationOptions"
+              :disabled="updatingClassifications"
+              class="btn btn-primary"
+            >
+              {{ updatingClassifications ? "Saving..." : "Save Classification Options" }}
+            </button>
+          </div>
+
+          <!-- Bulk Processing -->
+          <div class="setting-group" v-if="aiSettings.enabled && aiSettings.apiKey">
+            <h3>Process Existing Expenses</h3>
+            <p class="text-sm">
+              Apply AI classification to existing expenses that haven't been classified yet.
+            </p>
+            
+            <div class="bulk-process-controls">
+              <button
+                @click="processUnclassifiedExpenses"
+                :disabled="processingExpenses"
+                class="btn btn-secondary"
+              >
+                {{ processingExpenses ? "Processing..." : "Process Unclassified Expenses" }}
+              </button>
+              
+              <div v-if="processingProgress.total > 0" class="progress-info">
+                <div class="progress-bar">
+                  <div 
+                    class="progress-fill"
+                    :style="{ width: (processingProgress.current / processingProgress.total * 100) + '%' }"
+                  ></div>
+                </div>
+                <div class="progress-text">
+                  {{ processingProgress.current }} / {{ processingProgress.total }} 
+                  ({{ processingProgress.success }} success, {{ processingProgress.failed }} failed)
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="updateMessageAI" class="update-message" :class="updateMessageClass">
+            {{ updateMessageAI }}
+          </div>
+        </div>
+      </div>
+
       <!-- Recent Logs Viewer -->
       <div class="settings-section">
         <h2>Recent Logs</h2>
@@ -175,9 +373,39 @@ const logs = ref([]);
 const loadingLogs = ref(false);
 const logError = ref("");
 
+// AI Classification settings
+const aiSettings = ref({
+  provider: 'openai',
+  baseUrl: 'https://api.openai.com/v1',
+  apiKey: '',
+  model: 'gpt-3.5-turbo',
+  enabled: false
+});
+
+const classificationOptions = ref({
+  cuisineTypes: [],
+  mealTimes: []
+});
+
+const newCuisineType = ref('');
+const newMealTime = ref('');
+const updatingAI = ref(false);
+const updatingClassifications = ref(false);
+const updateMessageAI = ref('');
+const processingExpenses = ref(false);
+const processingProgress = ref({
+  current: 0,
+  total: 0,
+  success: 0,
+  failed: 0
+});
+
+const availableModels = ref([]);
+const loadingModels = ref(false);
+
 const updateMessageClass = computed(() => {
   const updateMessages =
-    updateMessageDebug.value + " " + updateMessageTimezone.value;
+    updateMessageDebug.value + " " + updateMessageTimezone.value + " " + updateMessageAI.value;
   if (updateMessages.includes("success")) {
     return "text-green-600";
   } else if (
@@ -369,11 +597,286 @@ function formatTimestamp(timestamp) {
   return date.toLocaleString();
 }
 
+// AI Settings Functions
+async function loadAISettings() {
+  try {
+    const settings = await Promise.all([
+      fetch("/api/settings/ai_provider_base_url", { headers: AuthService.getAuthHeaders() }),
+      fetch("/api/settings/ai_provider_api_key", { headers: AuthService.getAuthHeaders() }),
+      fetch("/api/settings/ai_model", { headers: AuthService.getAuthHeaders() }),
+      fetch("/api/settings/ai_classification_enabled", { headers: AuthService.getAuthHeaders() })
+    ]);
+
+    // Process responses
+    if (settings[0].ok) {
+      const baseUrl = await settings[0].json();
+      aiSettings.value.baseUrl = baseUrl.value;
+      // Determine provider from base URL
+      if (baseUrl.value.includes('openrouter')) {
+        aiSettings.value.provider = 'openrouter';
+      } else if (baseUrl.value === 'https://api.openai.com/v1') {
+        aiSettings.value.provider = 'openai';
+      } else {
+        aiSettings.value.provider = 'custom';
+      }
+    }
+
+    if (settings[1].ok) {
+      const apiKey = await settings[1].json();
+      aiSettings.value.apiKey = apiKey.value;
+    }
+
+    if (settings[2].ok) {
+      const model = await settings[2].json();
+      aiSettings.value.model = model.value;
+    }
+
+    if (settings[3].ok) {
+      const enabled = await settings[3].json();
+      aiSettings.value.enabled = enabled.value === 'true';
+    }
+  } catch (error) {
+    console.error('Error loading AI settings:', error);
+    updateMessageAI.value = 'Error loading AI settings';
+  }
+}
+
+async function loadClassificationOptions() {
+  try {
+    const [cuisineResponse, mealResponse] = await Promise.all([
+      fetch("/api/settings/cuisine_types", { headers: AuthService.getAuthHeaders() }),
+      fetch("/api/settings/meal_times", { headers: AuthService.getAuthHeaders() })
+    ]);
+
+    if (cuisineResponse.ok) {
+      const cuisineData = await cuisineResponse.json();
+      classificationOptions.value.cuisineTypes = JSON.parse(cuisineData.value || '[]');
+    }
+
+    if (mealResponse.ok) {
+      const mealData = await mealResponse.json();
+      classificationOptions.value.mealTimes = JSON.parse(mealData.value || '[]');
+    }
+  } catch (error) {
+    console.error('Error loading classification options:', error);
+    updateMessageAI.value = 'Error loading classification options';
+  }
+}
+
+function updateAIProviderURL() {
+  switch (aiSettings.value.provider) {
+    case 'openai':
+      aiSettings.value.baseUrl = 'https://api.openai.com/v1';
+      break;
+    case 'openrouter':
+      aiSettings.value.baseUrl = 'https://openrouter.ai/api/v1';
+      break;
+    case 'custom':
+      // Keep current URL or let user set it
+      break;
+  }
+}
+
+async function saveAISettings() {
+  updatingAI.value = true;
+  updateMessageAI.value = '';
+
+  try {
+    const settingsToSave = [
+      { key: 'ai_provider_base_url', value: aiSettings.value.baseUrl },
+      { key: 'ai_provider_api_key', value: aiSettings.value.apiKey },
+      { key: 'ai_model', value: aiSettings.value.model },
+      { key: 'ai_classification_enabled', value: aiSettings.value.enabled.toString() }
+    ];
+
+    const savePromises = settingsToSave.map(setting =>
+      fetch(`/api/settings/${setting.key}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...AuthService.getAuthHeaders()
+        },
+        body: JSON.stringify({ value: setting.value })
+      })
+    );
+
+    const responses = await Promise.all(savePromises);
+    
+    // Check if all requests succeeded
+    const failed = responses.filter(response => !response.ok);
+    if (failed.length > 0) {
+      throw new Error(`Failed to save ${failed.length} settings`);
+    }
+
+    updateMessageAI.value = 'AI settings saved successfully';
+    setTimeout(() => {
+      updateMessageAI.value = '';
+    }, 3000);
+
+  } catch (error) {
+    console.error('Error saving AI settings:', error);
+    updateMessageAI.value = `Error saving AI settings: ${error.message}`;
+  } finally {
+    updatingAI.value = false;
+  }
+}
+
+async function saveClassificationOptions() {
+  updatingClassifications.value = true;
+  updateMessageAI.value = '';
+
+  try {
+    const responses = await Promise.all([
+      fetch('/api/settings/cuisine_types', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...AuthService.getAuthHeaders()
+        },
+        body: JSON.stringify({ value: JSON.stringify(classificationOptions.value.cuisineTypes) })
+      }),
+      fetch('/api/settings/meal_times', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...AuthService.getAuthHeaders()
+        },
+        body: JSON.stringify({ value: JSON.stringify(classificationOptions.value.mealTimes) })
+      })
+    ]);
+
+    const failed = responses.filter(response => !response.ok);
+    if (failed.length > 0) {
+      throw new Error('Failed to save classification options');
+    }
+
+    updateMessageAI.value = 'Classification options saved successfully';
+    setTimeout(() => {
+      updateMessageAI.value = '';
+    }, 3000);
+
+  } catch (error) {
+    console.error('Error saving classification options:', error);
+    updateMessageAI.value = `Error saving classification options: ${error.message}`;
+  } finally {
+    updatingClassifications.value = false;
+  }
+}
+
+function addCuisineType() {
+  const newType = newCuisineType.value.trim();
+  if (newType && !classificationOptions.value.cuisineTypes.includes(newType)) {
+    classificationOptions.value.cuisineTypes.push(newType);
+    newCuisineType.value = '';
+  }
+}
+
+function removeCuisineType(index) {
+  classificationOptions.value.cuisineTypes.splice(index, 1);
+}
+
+function addMealTime() {
+  const newTime = newMealTime.value.trim();
+  if (newTime && !classificationOptions.value.mealTimes.includes(newTime)) {
+    classificationOptions.value.mealTimes.push(newTime);
+    newMealTime.value = '';
+  }
+}
+
+function removeMealTime(index) {
+  classificationOptions.value.mealTimes.splice(index, 1);
+}
+
+async function refreshModels() {
+  if (!aiSettings.value.apiKey) {
+    updateMessageAI.value = 'API key required to fetch models';
+    return;
+  }
+
+  loadingModels.value = true;
+  updateMessageAI.value = '';
+
+  try {
+    const response = await fetch('/api/ai/models', {
+      method: 'GET',
+      headers: AuthService.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch available models');
+    }
+
+    const data = await response.json();
+    availableModels.value = data.models || [];
+    
+    if (availableModels.value.length === 0) {
+      updateMessageAI.value = 'No models available or API key may be invalid';
+    } else {
+      updateMessageAI.value = `Found ${availableModels.value.length} available models`;
+      setTimeout(() => {
+        updateMessageAI.value = '';
+      }, 3000);
+    }
+
+  } catch (error) {
+    console.error('Error fetching models:', error);
+    updateMessageAI.value = `Error fetching models: ${error.message}`;
+  } finally {
+    loadingModels.value = false;
+  }
+}
+
+async function processUnclassifiedExpenses() {
+  if (!aiSettings.value.enabled || !aiSettings.value.apiKey) {
+    updateMessageAI.value = 'AI classification not properly configured';
+    return;
+  }
+
+  processingExpenses.value = true;
+  processingProgress.value = { current: 0, total: 0, success: 0, failed: 0 };
+  updateMessageAI.value = '';
+
+  try {
+    const response = await fetch('/api/expenses/classify-batch', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...AuthService.getAuthHeaders()
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to start batch classification');
+    }
+
+    const result = await response.json();
+    processingProgress.value = {
+      current: result.processed || 0,
+      total: result.total || 0,
+      success: result.success || 0,
+      failed: result.failed || 0
+    };
+
+    updateMessageAI.value = `Processed ${result.success} expenses successfully, ${result.failed} failed`;
+    setTimeout(() => {
+      updateMessageAI.value = '';
+    }, 5000);
+
+  } catch (error) {
+    console.error('Error processing unclassified expenses:', error);
+    updateMessageAI.value = `Error processing expenses: ${error.message}`;
+  } finally {
+    processingExpenses.value = false;
+  }
+}
+
 onMounted(async () => {
   await Promise.all([
     loadTimezones(),
     loadCurrentTimezone(),
     loadDebugLoggingSetting(),
+    loadAISettings(),
+    loadClassificationOptions(),
   ]);
 });
 </script>
@@ -476,8 +979,10 @@ onMounted(async () => {
 }
 
 /* Toggle Switch Styling */
-.debug-toggle {
+.debug-toggle,
+.ai-toggle {
   margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
 .toggle-container {
@@ -731,6 +1236,223 @@ onMounted(async () => {
   font-style: italic;
 }
 
+/* AI Settings Specific Styles */
+.ai-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.setting-group {
+  background: #1e1e1e;
+  padding: 1.5rem;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+.setting-group h3 {
+  color: #e0e0e0;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #e0e0e0;
+  margin-bottom: 0.5rem;
+}
+
+.form-group input[type="url"],
+.form-group input[type="password"],
+.form-group input[type="text"]:not(.add-item input),
+.form-group select {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  padding: 0.75rem;
+  background: #2a2a2a;
+  border: 1px solid #555;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease;
+}
+
+/* Ensure checkbox inputs are not affected */
+.form-group input[type="checkbox"] {
+  display: none; /* This should remain hidden for the toggle switch */
+}
+
+.form-group input[type="url"]:focus,
+.form-group input[type="password"]:focus,
+.form-group input[type="text"]:not(.add-item input):focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-group input[type="url"]:disabled,
+.form-group input[type="password"]:disabled,
+.form-group input[type="text"]:not(.add-item input):disabled,
+.form-group select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-group input[type="password"] {
+  font-family: monospace;
+}
+
+.model-selector {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.model-selector select {
+  flex: 1;
+}
+
+.refresh-models-btn {
+  padding: 0.5rem;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.classification-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.list-group label {
+  color: #e0e0e0;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  min-height: 2.5rem;
+  padding: 0.5rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  background: #007bff;
+  color: white;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  gap: 0.25rem;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  padding: 0;
+  margin-left: 0.25rem;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.tag-remove:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.add-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.add-item input {
+  flex: 1;
+  max-width: none;
+  margin: 0;
+  padding: 0.5rem;
+  background: #2a2a2a;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 0.875rem;
+}
+
+.add-item input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.bulk-process-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.progress-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #444;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #007bff;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.875rem;
+  color: #b0b0b0;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  color: #b0b0b0;
+  line-height: 1.4;
+}
+
 @media (max-width: 640px) {
   .settings-page {
     padding: 16px;
@@ -756,6 +1478,24 @@ onMounted(async () => {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
+  }
+
+  .classification-lists {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .setting-group {
+    padding: 1rem;
+  }
+
+  .add-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-item input {
+    margin-bottom: 0.5rem;
   }
 }
 </style>

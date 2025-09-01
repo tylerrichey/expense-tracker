@@ -14,7 +14,17 @@
         @click="openExpenseDetails(expense)"
       >
         <div class="expense-content">
-          <div class="expense-amount">${{ expense.amount.toFixed(2) }}</div>
+          <div class="expense-left">
+            <div class="expense-amount">${{ expense.amount.toFixed(2) }}</div>
+            <div v-if="expense.cuisine_type || expense.meal_time" class="expense-classifications">
+              <span v-if="expense.cuisine_type" class="classification-tag cuisine-tag">
+                {{ expense.cuisine_type }}
+              </span>
+              <span v-if="expense.meal_time" class="classification-tag meal-tag">
+                {{ expense.meal_time }}
+              </span>
+            </div>
+          </div>
           <div class="expense-details">
             <div class="expense-date">
               {{ formatDate(expense.timestamp) }}
@@ -349,5 +359,40 @@ defineExpose({ loadExpenses })
     white-space: nowrap;
     max-width: 200px;
   }
+}
+
+/* Expense Left Column */
+.expense-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Classification Tags Styling */
+.expense-classifications {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.classification-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+  line-height: 1.2;
+}
+
+.cuisine-tag {
+  background: #2563eb;
+  color: white;
+}
+
+.meal-tag {
+  background: #059669;
+  color: white;
 }
 </style>

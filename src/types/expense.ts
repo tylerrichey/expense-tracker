@@ -10,6 +10,11 @@ export interface Expense {
   has_image?: boolean
   rating?: number
   timestamp: Date
+  // AI Classification fields
+  cuisine_type?: string | null
+  meal_time?: string | null
+  ai_confidence_cuisine?: number | null
+  ai_confidence_meal?: number | null
 }
 
 export interface Place {
