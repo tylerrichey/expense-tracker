@@ -12,6 +12,7 @@ import { logger } from "./logger.js";
 import { getCommonTimezones, isValidTimezone } from "./timezone-utils.js";
 import { setupAdminRoutes } from "./admin-routes.js";
 import { imageProcessor } from "./image-processor.js";
+import { aiClassificationService } from "./services/aiClassificationService.js";
 
 // Set NODE_ENV to development if not set (for dev server)
 if (!process.env.NODE_ENV) {
@@ -116,7 +117,35 @@ app.post("/api/expenses", authenticateRequest, async (req, res) => {
     }
 
     const savedExpense = await databaseService.addExpense(expense);
-    res.status(201).json(savedExpense);
+    
+    // Attempt AI classification for new expense (wait up to 1 second)
+    if (savedExpense && savedExpense.id) {
+      try {
+        // Race between AI classification and 1-second timeout
+        await Promise.race([
+          aiClassificationService.classifyAndSaveExpense(savedExpense),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Classification timeout')), 1000)
+          )
+        ]);
+        
+        // If we get here, classification completed within 1 second
+        // Fetch the updated expense with classification data
+        const updatedExpense = await databaseService.getExpenseById(savedExpense.id);
+        res.status(201).json(updatedExpense || savedExpense);
+      } catch (error) {
+        // Classification failed or timed out - return original expense
+        if (error.message !== 'Classification timeout') {
+          logger.log('warn', 'Failed to classify new expense:', { 
+            expenseId: savedExpense.id, 
+            error: error.message 
+          });
+        }
+        res.status(201).json(savedExpense);
+      }
+    } else {
+      res.status(201).json(savedExpense);
+    }
   } catch (error) {
     logger.log("error", "Error saving expense:", { error: error.message });
     res.status(500).json({ error: "Failed to save expense" });
@@ -332,6 +361,57 @@ app.delete("/api/expenses/:id", authenticateRequest, async (req, res) => {
   } catch (error) {
     logger.log("error", "Error deleting expense:", { error: error.message });
     res.status(500).json({ error: "Failed to delete expense" });
+  }
+});
+
+// AI Classification batch processing endpoint
+app.post("/api/expenses/classify-batch", authenticateRequest, async (req, res) => {
+  try {
+    // Initialize AI service if not already done
+    await aiClassificationService.initialize();
+    
+    if (!aiClassificationService.isConfigured) {
+      return res.status(400).json({ error: "AI classification not configured" });
+    }
+
+    // Get unclassified expenses
+    const unclassifiedExpenses = await aiClassificationService.getUnclassifiedExpenses(100);
+    
+    if (unclassifiedExpenses.length === 0) {
+      return res.json({ 
+        message: "No unclassified expenses found",
+        processed: 0,
+        total: 0,
+        success: 0,
+        failed: 0
+      });
+    }
+
+    // Process expenses in batch
+    const result = await aiClassificationService.batchClassifyExpenses(unclassifiedExpenses);
+    
+    res.json({
+      message: `Batch classification completed: ${result.success} successful, ${result.failed} failed`,
+      processed: result.success + result.failed,
+      total: unclassifiedExpenses.length,
+      success: result.success,
+      failed: result.failed
+    });
+
+  } catch (error) {
+    logger.log('error', 'Error in batch classification:', { error: error.message });
+    res.status(500).json({ error: 'Failed to process batch classification' });
+  }
+});
+
+// Get available AI models endpoint
+app.get("/api/ai/models", authenticateRequest, async (req, res) => {
+  try {
+    const models = await aiClassificationService.getAvailableModels();
+    res.json({ models });
+  } catch (error) {
+    logger.log('error', 'Error fetching available models:', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch available models' });
   }
 });
 
@@ -1024,9 +1104,19 @@ app.get("*", (req, res) => {
   res.sendFile(join(__dirname, "../dist/index.html"));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.log("info", `Server running on http://localhost:${PORT}`);
 
   // Start budget scheduler
   budgetScheduler.start();
+  
+  // Initialize AI classification service
+  try {
+    await aiClassificationService.initialize();
+    if (aiClassificationService.isConfigured) {
+      logger.log("info", "🤖 AI Classification service initialized successfully");
+    }
+  } catch (error) {
+    logger.log("warn", "Failed to initialize AI Classification service:", { error: error.message });
+  }
 });
