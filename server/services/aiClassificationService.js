@@ -250,6 +250,7 @@ CLASSIFICATION RULES:
    - Grocery stores are almost always for dinner
    - If a place is a bar, prioritze drinks unless amount suggests otherwise
    - If a place is a bakery, or candy shop, etc, it is almost always for snacks
+   - Snacks are probably always cheaper than drinks, which is cheaper than meals
 
 2. CUISINE TYPE: Base on restaurant name, location context, and place types
 
