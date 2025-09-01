@@ -629,6 +629,15 @@ async function loadAISettings() {
     if (settings[2].ok) {
       const model = await settings[2].json();
       aiSettings.value.model = model.value;
+      
+      // Ensure current model appears in dropdown even if models list isn't loaded yet
+      if (model.value && !availableModels.value.find(m => m.id === model.value)) {
+        availableModels.value.push({
+          id: model.value,
+          name: `${model.value} (current)`,
+          owned_by: 'unknown'
+        });
+      }
     }
 
     if (settings[3].ok) {
@@ -807,12 +816,47 @@ async function refreshModels() {
     }
 
     const data = await response.json();
-    availableModels.value = data.models || [];
+    const fetchedModels = data.models || [];
     
-    if (availableModels.value.length === 0) {
+    // Merge fetched models with current model (if it exists and isn't already in the list)
+    const currentModel = aiSettings.value.model;
+    const modelsMap = new Map();
+    
+    // Add fetched models
+    fetchedModels.forEach(model => {
+      modelsMap.set(model.id, model);
+    });
+    
+    // Ensure current model is included (update if found in fetched list, or keep existing entry)
+    if (currentModel) {
+      if (modelsMap.has(currentModel)) {
+        // Update the current model entry with fetched info
+        const fetchedModel = modelsMap.get(currentModel);
+        modelsMap.set(currentModel, {
+          ...fetchedModel,
+          name: fetchedModel.name || fetchedModel.id
+        });
+      } else {
+        // Keep current model in list even if not found in API response
+        modelsMap.set(currentModel, {
+          id: currentModel,
+          name: `${currentModel} (current)`,
+          owned_by: 'unknown'
+        });
+      }
+    }
+    
+    availableModels.value = Array.from(modelsMap.values()).sort((a, b) => {
+      // Sort current model first, then alphabetically
+      if (a.id === currentModel) return -1;
+      if (b.id === currentModel) return 1;
+      return a.id.localeCompare(b.id);
+    });
+    
+    if (fetchedModels.length === 0) {
       updateMessageAI.value = 'No models available or API key may be invalid';
     } else {
-      updateMessageAI.value = `Found ${availableModels.value.length} available models`;
+      updateMessageAI.value = `Found ${fetchedModels.length} available models`;
       setTimeout(() => {
         updateMessageAI.value = '';
       }, 3000);
