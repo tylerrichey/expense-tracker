@@ -259,34 +259,16 @@ class DatabaseService {
 
   getAllExpenses() {
     try {
-      const stmt = this.db.prepare('SELECT *, (receipt_image IS NOT NULL) as has_image FROM expenses ORDER BY timestamp DESC')
-      const rows = stmt.all()
-      
-      const expenses = rows.map(row => ({
-        id: row.id,
-        amount: row.amount,
-        latitude: row.latitude,
-        longitude: row.longitude,
-        place_id: row.place_id,
-        place_name: row.place_name,
-        place_address: row.place_address,
-        rating: row.rating,
-        has_image: Boolean(row.has_image),
-        timestamp: new Date(row.timestamp)
-      }))
-      
-      return Promise.resolve(expenses)
-    } catch (err) {
-      return Promise.reject(err)
-    }
-  }
-
-  getRecentExpenses(days = 7) {
-    try {
       const stmt = this.db.prepare(`
-        SELECT *, (receipt_image IS NOT NULL) as has_image FROM expenses 
-        WHERE timestamp >= datetime('now', '-${days} days')
-        ORDER BY timestamp DESC
+        SELECT e.*, 
+               (e.receipt_image IS NOT NULL) as has_image,
+               ec.cuisine_type,
+               ec.meal_time,
+               ec.ai_confidence_cuisine,
+               ec.ai_confidence_meal
+        FROM expenses e
+        LEFT JOIN expense_classifications ec ON e.id = ec.expense_id
+        ORDER BY e.timestamp DESC
       `)
       const rows = stmt.all()
       
@@ -300,7 +282,95 @@ class DatabaseService {
         place_address: row.place_address,
         rating: row.rating,
         has_image: Boolean(row.has_image),
-        timestamp: new Date(row.timestamp)
+        timestamp: new Date(row.timestamp),
+        // AI Classification data
+        cuisine_type: row.cuisine_type || null,
+        meal_time: row.meal_time || null,
+        ai_confidence_cuisine: row.ai_confidence_cuisine || null,
+        ai_confidence_meal: row.ai_confidence_meal || null
+      }))
+      
+      return Promise.resolve(expenses)
+    } catch (err) {
+      return Promise.reject(err)
+    }
+  }
+
+  getExpenseById(id) {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT e.*, 
+               (e.receipt_image IS NOT NULL) as has_image,
+               ec.cuisine_type,
+               ec.meal_time,
+               ec.ai_confidence_cuisine,
+               ec.ai_confidence_meal
+        FROM expenses e
+        LEFT JOIN expense_classifications ec ON e.id = ec.expense_id
+        WHERE e.id = ?
+      `)
+      const row = stmt.get(id)
+      
+      if (!row) {
+        return Promise.resolve(null)
+      }
+      
+      const expense = {
+        id: row.id,
+        amount: row.amount,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        place_id: row.place_id,
+        place_name: row.place_name,
+        place_address: row.place_address,
+        rating: row.rating,
+        has_image: Boolean(row.has_image),
+        timestamp: new Date(row.timestamp),
+        // AI Classification data
+        cuisine_type: row.cuisine_type || null,
+        meal_time: row.meal_time || null,
+        ai_confidence_cuisine: row.ai_confidence_cuisine || null,
+        ai_confidence_meal: row.ai_confidence_meal || null
+      }
+      
+      return Promise.resolve(expense)
+    } catch (err) {
+      return Promise.reject(err)
+    }
+  }
+
+  getRecentExpenses(days = 7) {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT e.*, 
+               (e.receipt_image IS NOT NULL) as has_image,
+               ec.cuisine_type,
+               ec.meal_time,
+               ec.ai_confidence_cuisine,
+               ec.ai_confidence_meal
+        FROM expenses e
+        LEFT JOIN expense_classifications ec ON e.id = ec.expense_id
+        WHERE e.timestamp >= datetime('now', '-${days} days')
+        ORDER BY e.timestamp DESC
+      `)
+      const rows = stmt.all()
+      
+      const expenses = rows.map(row => ({
+        id: row.id,
+        amount: row.amount,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        place_id: row.place_id,
+        place_name: row.place_name,
+        place_address: row.place_address,
+        rating: row.rating,
+        has_image: Boolean(row.has_image),
+        timestamp: new Date(row.timestamp),
+        // AI Classification data
+        cuisine_type: row.cuisine_type || null,
+        meal_time: row.meal_time || null,
+        ai_confidence_cuisine: row.ai_confidence_cuisine || null,
+        ai_confidence_meal: row.ai_confidence_meal || null
       }))
       
       return Promise.resolve(expenses)
