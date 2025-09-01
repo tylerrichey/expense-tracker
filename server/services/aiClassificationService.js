@@ -3,49 +3,100 @@ import { logger } from "../logger.js";
 import { databaseService } from "../database.js";
 import fs from "fs";
 import path from "path";
+import { promisify } from "util";
+
+const writeFile = promisify(fs.writeFile);
+const appendFile = promisify(fs.appendFile);
+const access = promisify(fs.access);
+const mkdir = promisify(fs.mkdir);
 
 class AIClassificationService {
   constructor() {
-    this.openai = null;
+    this.clients = {}; // Multiple OpenAI clients for different models
     this.isConfigured = false;
     this.rateLimitDelay = 1000; // 1 second between requests
-    this.lastRequestTime = 0;
+    this.lastRequestTimes = {}; // Per-client rate limiting
     this.logDirectory = path.join(process.cwd(), "logs", "ai-classification");
+    this.pendingLogs = new Map(); // For batching logs to prevent race conditions
     this.ensureLogDirectory();
   }
 
-  ensureLogDirectory() {
+  async ensureLogDirectory() {
     try {
-      if (!fs.existsSync(this.logDirectory)) {
-        fs.mkdirSync(this.logDirectory, { recursive: true });
+      await access(this.logDirectory);
+    } catch {
+      try {
+        await mkdir(this.logDirectory, { recursive: true });
+      } catch (error) {
+        logger.log(
+          "error",
+          "❌ Failed to create AI classification log directory:",
+          {
+            error: error.message,
+          }
+        );
       }
-    } catch (error) {
-      logger.log("error", "❌ Failed to create AI classification log directory:", {
-        error: error.message,
-      });
     }
   }
 
-  async logPromptAndResponse(expenseId, prompt, response, error = null) {
-    try {
-      const timestamp = new Date().toISOString();
-      const logEntry = {
-        timestamp,
-        expenseId,
-        prompt,
-        response: response ? {
-          content: response.choices?.[0]?.message?.content || null,
-          model: response.model,
-          usage: response.usage,
-        } : null,
-        error: error ? error.message : null,
-      };
+  // Store log entries for batched writing to prevent race conditions
+  addToPendingLogs(requestId, modelName, data) {
+    if (!this.pendingLogs.has(requestId)) {
+      this.pendingLogs.set(requestId, {
+        timestamp: new Date().toISOString(),
+        expenseId: data.expenseId,
+        prompt: data.prompt,
+        models: {},
+        errors: [],
+      });
+    }
 
-      const logFileName = `ai-classification-${new Date().toISOString().split('T')[0]}.jsonl`;
+    const logEntry = this.pendingLogs.get(requestId);
+
+    if (data.response) {
+      logEntry.models[modelName] = {
+        content: data.response.choices?.[0]?.message?.content || null,
+        model: data.response.model,
+        usage: data.response.usage,
+      };
+    }
+
+    if (data.error) {
+      logEntry.errors.push({ model: modelName, error: data.error.message });
+    }
+  }
+
+  async flushPendingLogs(requestId) {
+    const logEntry = this.pendingLogs.get(requestId);
+    if (!logEntry) return;
+
+    try {
+      const logFileName = `ai-classification-${
+        new Date().toISOString().split("T")[0]
+      }.jsonl`;
       const logFilePath = path.join(this.logDirectory, logFileName);
-      
-      const logLine = JSON.stringify(logEntry) + '\n';
-      fs.appendFileSync(logFilePath, logLine, 'utf8');
+
+      const logLine = JSON.stringify(logEntry) + "\n";
+
+      // Use file locking approach with retry logic
+      const maxRetries = 3;
+      let retries = 0;
+
+      while (retries < maxRetries) {
+        try {
+          await appendFile(logFilePath, logLine, "utf8");
+          break;
+        } catch (error) {
+          if (error.code === "EBUSY" || error.code === "ENOENT") {
+            retries++;
+            await new Promise((resolve) => setTimeout(resolve, 100 * retries));
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      this.pendingLogs.delete(requestId);
     } catch (logError) {
       logger.log("error", "❌ Failed to write AI classification log:", {
         error: logError.message,
@@ -67,20 +118,35 @@ class AIClassificationService {
         return false;
       }
 
-      // Initialize OpenAI client with configurable settings
-      this.openai = new OpenAI({
-        apiKey: settings.ai_provider_api_key,
-        baseURL: settings.ai_provider_base_url,
-      });
+      // Clear existing clients
+      this.clients = {};
+      this.lastRequestTimes = {};
 
-      this.model = settings.ai_model;
-      this.isConfigured = true;
+      // Initialize clients for each configured model
+      const models = this.getConfiguredModels(settings);
 
-      logger.log(
-        "info",
-        `🤖 AI classification service initialized with ${settings.ai_model}`
-      );
-      return true;
+      for (const modelConfig of models) {
+        if (modelConfig.model) {
+          this.clients[modelConfig.name] = new OpenAI({
+            apiKey: settings.ai_provider_api_key,
+            baseURL: settings.ai_provider_base_url,
+          });
+          this.lastRequestTimes[modelConfig.name] = 0;
+        }
+      }
+
+      this.settings = settings;
+      this.isConfigured = Object.keys(this.clients).length > 0;
+
+      if (this.isConfigured) {
+        const modelNames = Object.keys(this.clients).join(", ");
+        logger.log(
+          "info",
+          `🤖 AI classification service initialized with models: ${modelNames}`
+        );
+      }
+
+      return this.isConfigured;
     } catch (error) {
       logger.log(
         "error",
@@ -92,6 +158,28 @@ class AIClassificationService {
     }
   }
 
+  getConfiguredModels(settings) {
+    const models = [];
+
+    // Single model mode (backwards compatibility)
+    if (!settings.ai_multi_model_enabled) {
+      if (settings.ai_model) {
+        models.push({ name: "model_1", model: settings.ai_model });
+      }
+      return models;
+    }
+
+    // Multi-model mode
+    if (settings.ai_model_1)
+      models.push({ name: "model_1", model: settings.ai_model_1 });
+    if (settings.ai_model_2)
+      models.push({ name: "model_2", model: settings.ai_model_2 });
+    if (settings.ai_model_3)
+      models.push({ name: "model_3", model: settings.ai_model_3 });
+
+    return models;
+  }
+
   async getAISettings() {
     try {
       const allSettings = databaseService.getAllSettings();
@@ -100,7 +188,14 @@ class AIClassificationService {
         ai_provider_base_url:
           allSettings.ai_provider_base_url || "https://api.openai.com/v1",
         ai_provider_api_key: allSettings.ai_provider_api_key || "",
-        ai_model: allSettings.ai_model || "gpt-3.5-turbo",
+        ai_model: allSettings.ai_model || "gpt-3.5-turbo", // Legacy single model
+        ai_model_1:
+          allSettings.ai_model_1 || allSettings.ai_model || "gpt-3.5-turbo",
+        ai_model_2: allSettings.ai_model_2 || "",
+        ai_model_3: allSettings.ai_model_3 || "",
+        ai_multi_model_enabled: allSettings.ai_multi_model_enabled === "true",
+        ai_multi_model_strategy:
+          allSettings.ai_multi_model_strategy || "weighted_vote",
         ai_classification_enabled:
           allSettings.ai_classification_enabled === "true",
         cuisine_types: JSON.parse(allSettings.cuisine_types || "[]"),
@@ -137,16 +232,16 @@ class AIClassificationService {
 
       // Filter and sort models, prioritizing chat completion models
       const models = response.data
-        .filter((model) => {
-          // Filter out non-chat models and fine-tuned models for simplicity
-          return (
-            !model.id.includes(":") &&
-            (model.id.includes("gpt") ||
-              model.id.includes("claude") ||
-              model.id.includes("llama") ||
-              model.id.includes("mistral"))
-          );
-        })
+        // .filter((model) => {
+        //   // Filter out non-chat models and fine-tuned models for simplicity
+        //   return (
+        //     !model.id.includes(":") &&
+        //     (model.id.includes("gpt") ||
+        //       model.id.includes("claude") ||
+        //       model.id.includes("llama") ||
+        //       model.id.includes("mistral"))
+        //   );
+        // })
         .sort((a, b) => a.id.localeCompare(b.id))
         .map((model) => ({
           id: model.id,
@@ -174,16 +269,17 @@ class AIClassificationService {
     }
   }
 
-  async rateLimit() {
+  async rateLimit(clientName) {
     const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
+    const lastRequestTime = this.lastRequestTimes[clientName] || 0;
+    const timeSinceLastRequest = now - lastRequestTime;
 
     if (timeSinceLastRequest < this.rateLimitDelay) {
       const delay = this.rateLimitDelay - timeSinceLastRequest;
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
 
-    this.lastRequestTime = Date.now();
+    this.lastRequestTimes[clientName] = Date.now();
   }
 
   async classifyExpense(expense, placeData = null) {
@@ -194,75 +290,20 @@ class AIClassificationService {
       return null;
     }
 
-    try {
-      await this.rateLimit();
+    const settings = await this.getAISettings();
 
-      const settings = await this.getAISettings();
-      const prompt = this.buildClassificationPrompt(
+    // Use multi-model classification if enabled and multiple models configured
+    if (
+      settings.ai_multi_model_enabled &&
+      Object.keys(this.clients).length > 1
+    ) {
+      return await this.classifyExpenseMultiModel(expense, placeData, settings);
+    } else {
+      return await this.classifyExpenseSingleModel(
         expense,
         placeData,
         settings
       );
-
-      logger.debug("🤖 Classifying expense with AI", {
-        expenseId: expense.id,
-        placeName: expense.place_name,
-        timestamp: expense.timestamp,
-      });
-
-      const response = await this.openai.chat.completions.create({
-        model: this.model,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert at classifying food and beverage expenses. Respond only with valid JSON.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.1,
-        max_tokens: 300,
-      });
-
-      // Log prompt and response to file
-      await this.logPromptAndResponse(expense.id, prompt, response);
-
-      // Log usage information
-      if (response.usage) {
-        this.lastTokenCount = response.usage.total_tokens; // Store for batch tracking
-        logger.log(
-          "info",
-          `🤖 AI API Usage: ${response.usage.prompt_tokens} prompt + ${response.usage.completion_tokens} completion = ${response.usage.total_tokens} tokens`
-        );
-      }
-
-      const classification = this.parseClassificationResponse(
-        response.choices[0].message.content
-      );
-
-      if (classification) {
-        logger.debug("🤖 AI classification successful", {
-          expenseId: expense.id,
-          cuisine: classification.cuisine_type,
-          mealTime: classification.meal_time,
-          confidenceCuisine: classification.confidence_cuisine,
-          confidenceMeal: classification.confidence_meal,
-        });
-      }
-
-      return classification;
-    } catch (error) {
-      // Log error with prompt to file
-      await this.logPromptAndResponse(expense.id, prompt, null, error);
-      
-      logger.log("error", "❌ AI classification failed for expense", {
-        expenseId: expense.id,
-        error: error.message,
-      });
-      return null;
     }
   }
 
@@ -373,18 +414,379 @@ CRITICAL: Only use the exact strings from the available lists above.`;
     }
   }
 
+  async classifyExpenseSingleModel(expense, placeData, settings) {
+    const requestId = `${expense.id}-${Date.now()}`;
+    const clientName = Object.keys(this.clients)[0];
+    const client = this.clients[clientName];
+    const modelName = this.getConfiguredModels(settings)[0]?.model;
+
+    try {
+      await this.rateLimit(clientName);
+
+      const prompt = this.buildClassificationPrompt(
+        expense,
+        placeData,
+        settings
+      );
+
+      logger.debug("🤖 Classifying expense with single AI model", {
+        expenseId: expense.id,
+        model: modelName,
+        placeName: expense.place_name,
+        timestamp: expense.timestamp,
+      });
+
+      const response = await client.chat.completions.create({
+        model: modelName,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert at classifying food and beverage expenses. Respond only with valid JSON.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 300,
+      });
+
+      // Add to pending logs
+      this.addToPendingLogs(requestId, clientName, {
+        expenseId: expense.id,
+        prompt,
+        response,
+      });
+
+      // Flush logs immediately for single model
+      await this.flushPendingLogs(requestId);
+
+      // Log usage information
+      if (response.usage) {
+        this.lastTokenCount = response.usage.total_tokens;
+        logger.log(
+          "info",
+          `🤖 AI API Usage (${modelName}): ${response.usage.prompt_tokens} prompt + ${response.usage.completion_tokens} completion = ${response.usage.total_tokens} tokens`
+        );
+      }
+
+      const classification = this.parseClassificationResponse(
+        response.choices[0].message.content
+      );
+
+      if (classification) {
+        classification.model_name = modelName;
+        logger.debug("🤖 AI classification successful", {
+          expenseId: expense.id,
+          model: modelName,
+          cuisine: classification.cuisine_type,
+          mealTime: classification.meal_time,
+          confidenceCuisine: classification.confidence_cuisine,
+          confidenceMeal: classification.confidence_meal,
+        });
+      }
+
+      return classification;
+    } catch (error) {
+      // Add error to pending logs
+      this.addToPendingLogs(requestId, clientName, {
+        expenseId: expense.id,
+        prompt: this.buildClassificationPrompt(expense, placeData, settings),
+        error,
+      });
+      await this.flushPendingLogs(requestId);
+
+      logger.log("error", "❌ AI classification failed for expense", {
+        expenseId: expense.id,
+        model: modelName,
+        error: error.message,
+      });
+      return null;
+    }
+  }
+
+  async classifyExpenseMultiModel(expense, placeData, settings) {
+    const requestId = `${expense.id}-${Date.now()}`;
+    const models = this.getConfiguredModels(settings);
+
+    logger.debug("🤖 Classifying expense with multiple AI models", {
+      expenseId: expense.id,
+      models: models.map((m) => m.model),
+      placeName: expense.place_name,
+      timestamp: expense.timestamp,
+    });
+
+    // Run all models in parallel
+    const modelPromises = models.map(async (modelConfig) => {
+      const client = this.clients[modelConfig.name];
+      if (!client) return null;
+
+      try {
+        await this.rateLimit(modelConfig.name);
+
+        const prompt = this.buildClassificationPrompt(
+          expense,
+          placeData,
+          settings
+        );
+
+        const response = await client.chat.completions.create({
+          model: modelConfig.model,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an expert at classifying food and beverage expenses. Respond only with valid JSON.",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.1,
+          max_tokens: 300,
+        });
+
+        // Add to pending logs
+        this.addToPendingLogs(requestId, modelConfig.name, {
+          expenseId: expense.id,
+          prompt,
+          response,
+        });
+
+        const classification = this.parseClassificationResponse(
+          response.choices[0].message.content
+        );
+
+        if (classification) {
+          classification.model_name = modelConfig.model;
+          classification.client_name = modelConfig.name;
+
+          // Log usage for this model
+          if (response.usage) {
+            logger.log(
+              "info",
+              `🤖 AI API Usage (${modelConfig.model}): ${response.usage.prompt_tokens} prompt + ${response.usage.completion_tokens} completion = ${response.usage.total_tokens} tokens`
+            );
+          }
+        }
+
+        return classification;
+      } catch (error) {
+        // Add error to pending logs
+        this.addToPendingLogs(requestId, modelConfig.name, {
+          expenseId: expense.id,
+          prompt: this.buildClassificationPrompt(expense, placeData, settings),
+          error,
+        });
+
+        logger.log(
+          "error",
+          `❌ AI classification failed for expense (${modelConfig.model})`,
+          {
+            expenseId: expense.id,
+            model: modelConfig.model,
+            error: error.message,
+          }
+        );
+        return null;
+      }
+    });
+
+    // Wait for all models to complete
+    const results = await Promise.all(modelPromises);
+
+    // Flush all logs at once to prevent race conditions
+    await this.flushPendingLogs(requestId);
+
+    // Filter out failed classifications
+    const validResults = results.filter((result) => result !== null);
+
+    if (validResults.length === 0) {
+      logger.log("error", "❌ All AI models failed to classify expense", {
+        expenseId: expense.id,
+      });
+      return null;
+    }
+
+    // Combine results using the specified strategy
+    const finalClassification = this.combineClassificationResults(
+      validResults,
+      settings.ai_multi_model_strategy
+    );
+
+    if (finalClassification) {
+      logger.debug("🤖 Multi-model AI classification successful", {
+        expenseId: expense.id,
+        modelsUsed: validResults.length,
+        finalCuisine: finalClassification.cuisine_type,
+        finalMealTime: finalClassification.meal_time,
+        decisionMethod: finalClassification.final_decision_method,
+      });
+    }
+
+    return finalClassification;
+  }
+
+  combineClassificationResults(results, strategy = "weighted_vote") {
+    if (results.length === 1) {
+      const result = results[0];
+      return {
+        cuisine_type: result.cuisine_type,
+        meal_time: result.meal_time,
+        confidence_cuisine: result.confidence_cuisine,
+        confidence_meal: result.confidence_meal,
+        final_decision_method: "single_model",
+        models_used: 1,
+        model_results: results,
+      };
+    }
+
+    switch (strategy) {
+      case "weighted_vote":
+        return this.combineUsingWeightedVote(results);
+      case "highest_confidence":
+        return this.combineUsingHighestConfidence(results);
+      default:
+        return this.combineUsingWeightedVote(results);
+    }
+  }
+
+  combineUsingWeightedVote(results) {
+    // Count votes for each cuisine type and meal time, weighted by confidence
+    const cuisineVotes = {};
+    const mealTimeVotes = {};
+
+    results.forEach((result) => {
+      // Cuisine voting
+      if (result.cuisine_type) {
+        if (!cuisineVotes[result.cuisine_type]) {
+          cuisineVotes[result.cuisine_type] = 0;
+        }
+        cuisineVotes[result.cuisine_type] += result.confidence_cuisine || 0.5;
+      }
+
+      // Meal time voting
+      if (result.meal_time) {
+        if (!mealTimeVotes[result.meal_time]) {
+          mealTimeVotes[result.meal_time] = 0;
+        }
+        mealTimeVotes[result.meal_time] += result.confidence_meal || 0.5;
+      }
+    });
+
+    // Find winners
+    const winningCuisine = Object.keys(cuisineVotes).reduce((a, b) =>
+      cuisineVotes[a] > cuisineVotes[b] ? a : b
+    );
+
+    const winningMealTime = Object.keys(mealTimeVotes).reduce((a, b) =>
+      mealTimeVotes[a] > mealTimeVotes[b] ? a : b
+    );
+
+    // Calculate combined confidence as average of contributing models
+    const cuisineContributors = results.filter(
+      (r) => r.cuisine_type === winningCuisine
+    );
+    const mealTimeContributors = results.filter(
+      (r) => r.meal_time === winningMealTime
+    );
+
+    const avgCuisineConfidence =
+      cuisineContributors.reduce(
+        (sum, r) => sum + (r.confidence_cuisine || 0.5),
+        0
+      ) / cuisineContributors.length;
+
+    const avgMealTimeConfidence =
+      mealTimeContributors.reduce(
+        (sum, r) => sum + (r.confidence_meal || 0.5),
+        0
+      ) / mealTimeContributors.length;
+
+    return {
+      cuisine_type: winningCuisine,
+      meal_time: winningMealTime,
+      confidence_cuisine: avgCuisineConfidence,
+      confidence_meal: avgMealTimeConfidence,
+      final_decision_method: "weighted_vote",
+      models_used: results.length,
+      model_results: results,
+    };
+  }
+
+  combineUsingHighestConfidence(results) {
+    // Find the result with the highest combined confidence
+    const bestResult = results.reduce((best, current) => {
+      const currentScore =
+        (current.confidence_cuisine || 0.5) + (current.confidence_meal || 0.5);
+      const bestScore =
+        (best.confidence_cuisine || 0.5) + (best.confidence_meal || 0.5);
+      return currentScore > bestScore ? current : best;
+    });
+
+    return {
+      cuisine_type: bestResult.cuisine_type,
+      meal_time: bestResult.meal_time,
+      confidence_cuisine: bestResult.confidence_cuisine,
+      confidence_meal: bestResult.confidence_meal,
+      final_decision_method: "highest_confidence",
+      models_used: results.length,
+      model_results: results,
+    };
+  }
+
   async saveClassification(expenseId, classification) {
     try {
+      // Handle both single model and multi-model classifications
+      const isMultiModel =
+        classification.model_results && classification.model_results.length > 1;
+
       const stmt = databaseService.db.prepare(`
         INSERT OR REPLACE INTO expense_classifications 
-        (expense_id, cuisine_type, meal_time, ai_classified_at, ai_confidence_cuisine, ai_confidence_meal, updated_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, CURRENT_TIMESTAMP)
+        (expense_id, cuisine_type, meal_time, ai_classified_at, ai_confidence_cuisine, ai_confidence_meal, 
+         model_1_cuisine, model_1_meal_time, model_1_confidence_cuisine, model_1_confidence_meal, model_1_name,
+         model_2_cuisine, model_2_meal_time, model_2_confidence_cuisine, model_2_confidence_meal, model_2_name,
+         model_3_cuisine, model_3_meal_time, model_3_confidence_cuisine, model_3_confidence_meal, model_3_name,
+         final_decision_method, models_used, combined_confidence_cuisine, combined_confidence_meal, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `);
+
+      // Extract individual model results
+      const modelResults = classification.model_results || [classification];
+      const model1 = modelResults[0] || {};
+      const model2 = modelResults[1] || {};
+      const model3 = modelResults[2] || {};
 
       const result = stmt.run(
         expenseId,
         classification.cuisine_type,
         classification.meal_time,
+        classification.confidence_cuisine,
+        classification.confidence_meal,
+        // Model 1 data
+        model1.cuisine_type || null,
+        model1.meal_time || null,
+        model1.confidence_cuisine || null,
+        model1.confidence_meal || null,
+        model1.model_name || null,
+        // Model 2 data
+        model2.cuisine_type || null,
+        model2.meal_time || null,
+        model2.confidence_cuisine || null,
+        model2.confidence_meal || null,
+        model2.model_name || null,
+        // Model 3 data
+        model3.cuisine_type || null,
+        model3.meal_time || null,
+        model3.confidence_cuisine || null,
+        model3.confidence_meal || null,
+        model3.model_name || null,
+        // Meta data
+        classification.final_decision_method || "single_model",
+        classification.models_used || 1,
         classification.confidence_cuisine,
         classification.confidence_meal
       );
@@ -392,6 +794,8 @@ CRITICAL: Only use the exact strings from the available lists above.`;
       logger.debug("💾 Saved AI classification", {
         expenseId,
         classificationId: result.lastInsertRowid,
+        isMultiModel,
+        modelsUsed: classification.models_used || 1,
       });
 
       return result.lastInsertRowid;

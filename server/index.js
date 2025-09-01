@@ -93,8 +93,16 @@ app.post("/api/auth/login", (req, res) => {
 // API Routes (protected)
 app.post("/api/expenses", authenticateRequest, async (req, res) => {
   try {
-    const { amount, latitude, longitude, place_id, place_name, place_address, rating, timestamp } =
-      req.body;
+    const {
+      amount,
+      latitude,
+      longitude,
+      place_id,
+      place_name,
+      place_address,
+      rating,
+      timestamp,
+    } = req.body;
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: "Valid amount is required" });
@@ -108,7 +116,9 @@ app.post("/api/expenses", authenticateRequest, async (req, res) => {
       place_name: place_name || null,
       place_address: place_address || null,
       rating: rating && rating > 0 ? parseInt(rating) : null,
-      timestamp: timestamp ? new Date(timestamp).toISOString() : new Date().toISOString(),
+      timestamp: timestamp
+        ? new Date(timestamp).toISOString()
+        : new Date().toISOString(),
     };
 
     if (process.env.NODE_ENV !== "production") {
@@ -117,28 +127,30 @@ app.post("/api/expenses", authenticateRequest, async (req, res) => {
     }
 
     const savedExpense = await databaseService.addExpense(expense);
-    
+
     // Attempt AI classification for new expense (wait up to 1 second)
     if (savedExpense && savedExpense.id) {
       try {
-        // Race between AI classification and 1-second timeout
+        // Race between AI classification and 2-second timeout
         await Promise.race([
           aiClassificationService.classifyAndSaveExpense(savedExpense),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Classification timeout')), 1000)
-          )
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Classification timeout")), 2000)
+          ),
         ]);
-        
-        // If we get here, classification completed within 1 second
+
+        // If we get here, classification completed within 2 second
         // Fetch the updated expense with classification data
-        const updatedExpense = await databaseService.getExpenseById(savedExpense.id);
+        const updatedExpense = await databaseService.getExpenseById(
+          savedExpense.id
+        );
         res.status(201).json(updatedExpense || savedExpense);
       } catch (error) {
         // Classification failed or timed out - return original expense
-        if (error.message !== 'Classification timeout') {
-          logger.log('warn', 'Failed to classify new expense:', { 
-            expenseId: savedExpense.id, 
-            error: error.message 
+        if (error.message !== "Classification timeout") {
+          logger.log("warn", "Failed to classify new expense:", {
+            expenseId: savedExpense.id,
+            error: error.message,
           });
         }
         res.status(201).json(savedExpense);
@@ -198,16 +210,20 @@ app.post(
         }
 
         // Get optimal processing options for this image
-        const optimalOptions = await imageProcessor.getOptimalOptions(imageFile.buffer);
-        
+        const optimalOptions = await imageProcessor.getOptimalOptions(
+          imageFile.buffer
+        );
+
         // Process the image with compression and optimization
-        processedImageBuffer = await imageProcessor.processImage(imageFile.buffer, optimalOptions);
-        
+        processedImageBuffer = await imageProcessor.processImage(
+          imageFile.buffer,
+          optimalOptions
+        );
       } catch (processingError) {
-        logger.log("error", "Image processing failed:", { 
+        logger.log("error", "Image processing failed:", {
           error: processingError.message,
           expenseId,
-          fileName: imageFile.originalname
+          fileName: imageFile.originalname,
         });
         // Fallback to original image if processing fails
         processedImageBuffer = imageFile.buffer;
@@ -269,11 +285,11 @@ app.get("/api/expenses/:id/image", authenticateRequest, async (req, res) => {
     let contentType = "image/webp"; // default to webp since we're processing to webp
     if (imageBuffer.length >= 12) {
       const header = imageBuffer.slice(0, 12);
-      
+
       // JPEG detection: FF D8 FF
       if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) {
         contentType = "image/jpeg";
-      } 
+      }
       // PNG detection: 89 50 4E 47
       else if (
         header[0] === 0x89 &&
@@ -282,15 +298,11 @@ app.get("/api/expenses/:id/image", authenticateRequest, async (req, res) => {
         header[3] === 0x47
       ) {
         contentType = "image/png";
-      } 
+      }
       // GIF detection: 47 49 46
-      else if (
-        header[0] === 0x47 &&
-        header[1] === 0x49 &&
-        header[2] === 0x46
-      ) {
+      else if (header[0] === 0x47 && header[1] === 0x49 && header[2] === 0x46) {
         contentType = "image/gif";
-      } 
+      }
       // WebP detection: RIFF....WEBP
       else if (
         header[0] === 0x52 && // R
@@ -300,7 +312,7 @@ app.get("/api/expenses/:id/image", authenticateRequest, async (req, res) => {
         header[8] === 0x57 && // W
         header[9] === 0x45 && // E
         header[10] === 0x42 && // B
-        header[11] === 0x50   // P
+        header[11] === 0x50 // P
       ) {
         contentType = "image/webp";
       }
@@ -365,44 +377,54 @@ app.delete("/api/expenses/:id", authenticateRequest, async (req, res) => {
 });
 
 // AI Classification batch processing endpoint
-app.post("/api/expenses/classify-batch", authenticateRequest, async (req, res) => {
-  try {
-    // Initialize AI service if not already done
-    await aiClassificationService.initialize();
-    
-    if (!aiClassificationService.isConfigured) {
-      return res.status(400).json({ error: "AI classification not configured" });
-    }
+app.post(
+  "/api/expenses/classify-batch",
+  authenticateRequest,
+  async (req, res) => {
+    try {
+      // Initialize AI service if not already done
+      await aiClassificationService.initialize();
 
-    // Get unclassified expenses
-    const unclassifiedExpenses = await aiClassificationService.getUnclassifiedExpenses(100);
-    
-    if (unclassifiedExpenses.length === 0) {
-      return res.json({ 
-        message: "No unclassified expenses found",
-        processed: 0,
-        total: 0,
-        success: 0,
-        failed: 0
+      if (!aiClassificationService.isConfigured) {
+        return res
+          .status(400)
+          .json({ error: "AI classification not configured" });
+      }
+
+      // Get unclassified expenses
+      const unclassifiedExpenses =
+        await aiClassificationService.getUnclassifiedExpenses(100);
+
+      if (unclassifiedExpenses.length === 0) {
+        return res.json({
+          message: "No unclassified expenses found",
+          processed: 0,
+          total: 0,
+          success: 0,
+          failed: 0,
+        });
+      }
+
+      // Process expenses in batch
+      const result = await aiClassificationService.batchClassifyExpenses(
+        unclassifiedExpenses
+      );
+
+      res.json({
+        message: `Batch classification completed: ${result.success} successful, ${result.failed} failed`,
+        processed: result.success + result.failed,
+        total: unclassifiedExpenses.length,
+        success: result.success,
+        failed: result.failed,
       });
+    } catch (error) {
+      logger.log("error", "Error in batch classification:", {
+        error: error.message,
+      });
+      res.status(500).json({ error: "Failed to process batch classification" });
     }
-
-    // Process expenses in batch
-    const result = await aiClassificationService.batchClassifyExpenses(unclassifiedExpenses);
-    
-    res.json({
-      message: `Batch classification completed: ${result.success} successful, ${result.failed} failed`,
-      processed: result.success + result.failed,
-      total: unclassifiedExpenses.length,
-      success: result.success,
-      failed: result.failed
-    });
-
-  } catch (error) {
-    logger.log('error', 'Error in batch classification:', { error: error.message });
-    res.status(500).json({ error: 'Failed to process batch classification' });
   }
-});
+);
 
 // Get available AI models endpoint
 app.get("/api/ai/models", authenticateRequest, async (req, res) => {
@@ -410,8 +432,10 @@ app.get("/api/ai/models", authenticateRequest, async (req, res) => {
     const models = await aiClassificationService.getAvailableModels();
     res.json({ models });
   } catch (error) {
-    logger.log('error', 'Error fetching available models:', { error: error.message });
-    res.status(500).json({ error: 'Failed to fetch available models' });
+    logger.log("error", "Error fetching available models:", {
+      error: error.message,
+    });
+    res.status(500).json({ error: "Failed to fetch available models" });
   }
 });
 
@@ -425,8 +449,16 @@ app.put("/api/expenses/:id/rating", authenticateRequest, async (req, res) => {
     }
 
     // Validate rating - should be null or between 1-5
-    if (rating !== null && (typeof rating !== 'number' || rating < 1 || rating > 5 || !Number.isInteger(rating))) {
-      return res.status(400).json({ error: "Rating must be null or an integer between 1 and 5" });
+    if (
+      rating !== null &&
+      (typeof rating !== "number" ||
+        rating < 1 ||
+        rating > 5 ||
+        !Number.isInteger(rating))
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Rating must be null or an integer between 1 and 5" });
     }
 
     const success = await databaseService.updateExpenseRating(id, rating);
@@ -437,7 +469,9 @@ app.put("/api/expenses/:id/rating", authenticateRequest, async (req, res) => {
       res.status(404).json({ error: "Expense not found" });
     }
   } catch (error) {
-    logger.log("error", "Error updating expense rating:", { error: error.message });
+    logger.log("error", "Error updating expense rating:", {
+      error: error.message,
+    });
     res.status(500).json({ error: "Failed to update rating" });
   }
 });
@@ -474,9 +508,7 @@ app.get("/api/places/autocomplete", authenticateRequest, async (req, res) => {
     const { input, latitude, longitude, radius, includeDetails } = req.query;
 
     if (!input) {
-      return res
-        .status(400)
-        .json({ error: "Search input is required" });
+      return res.status(400).json({ error: "Search input is required" });
     }
 
     const suggestions = await placesService.searchAutocomplete(
@@ -484,7 +516,7 @@ app.get("/api/places/autocomplete", authenticateRequest, async (req, res) => {
       latitude || null,
       longitude || null,
       radius ? parseInt(radius) : 1000,
-      includeDetails === 'true'
+      includeDetails === "true"
     );
 
     res.json(suggestions);
@@ -492,9 +524,9 @@ app.get("/api/places/autocomplete", authenticateRequest, async (req, res) => {
     logger.log("error", "Error fetching autocomplete suggestions:", {
       error: error.message,
     });
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to fetch autocomplete suggestions" });
+    res.status(500).json({
+      error: error.message || "Failed to fetch autocomplete suggestions",
+    });
   }
 });
 
@@ -1024,11 +1056,11 @@ app.get("/api/settings/:key", authenticateRequest, async (req, res) => {
   try {
     const { key } = req.params;
     const setting = await databaseService.getSetting(key);
-    
+
     if (!setting) {
       return res.status(404).json({ error: "Setting not found" });
     }
-    
+
     res.json(setting);
   } catch (error) {
     logger.log("error", "Error fetching setting:", { error: error.message });
@@ -1040,23 +1072,48 @@ app.put("/api/settings/:key", authenticateRequest, async (req, res) => {
   try {
     const { key } = req.params;
     const { value } = req.body;
-    
+
     if (!value) {
       return res.status(400).json({ error: "Value is required" });
     }
-    
+
     // Validate timezone setting
-    if (key === 'timezone' && !isValidTimezone(value)) {
+    if (key === "timezone" && !isValidTimezone(value)) {
       return res.status(400).json({ error: "Invalid timezone" });
     }
-    
+
     const setting = await databaseService.setSetting(key, value);
-    
+
     // Update logger's debug setting cache if debug_logging was changed
-    if (key === 'debug_logging') {
-      logger.setDebugEnabled(value === 'true');
+    if (key === "debug_logging") {
+      logger.setDebugEnabled(value === "true");
     }
+
+    // Reinitialize AI service if AI settings were changed
+    const aiSettingKeys = [
+      'ai_provider_base_url',
+      'ai_provider_api_key', 
+      'ai_model',
+      'ai_model_1',
+      'ai_model_2',
+      'ai_model_3',
+      'ai_multi_model_enabled',
+      'ai_multi_model_strategy',
+      'ai_classification_enabled'
+    ];
     
+    if (aiSettingKeys.includes(key)) {
+      try {
+        await aiClassificationService.initialize();
+        logger.log("info", `🤖 AI service reinitialized after ${key} setting change`);
+      } catch (error) {
+        logger.log("warn", "Failed to reinitialize AI service after setting change:", {
+          key,
+          error: error.message
+        });
+      }
+    }
+
     res.json(setting);
   } catch (error) {
     logger.log("error", "Error updating setting:", { error: error.message });
@@ -1109,14 +1166,19 @@ app.listen(PORT, async () => {
 
   // Start budget scheduler
   budgetScheduler.start();
-  
+
   // Initialize AI classification service
   try {
     await aiClassificationService.initialize();
     if (aiClassificationService.isConfigured) {
-      logger.log("info", "🤖 AI Classification service initialized successfully");
+      logger.log(
+        "info",
+        "🤖 AI Classification service initialized successfully"
+      );
     }
   } catch (error) {
-    logger.log("warn", "Failed to initialize AI Classification service:", { error: error.message });
+    logger.log("warn", "Failed to initialize AI Classification service:", {
+      error: error.message,
+    });
   }
 });

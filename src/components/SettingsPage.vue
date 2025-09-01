@@ -141,32 +141,125 @@
               />
             </div>
 
-            <div class="form-group">
-              <label for="ai-model">Model</label>
-              <div class="model-selector">
-                <select
-                  id="ai-model"
-                  v-model="aiSettings.model"
+            <!-- Multi-Model Toggle -->
+            <div class="ai-toggle">
+              <label class="toggle-container">
+                <input
+                  type="checkbox"
+                  v-model="aiSettings.multiModelEnabled"
                   :disabled="updatingAI"
-                >
-                  <option value="">Select a model...</option>
-                  <option 
-                    v-for="model in availableModels" 
-                    :key="model.id" 
-                    :value="model.id"
+                />
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">
+                  {{ aiSettings.multiModelEnabled ? "Multi-Model Processing Enabled" : "Single Model Processing" }}
+                </span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <p class="text-sm text-gray-400">
+                When enabled, up to 3 AI models will process each expense in parallel and combine their results for more accurate classifications.
+              </p>
+            </div>
+
+            <!-- Model Selection -->
+            <div class="form-group">
+              <label>AI Models</label>
+              <div class="models-config">
+                <!-- Model 1 (Primary) -->
+                <div class="model-row">
+                  <label class="model-label">Primary Model</label>
+                  <div class="model-selector">
+                    <select
+                      v-model="aiSettings.model1"
+                      :disabled="updatingAI"
+                    >
+                      <option value="">Select a model...</option>
+                      <option 
+                        v-for="model in availableModels" 
+                        :key="model.id" 
+                        :value="model.id"
+                      >
+                        {{ model.name }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Model 2 (Secondary) - Only shown in multi-model mode -->
+                <div v-if="aiSettings.multiModelEnabled" class="model-row">
+                  <label class="model-label">Secondary Model (Optional)</label>
+                  <div class="model-selector">
+                    <select
+                      v-model="aiSettings.model2"
+                      :disabled="updatingAI"
+                    >
+                      <option value="">Select a model...</option>
+                      <option 
+                        v-for="model in availableModels" 
+                        :key="model.id" 
+                        :value="model.id"
+                        :disabled="model.id === aiSettings.model1 || model.id === aiSettings.model3"
+                      >
+                        {{ model.name }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Model 3 (Tertiary) - Only shown in multi-model mode -->
+                <div v-if="aiSettings.multiModelEnabled" class="model-row">
+                  <label class="model-label">Tertiary Model (Optional)</label>
+                  <div class="model-selector">
+                    <select
+                      v-model="aiSettings.model3"
+                      :disabled="updatingAI"
+                    >
+                      <option value="">Select a model...</option>
+                      <option 
+                        v-for="model in availableModels" 
+                        :key="model.id" 
+                        :value="model.id"
+                        :disabled="model.id === aiSettings.model1 || model.id === aiSettings.model2"
+                      >
+                        {{ model.name }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="refresh-models-row">
+                  <button
+                    @click="refreshModels"
+                    :disabled="loadingModels || !aiSettings.apiKey"
+                    class="btn btn-sm refresh-models-btn"
+                    title="Refresh available models"
                   >
-                    {{ model.name }} ({{ model.owned_by }})
-                  </option>
-                </select>
-                <button
-                  @click="refreshModels"
-                  :disabled="loadingModels || !aiSettings.apiKey"
-                  class="btn btn-sm refresh-models-btn"
-                  title="Refresh available models"
-                >
-                  {{ loadingModels ? '...' : '🔄' }}
-                </button>
+                    {{ loadingModels ? 'Loading...' : '🔄 Refresh Models' }}
+                  </button>
+                </div>
               </div>
+            </div>
+
+            <!-- Multi-Model Strategy - Only shown in multi-model mode -->
+            <div v-if="aiSettings.multiModelEnabled" class="form-group">
+              <label for="ai-strategy">Result Combination Strategy</label>
+              <select
+                id="ai-strategy"
+                v-model="aiSettings.multiModelStrategy"
+                :disabled="updatingAI"
+              >
+                <option value="weighted_vote">Weighted Vote (Recommended)</option>
+                <option value="highest_confidence">Highest Confidence</option>
+              </select>
+              <p class="text-sm text-gray-400 mt-1">
+                <span v-if="aiSettings.multiModelStrategy === 'weighted_vote'">
+                  Combines results from all models, weighting votes by confidence scores.
+                </span>
+                <span v-else>
+                  Uses the result from the model with the highest combined confidence score.
+                </span>
+              </p>
             </div>
 
             <div class="ai-toggle">
@@ -378,7 +471,12 @@ const aiSettings = ref({
   provider: 'openai',
   baseUrl: 'https://api.openai.com/v1',
   apiKey: '',
-  model: 'gpt-3.5-turbo',
+  model: 'gpt-3.5-turbo', // Legacy single model
+  model1: 'gpt-3.5-turbo',
+  model2: '',
+  model3: '',
+  multiModelEnabled: false,
+  multiModelStrategy: 'weighted_vote',
   enabled: false
 });
 
@@ -604,7 +702,12 @@ async function loadAISettings() {
       fetch("/api/settings/ai_provider_base_url", { headers: AuthService.getAuthHeaders() }),
       fetch("/api/settings/ai_provider_api_key", { headers: AuthService.getAuthHeaders() }),
       fetch("/api/settings/ai_model", { headers: AuthService.getAuthHeaders() }),
-      fetch("/api/settings/ai_classification_enabled", { headers: AuthService.getAuthHeaders() })
+      fetch("/api/settings/ai_classification_enabled", { headers: AuthService.getAuthHeaders() }),
+      fetch("/api/settings/ai_model_1", { headers: AuthService.getAuthHeaders() }),
+      fetch("/api/settings/ai_model_2", { headers: AuthService.getAuthHeaders() }),
+      fetch("/api/settings/ai_model_3", { headers: AuthService.getAuthHeaders() }),
+      fetch("/api/settings/ai_multi_model_enabled", { headers: AuthService.getAuthHeaders() }),
+      fetch("/api/settings/ai_multi_model_strategy", { headers: AuthService.getAuthHeaders() })
     ]);
 
     // Process responses
@@ -626,24 +729,63 @@ async function loadAISettings() {
       aiSettings.value.apiKey = apiKey.value;
     }
 
+    // Legacy single model support
     if (settings[2].ok) {
       const model = await settings[2].json();
       aiSettings.value.model = model.value;
-      
-      // Ensure current model appears in dropdown even if models list isn't loaded yet
-      if (model.value && !availableModels.value.find(m => m.id === model.value)) {
-        availableModels.value.push({
-          id: model.value,
-          name: `${model.value} (current)`,
-          owned_by: 'unknown'
-        });
-      }
     }
 
     if (settings[3].ok) {
       const enabled = await settings[3].json();
       aiSettings.value.enabled = enabled.value === 'true';
     }
+
+    // New multi-model settings
+    if (settings[4].ok) {
+      const model1 = await settings[4].json();
+      aiSettings.value.model1 = model1.value || aiSettings.value.model;
+    } else {
+      // Fallback to legacy model
+      aiSettings.value.model1 = aiSettings.value.model;
+    }
+
+    if (settings[5].ok) {
+      const model2 = await settings[5].json();
+      aiSettings.value.model2 = model2.value;
+    }
+
+    if (settings[6].ok) {
+      const model3 = await settings[6].json();
+      aiSettings.value.model3 = model3.value;
+    }
+
+    if (settings[7].ok) {
+      const multiEnabled = await settings[7].json();
+      aiSettings.value.multiModelEnabled = multiEnabled.value === 'true';
+    }
+
+    if (settings[8].ok) {
+      const strategy = await settings[8].json();
+      aiSettings.value.multiModelStrategy = strategy.value || 'weighted_vote';
+    }
+
+    // Ensure current models appear in dropdown even if models list isn't loaded yet
+    const currentModels = [
+      aiSettings.value.model1,
+      aiSettings.value.model2,
+      aiSettings.value.model3
+    ].filter(m => m && m.trim());
+    
+    currentModels.forEach(modelValue => {
+      if (!availableModels.value.find(m => m.id === modelValue)) {
+        availableModels.value.push({
+          id: modelValue,
+          name: `${modelValue} (current)`,
+          owned_by: 'unknown'
+        });
+      }
+    });
+    
   } catch (error) {
     console.error('Error loading AI settings:', error);
     updateMessageAI.value = 'Error loading AI settings';
@@ -694,7 +836,12 @@ async function saveAISettings() {
     const settingsToSave = [
       { key: 'ai_provider_base_url', value: aiSettings.value.baseUrl },
       { key: 'ai_provider_api_key', value: aiSettings.value.apiKey },
-      { key: 'ai_model', value: aiSettings.value.model },
+      { key: 'ai_model', value: aiSettings.value.model1 || aiSettings.value.model }, // Legacy support
+      { key: 'ai_model_1', value: aiSettings.value.model1 },
+      { key: 'ai_model_2', value: aiSettings.value.model2 || '' },
+      { key: 'ai_model_3', value: aiSettings.value.model3 || '' },
+      { key: 'ai_multi_model_enabled', value: aiSettings.value.multiModelEnabled.toString() },
+      { key: 'ai_multi_model_strategy', value: aiSettings.value.multiModelStrategy },
       { key: 'ai_classification_enabled', value: aiSettings.value.enabled.toString() }
     ];
 
@@ -1495,6 +1642,79 @@ onMounted(async () => {
   font-size: 0.875rem;
   color: #b0b0b0;
   line-height: 1.4;
+}
+
+.text-gray-400 {
+  color: #9ca3af;
+}
+
+/* Multi-Model UI Styles */
+
+.models-config {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+}
+
+.model-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.model-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #e0e0e0;
+  margin-bottom: 0.25rem;
+}
+
+.model-selector {
+  width: 100%;
+}
+
+.model-selector select {
+  width: 100%;
+  padding: 0.75rem;
+  background: #1e1e1e;
+  border: 1px solid #555;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease;
+}
+
+.model-selector select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.model-selector select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.model-selector select option:disabled {
+  color: #666;
+  background: #1a1a1a;
+}
+
+.refresh-models-row {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 0.5rem;
+  border-top: 1px solid #444;
+}
+
+.refresh-models-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 @media (max-width: 640px) {
