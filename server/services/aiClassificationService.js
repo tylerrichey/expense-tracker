@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { logger } from "../logger.js";
 import { databaseService } from "../database.js";
+import fs from "fs";
+import path from "path";
 
 class AIClassificationService {
   constructor() {
@@ -8,6 +10,47 @@ class AIClassificationService {
     this.isConfigured = false;
     this.rateLimitDelay = 1000; // 1 second between requests
     this.lastRequestTime = 0;
+    this.logDirectory = path.join(process.cwd(), "logs", "ai-classification");
+    this.ensureLogDirectory();
+  }
+
+  ensureLogDirectory() {
+    try {
+      if (!fs.existsSync(this.logDirectory)) {
+        fs.mkdirSync(this.logDirectory, { recursive: true });
+      }
+    } catch (error) {
+      logger.log("error", "❌ Failed to create AI classification log directory:", {
+        error: error.message,
+      });
+    }
+  }
+
+  async logPromptAndResponse(expenseId, prompt, response, error = null) {
+    try {
+      const timestamp = new Date().toISOString();
+      const logEntry = {
+        timestamp,
+        expenseId,
+        prompt,
+        response: response ? {
+          content: response.choices?.[0]?.message?.content || null,
+          model: response.model,
+          usage: response.usage,
+        } : null,
+        error: error ? error.message : null,
+      };
+
+      const logFileName = `ai-classification-${new Date().toISOString().split('T')[0]}.jsonl`;
+      const logFilePath = path.join(this.logDirectory, logFileName);
+      
+      const logLine = JSON.stringify(logEntry) + '\n';
+      fs.appendFileSync(logFilePath, logLine, 'utf8');
+    } catch (logError) {
+      logger.log("error", "❌ Failed to write AI classification log:", {
+        error: logError.message,
+      });
+    }
   }
 
   async initialize() {
@@ -184,6 +227,9 @@ class AIClassificationService {
         max_tokens: 300,
       });
 
+      // Log prompt and response to file
+      await this.logPromptAndResponse(expense.id, prompt, response);
+
       // Log usage information
       if (response.usage) {
         this.lastTokenCount = response.usage.total_tokens; // Store for batch tracking
@@ -209,6 +255,9 @@ class AIClassificationService {
 
       return classification;
     } catch (error) {
+      // Log error with prompt to file
+      await this.logPromptAndResponse(expense.id, prompt, null, error);
+      
       logger.log("error", "❌ AI classification failed for expense", {
         expenseId: expense.id,
         error: error.message,
@@ -248,7 +297,7 @@ CLASSIFICATION RULES:
    - 11:30 AM - 2:30 PM = lunch
    - 5:00 PM - 9:00 PM = dinner
    - Grocery stores are almost always for dinner
-   - If a place is a bar, prioritze drinks unless amount is greater than $60
+   - If a place is a bar, prioritze drink unless amount is greater than $60
    - If a place is a bar, and the amount is greater than $60, it is probably for a meal
    - If a place is a bakery, or candy shop, etc, it is almost always for snacks
    - Snacks are probably always cheaper than drinks, which is cheaper than meals
@@ -287,7 +336,7 @@ CRITICAL: Only use the exact strings from the available lists above.`;
 
       // Clean up the response (remove any markdown formatting)
       const cleanContent = content.replace(/```json\n?|\n?```/g, "").trim();
-      
+
       // Check if cleaned content is empty
       if (!cleanContent) {
         logger.log("error", "❌ AI response empty after cleaning:", {
