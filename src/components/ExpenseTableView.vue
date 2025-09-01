@@ -35,6 +35,22 @@
           <span class="filter-separator">to</span>
           <input v-model="endDate" type="date" class="date-input" />
         </div>
+        <div class="classification-filter">
+          <select v-model="selectedCuisineType" class="filter-select">
+            <option value="">All Cuisine Types</option>
+            <option v-for="cuisine in uniqueCuisineTypes" :key="cuisine" :value="cuisine">
+              {{ cuisine }}
+            </option>
+          </select>
+        </div>
+        <div class="classification-filter">
+          <select v-model="selectedMealTime" class="filter-select">
+            <option value="">All Meal Times</option>
+            <option v-for="mealTime in uniqueMealTimes" :key="mealTime" :value="mealTime">
+              {{ mealTime }}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -229,12 +245,35 @@ const minAmount = ref(null);
 const maxAmount = ref(null);
 const startDate = ref("");
 const endDate = ref("");
+const selectedCuisineType = ref("");
+const selectedMealTime = ref("");
 
 const sortField = ref("timestamp");
 const sortDirection = ref("desc"); // 'asc' or 'desc'
 
 const currentPage = ref(1);
 const itemsPerPage = 50;
+
+// Computed properties for filter options
+const uniqueCuisineTypes = computed(() => {
+  const cuisineTypes = new Set();
+  props.expenses.forEach(expense => {
+    if (expense.cuisine_type) {
+      cuisineTypes.add(expense.cuisine_type);
+    }
+  });
+  return Array.from(cuisineTypes).sort();
+});
+
+const uniqueMealTimes = computed(() => {
+  const mealTimes = new Set();
+  props.expenses.forEach(expense => {
+    if (expense.meal_time) {
+      mealTimes.add(expense.meal_time);
+    }
+  });
+  return Array.from(mealTimes).sort();
+});
 
 // Computed properties
 const filteredExpenses = computed(() => {
@@ -275,6 +314,20 @@ const filteredExpenses = computed(() => {
       const expenseDate = new Date(expense.timestamp);
       return expenseDate <= end;
     });
+  }
+
+  // Cuisine type filter
+  if (selectedCuisineType.value) {
+    filtered = filtered.filter((expense) => 
+      expense.cuisine_type === selectedCuisineType.value
+    );
+  }
+
+  // Meal time filter
+  if (selectedMealTime.value) {
+    filtered = filtered.filter((expense) => 
+      expense.meal_time === selectedMealTime.value
+    );
   }
 
   // Sort
@@ -323,7 +376,7 @@ const paginatedExpenses = computed(() => {
 });
 
 // Watch for filter changes to reset page
-watch([searchQuery, minAmount, maxAmount, startDate, endDate], () => {
+watch([searchQuery, minAmount, maxAmount, startDate, endDate, selectedCuisineType, selectedMealTime], () => {
   currentPage.value = 1;
 });
 
@@ -471,6 +524,33 @@ function handleRatingUpdated() {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.classification-filter {
+  display: flex;
+  align-items: center;
+}
+
+.filter-select {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #e0e0e0;
+  font-size: 14px;
+  min-width: 160px;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.filter-select option {
+  background: #2a2a2a;
+  color: #e0e0e0;
 }
 
 .filter-separator {
@@ -723,6 +803,15 @@ function handleRatingUpdated() {
   .date-input {
     flex: 1;
     min-width: 80px;
+  }
+
+  .classification-filter {
+    width: 100%;
+  }
+
+  .filter-select {
+    width: 100%;
+    min-width: auto;
   }
 
   .expense-table {
