@@ -181,7 +181,7 @@ class AIClassificationService {
           },
         ],
         temperature: 0.1,
-        max_tokens: 150,
+        max_tokens: 300,
       });
 
       // Log usage information
@@ -276,8 +276,27 @@ CRITICAL: Only use the exact strings from the available lists above.`;
 
   parseClassificationResponse(content) {
     try {
+      // Check for empty or null response
+      if (!content || content.trim() === "") {
+        logger.log("error", "❌ AI returned empty response:", {
+          fullResponse: content,
+          responseLength: content ? content.length : 0,
+        });
+        return null;
+      }
+
       // Clean up the response (remove any markdown formatting)
       const cleanContent = content.replace(/```json\n?|\n?```/g, "").trim();
+      
+      // Check if cleaned content is empty
+      if (!cleanContent) {
+        logger.log("error", "❌ AI response empty after cleaning:", {
+          originalResponse: content,
+          cleanedResponse: cleanContent,
+        });
+        return null;
+      }
+
       const parsed = JSON.parse(cleanContent);
 
       // Validate required fields
@@ -297,7 +316,8 @@ CRITICAL: Only use the exact strings from the available lists above.`;
       };
     } catch (error) {
       logger.log("error", "❌ Failed to parse AI classification response:", {
-        content,
+        fullResponse: content,
+        responseLength: content ? content.length : 0,
         error: error.message,
       });
       return null;
