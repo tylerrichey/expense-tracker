@@ -203,27 +203,38 @@ class AIClassificationService {
       placeInfo += ` (Types: ${placeData.types.join(', ')})`
     }
 
-    return `Please classify this expense:
+    return `You are classifying a food/dining expense. Use contextual clues to make accurate classifications.
 
-Expense Details:
+EXPENSE DETAILS:
 - Amount: $${expense.amount}
 - Place: ${placeInfo}
 - Time: ${timeString} on ${dayOfWeek}
 
-Available Cuisine Types: ${settings.cuisine_types.join(', ')}
-Available Meal Times: ${settings.meal_times.join(', ')}
+CLASSIFICATION RULES:
+1. MEAL TIME: Consider both time and amount:
+   - High amounts ($30+) are rarely snacks, usually meals
+   - 11:30 AM - 2:30 PM = lunch
+   - 5:00 PM - 9:00 PM = dinner
+   - 7:00 AM - 11:00 AM = breakfast
+   - Other times = snack (unless amount suggests otherwise)
 
-Classify this expense and provide confidence scores (0.0 to 1.0).
+2. CUISINE TYPE: Base on restaurant name, location context, and place types
+
+STRICT CONSTRAINTS:
+- You MUST ONLY use these exact meal times: ${settings.meal_times.join(', ')}
+- You MUST ONLY use these exact cuisine types: ${settings.cuisine_types.join(', ')}
+- DO NOT create new categories or use variations
+- If uncertain about cuisine, use "Other"
 
 Respond with JSON in this exact format:
 {
-  "cuisine_type": "one of the available cuisine types",
-  "meal_time": "one of the available meal times", 
+  "cuisine_type": "exact_match_from_available_list",
+  "meal_time": "exact_match_from_available_list",
   "confidence_cuisine": 0.85,
   "confidence_meal": 0.90
 }
 
-Choose the most appropriate options from the available lists. Use "Other" for cuisine if none fit well.`
+CRITICAL: Only use the exact strings from the available lists above.`
   }
 
   parseClassificationResponse(content) {
