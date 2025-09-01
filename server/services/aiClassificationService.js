@@ -248,7 +248,8 @@ CLASSIFICATION RULES:
    - 11:30 AM - 2:30 PM = lunch
    - 5:00 PM - 9:00 PM = dinner
    - Grocery stores are almost always for dinner
-   - If a place is a bar, prioritze drinks unless amount suggests otherwise
+   - If a place is a bar, prioritze drinks unless amount is greater than $60
+   - If a place is a bar, and the amount is greater than $60, it is probably for a meal
    - If a place is a bakery, or candy shop, etc, it is almost always for snacks
    - Snacks are probably always cheaper than drinks, which is cheaper than meals
 
