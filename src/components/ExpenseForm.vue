@@ -219,6 +219,7 @@ import { ref, onMounted, computed } from "vue";
 import { databaseService } from "../services/database";
 import { getCurrentLocation } from "../services/geolocation";
 import { Place } from "../types/expense";
+import { compressImage } from "../utils/imageCompression";
 
 const amount = ref<number>(0);
 const expenseDate = ref(new Date().toISOString().split("T")[0]);
@@ -412,7 +413,7 @@ async function handleImageUpload(event: Event) {
       return;
     }
 
-    // Validate file size (max 5MB)
+    // Validate file size (max 5MB for original file)
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
       showMessage(
@@ -424,8 +425,34 @@ async function handleImageUpload(event: Event) {
       return;
     }
 
-    receiptImage.value = file;
-    showMessage(`Receipt image attached: ${file.name}`, "success");
+    try {
+      // Attempt client-side compression
+      showMessage("Processing image...", "success");
+      
+      const compressionResult = await compressImage(file);
+      
+      if (compressionResult.method === 'client') {
+        const compressionInfo = compressionResult.compressionRatio > 0 
+          ? ` (${compressionResult.compressionRatio.toFixed(0)}% smaller)`
+          : '';
+        showMessage(
+          `Image compressed on device${compressionInfo}: ${compressionResult.file.name}`,
+          "success"
+        );
+      } else {
+        showMessage(
+          `Image will be processed on server: ${file.name}`,
+          "success"
+        );
+      }
+      
+      receiptImage.value = compressionResult.file;
+    } catch (error) {
+      console.error("Image compression failed:", error);
+      // Fallback to original file
+      receiptImage.value = file;
+      showMessage(`Receipt image attached: ${file.name}`, "success");
+    }
 
     // Keep the file input value to maintain the file reference
     // but ensure we don't trigger any unwanted behavior
