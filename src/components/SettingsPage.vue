@@ -5,100 +5,106 @@
     </div>
 
     <div class="settings-sections">
-      <!-- Timezone Setting -->
-      <div class="settings-section">
-        <h2>Timezone</h2>
-        <p>
-          Set your timezone to ensure budget periods roll over at the correct
-          local time.
-        </p>
-
-        <div class="timezone-selector">
-          <label for="timezone-select">
-            Current Timezone: {{ currentTimezone || "UTC" }}
-          </label>
-
-          <select
-            id="timezone-select"
-            v-model="selectedTimezone"
-            @change="updateTimezone"
-            :disabled="updatingTimezone"
-          >
-            <option v-for="tz in timezones" :key="tz.value" :value="tz.value">
-              {{ tz.label }}
-            </option>
-          </select>
-
-          <div v-if="updatingTimezone" class="update-message text-gray-500">
-            Updating timezone...
-          </div>
-
-          <div
-            v-if="updateMessageTimezone"
-            class="update-message"
-            :class="updateMessageClass"
-          >
-            {{ updateMessageTimezone }}
-          </div>
-        </div>
-
-        <div class="mt-4 p-3 bg-blue-50">
-          <p class="text-blue-800">
-            <strong>Note:</strong> Changing your timezone will affect when
-            budget periods start and end. Existing budget periods will continue
-            using their original timezone until they complete.
+      <!-- General Settings -->
+      <AccordionSection 
+        title="General Settings" 
+        description="Configure basic application settings like timezone and debug logging."
+        :default-expanded="false"
+      >
+        <!-- Timezone Setting -->
+        <div class="setting-subsection">
+          <h3>Timezone</h3>
+          <p class="subsection-description">
+            Set your timezone to ensure budget periods roll over at the correct
+            local time.
           </p>
-        </div>
-      </div>
 
-      <!-- Debug Logging Setting -->
-      <div class="settings-section">
-        <h2>Debug Logging</h2>
-        <p>
-          Enable detailed debug logging for troubleshooting. This will show
-          additional information in server logs about expense processing,
-          timezone calculations, and budget period operations.
-        </p>
+          <div class="timezone-selector">
+            <label for="timezone-select">
+              Current Timezone: {{ currentTimezone || "UTC" }}
+            </label>
 
-        <div class="debug-toggle">
-          <label class="toggle-container">
-            <input
-              type="checkbox"
-              v-model="debugLogging"
-              @change="updateDebugLogging"
-              :disabled="updatingDebug"
-            />
-            <span class="toggle-slider"></span>
-            <span class="toggle-label">
-              {{
-                debugLogging
-                  ? "Debug logging enabled"
-                  : "Debug logging disabled"
-              }}
-            </span>
-          </label>
+            <select
+              id="timezone-select"
+              v-model="selectedTimezone"
+              @change="updateTimezone"
+              :disabled="updatingTimezone"
+            >
+              <option v-for="tz in timezones" :key="tz.value" :value="tz.value">
+                {{ tz.label }}
+              </option>
+            </select>
 
-          <div v-if="updatingDebug" class="update-message text-gray-500">
-            Updating debug setting...
+            <div v-if="updatingTimezone" class="update-message text-gray-500">
+              Updating timezone...
+            </div>
+
+            <div
+              v-if="updateMessageTimezone"
+              class="update-message"
+              :class="updateMessageClass"
+            >
+              {{ updateMessageTimezone }}
+            </div>
           </div>
 
-          <div
-            v-if="updateMessageDebug"
-            class="update-message"
-            :class="updateMessageClass"
-          >
-            {{ updateMessageDebug }}
+          <div class="mt-4 p-3 bg-blue-50">
+            <p class="text-blue-800">
+              <strong>Note:</strong> Changing your timezone will affect when
+              budget periods start and end. Existing budget periods will continue
+              using their original timezone until they complete.
+            </p>
           </div>
         </div>
-      </div>
+
+        <!-- Debug Logging Setting -->
+        <div class="setting-subsection">
+          <h3>Debug Logging</h3>
+          <p class="subsection-description">
+            Enable detailed debug logging for troubleshooting. This will show
+            additional information in server logs about expense processing,
+            timezone calculations, and budget period operations.
+          </p>
+
+          <div class="debug-toggle">
+            <label class="toggle-container">
+              <input
+                type="checkbox"
+                v-model="debugLogging"
+                @change="updateDebugLogging"
+                :disabled="updatingDebug"
+              />
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">
+                {{
+                  debugLogging
+                    ? "Debug logging enabled"
+                    : "Debug logging disabled"
+                }}
+              </span>
+            </label>
+
+            <div v-if="updatingDebug" class="update-message text-gray-500">
+              Updating debug setting...
+            </div>
+
+            <div
+              v-if="updateMessageDebug"
+              class="update-message"
+              :class="updateMessageClass"
+            >
+              {{ updateMessageDebug }}
+            </div>
+          </div>
+        </div>
+      </AccordionSection>
 
       <!-- AI Classification Settings -->
-      <div class="settings-section">
-        <h2>AI Classification</h2>
-        <p>
-          Configure AI-powered classification of expenses by cuisine type and meal time.
-          Requires an OpenAI-compatible API key.
-        </p>
+      <AccordionSection 
+        title="AI Classification" 
+        description="Configure AI-powered classification of expenses by cuisine type and meal time. Requires an OpenAI-compatible API key."
+        :default-expanded="false"
+      >
 
         <div class="ai-settings">
           <!-- AI Provider Settings -->
@@ -381,15 +387,14 @@
             {{ updateMessageAI }}
           </div>
         </div>
-      </div>
+      </AccordionSection>
 
-      <!-- Recent Logs Viewer -->
-      <div class="settings-section">
-        <h2>Recent Logs</h2>
-        <p>
-          View the last 100 log entries from the application server. Useful for
-          troubleshooting issues and monitoring application activity.
-        </p>
+      <!-- System Logs -->
+      <AccordionSection 
+        title="System Logs" 
+        description="View the last 100 log entries from the application server. Useful for troubleshooting issues and monitoring application activity."
+        :default-expanded="false"
+      >
 
         <div class="logs-controls">
           <button
@@ -445,7 +450,7 @@
         <div v-else-if="!loadingLogs" class="no-logs-message">
           No logs loaded. Click "Refresh Logs" to load recent entries.
         </div>
-      </div>
+      </AccordionSection>
     </div>
   </div>
 </template>
@@ -453,6 +458,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { AuthService } from "../services/auth";
+import AccordionSection from "./AccordionSection.vue";
 
 const currentTimezone = ref("UTC");
 const selectedTimezone = ref("UTC");
@@ -1091,6 +1097,31 @@ onMounted(async () => {
   gap: 1.5rem;
 }
 
+/* Subsection styling within accordions */
+.setting-subsection {
+  margin-bottom: 2rem;
+}
+
+.setting-subsection:last-child {
+  margin-bottom: 0;
+}
+
+.setting-subsection h3 {
+  color: #e0e0e0;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #444;
+  padding-bottom: 0.5rem;
+}
+
+.subsection-description {
+  color: #b0b0b0;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+  font-size: 0.875rem;
+}
+
 .settings-section {
   background: #2a2a2a;
   padding: 1.5rem;
@@ -1229,40 +1260,40 @@ onMounted(async () => {
 }
 
 /* Note/Info Box Styling */
-.settings-section .mt-4 {
+.mt-4 {
   margin-top: 1rem;
 }
 
-.settings-section .p-3 {
+.p-3 {
   padding: 0.75rem;
 }
 
-.settings-section .bg-blue-50 {
+.bg-blue-50 {
   background: #1a2332;
   border: 1px solid #2563eb;
   border-radius: 6px;
 }
 
-.settings-section .bg-orange-50 {
+.bg-orange-50 {
   background: #2d1f1a;
   border: 1px solid #f59e0b;
   border-radius: 6px;
 }
 
-.settings-section .text-blue-800 {
+.text-blue-800 {
   color: #60a5fa;
 }
 
-.settings-section .text-blue-800 strong {
+.text-blue-800 strong {
   color: #93c5fd;
   font-weight: 600;
 }
 
-.settings-section .text-orange-800 {
+.text-orange-800 {
   color: #fbbf24;
 }
 
-.settings-section .text-orange-800 strong {
+.text-orange-800 strong {
   color: #fcd34d;
   font-weight: 600;
 }
