@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { logger } from "../logger.js";
 import { databaseService } from "../database.js";
+import { getCurrentTimezone } from "../timezone-utils.js";
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
@@ -343,14 +344,21 @@ CRITICAL: Only use the exact strings from the available lists above.`;
     // Get the prompt template from settings or use default
     const template = settings.ai_classification_prompt_template || this.getDefaultPromptTemplate();
 
-    // Build dynamic content
+    // Get the user's timezone setting
+    const timezone = getCurrentTimezone(databaseService.db);
+
+    // Build dynamic content using local timezone
     const date = new Date(expense.timestamp);
     const timeString = date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
+      timeZone: timezone,
     });
-    const dayOfWeek = date.toLocaleDateString("en-US", { weekday: "long" });
+    const dayOfWeek = date.toLocaleDateString("en-US", { 
+      weekday: "long",
+      timeZone: timezone,
+    });
 
     // Build place information
     let placeInfo = expense.place_name || "Unknown place";
