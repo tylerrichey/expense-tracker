@@ -439,6 +439,19 @@ app.get("/api/ai/models", authenticateRequest, async (req, res) => {
   }
 });
 
+// Get default prompt template endpoint
+app.get("/api/ai/default-prompt-template", authenticateRequest, async (req, res) => {
+  try {
+    const template = aiClassificationService.getDefaultPromptTemplate();
+    res.json({ template });
+  } catch (error) {
+    logger.log("error", "Error fetching default prompt template:", {
+      error: error.message,
+    });
+    res.status(500).json({ error: "Failed to fetch default prompt template" });
+  }
+});
+
 app.put("/api/expenses/:id/rating", authenticateRequest, async (req, res) => {
   try {
     const id = parseInt(req.params.id);

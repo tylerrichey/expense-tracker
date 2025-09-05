@@ -198,6 +198,7 @@ class AIClassificationService {
           allSettings.ai_multi_model_strategy || "weighted_vote",
         ai_classification_enabled:
           allSettings.ai_classification_enabled === "true",
+        ai_classification_prompt_template: allSettings.ai_classification_prompt_template || "",
         cuisine_types: JSON.parse(allSettings.cuisine_types || "[]"),
         meal_times: JSON.parse(allSettings.meal_times || "[]"),
       };
@@ -307,7 +308,42 @@ class AIClassificationService {
     }
   }
 
+  getDefaultPromptTemplate() {
+    return `You are classifying a food/dining expense. Use contextual clues to make accurate classifications.
+
+{{EXPENSE_DETAILS}}
+
+CLASSIFICATION RULES:
+1. MEAL TIME: Consider both time and amount:
+   - 7:00 AM - 11:00 AM = breakfast
+   - 11:30 AM - 2:30 PM = lunch
+   - 5:00 PM - 9:00 PM = dinner
+   - Grocery stores are almost always for dinner
+   - If a place is a bar, prioritze drink unless amount is greater than $60
+   - If a place is a bar, and the amount is greater than $60, it is probably for a meal
+   - If a place is a bakery, or candy shop, etc, it is almost always for snacks
+   - Snacks are probably always cheaper than drinks, which is cheaper than meals
+   - If a place is related to golf, assume it's drinks
+
+2. CUISINE TYPE: Base on restaurant name, location context, and place types
+
+STRICT CONSTRAINTS:
+- You MUST ONLY use these exact meal times: {{MEAL_TIMES}}
+- You MUST ONLY use these exact cuisine types: {{CUISINE_TYPES}}
+- DO NOT create new categories or use variations
+- If uncertain about cuisine, use "Other"
+- If uncertain about meal time, use "snack" or "drink" based on place type
+
+{{RESPONSE_FORMAT}}
+
+CRITICAL: Only use the exact strings from the available lists above.`;
+  }
+
   buildClassificationPrompt(expense, placeData, settings) {
+    // Get the prompt template from settings or use default
+    const template = settings.ai_classification_prompt_template || this.getDefaultPromptTemplate();
+
+    // Build dynamic content
     const date = new Date(expense.timestamp);
     const timeString = date.toLocaleTimeString("en-US", {
       hour: "2-digit",
@@ -325,45 +361,25 @@ class AIClassificationService {
       placeInfo += ` (Types: ${placeData.types.join(", ")})`;
     }
 
-    return `You are classifying a food/dining expense. Use contextual clues to make accurate classifications.
-
-EXPENSE DETAILS:
+    const expenseDetails = `EXPENSE DETAILS:
 - Amount: $${expense.amount}
 - Place: ${placeInfo}
-- Time: ${timeString} on ${dayOfWeek}
+- Time: ${timeString} on ${dayOfWeek}`;
 
-CLASSIFICATION RULES:
-1. MEAL TIME: Consider both time and amount:
-   - 7:00 AM - 11:00 AM = breakfast
-   - 11:30 AM - 2:30 PM = lunch
-   - 5:00 PM - 9:00 PM = dinner
-   - Grocery stores are almost always for dinner
-   - If a place is a bar, prioritze drink unless amount is greater than $60
-   - If a place is a bar, and the amount is greater than $60, it is probably for a meal
-   - If a place is a bakery, or candy shop, etc, it is almost always for snacks
-   - Snacks are probably always cheaper than drinks, which is cheaper than meals
-   - If a place is related to golf, assume it's drinks
-
-2. CUISINE TYPE: Base on restaurant name, location context, and place types
-
-STRICT CONSTRAINTS:
-- You MUST ONLY use these exact meal times: ${settings.meal_times.join(", ")}
-- You MUST ONLY use these exact cuisine types: ${settings.cuisine_types.join(
-      ", "
-    )}
-- DO NOT create new categories or use variations
-- If uncertain about cuisine, use "Other"
-- If uncertain about meal time, use "snack" or "drink" based on place type
-
-Respond with JSON in this exact format:
+    const responseFormat = `Respond with JSON in this exact format:
 {
   "cuisine_type": "exact_match_from_available_list",
   "meal_time": "exact_match_from_available_list",
   "confidence_cuisine": 0.85,
   "confidence_meal": 0.90
-}
+}`;
 
-CRITICAL: Only use the exact strings from the available lists above.`;
+    // Replace placeholders in template
+    return template
+      .replace(/{{EXPENSE_DETAILS}}/g, expenseDetails)
+      .replace(/{{MEAL_TIMES}}/g, settings.meal_times.join(", "))
+      .replace(/{{CUISINE_TYPES}}/g, settings.cuisine_types.join(", "))
+      .replace(/{{RESPONSE_FORMAT}}/g, responseFormat);
   }
 
   parseClassificationResponse(content) {

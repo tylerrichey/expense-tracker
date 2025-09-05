@@ -6,8 +6,8 @@
 
     <div class="settings-sections">
       <!-- General Settings -->
-      <AccordionSection 
-        title="General Settings" 
+      <AccordionSection
+        title="General Settings"
         description="Configure basic application settings like timezone and debug logging."
         :default-expanded="false"
       >
@@ -51,8 +51,8 @@
           <div class="mt-4 p-3 bg-blue-50">
             <p class="text-blue-800">
               <strong>Note:</strong> Changing your timezone will affect when
-              budget periods start and end. Existing budget periods will continue
-              using their original timezone until they complete.
+              budget periods start and end. Existing budget periods will
+              continue using their original timezone until they complete.
             </p>
           </div>
         </div>
@@ -100,302 +100,498 @@
       </AccordionSection>
 
       <!-- AI Classification Settings -->
-      <AccordionSection 
-        title="AI Classification" 
+      <AccordionSection
+        title="AI Classification"
         description="Configure AI-powered classification of expenses by cuisine type and meal time. Requires an OpenAI-compatible API key."
         :default-expanded="false"
       >
-
         <div class="ai-settings">
-          <!-- AI Provider Settings -->
-          <div class="setting-group">
-            <h3>AI Provider Configuration</h3>
-            
-            <div class="form-group">
-              <label for="ai-provider">Provider</label>
-              <select
-                id="ai-provider"
-                v-model="aiSettings.provider"
-                @change="updateAIProviderURL"
-                :disabled="updatingAI"
-              >
-                <option value="openai">OpenAI</option>
-                <option value="openrouter">OpenRouter</option>
-                <option value="custom">Custom URL</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="ai-base-url">Base URL</label>
-              <input
-                id="ai-base-url"
-                type="url"
-                v-model="aiSettings.baseUrl"
-                placeholder="https://api.openai.com/v1"
-                :disabled="updatingAI"
-              />
-            </div>
-
-            <div class="form-group">
-              <label for="ai-api-key">API Key</label>
-              <input
-                id="ai-api-key"
-                type="password"
-                v-model="aiSettings.apiKey"
-                placeholder="Enter your API key"
-                :disabled="updatingAI"
-              />
-            </div>
-
-            <!-- Multi-Model Toggle -->
-            <div class="ai-toggle">
-              <label class="toggle-container">
-                <input
-                  type="checkbox"
-                  v-model="aiSettings.multiModelEnabled"
-                  :disabled="updatingAI"
-                />
-                <span class="toggle-slider"></span>
-                <span class="toggle-label">
-                  {{ aiSettings.multiModelEnabled ? "Multi-Model Processing Enabled" : "Single Model Processing" }}
-                </span>
-              </label>
-            </div>
-
-            <div class="form-group">
-              <p class="text-sm text-gray-400">
-                When enabled, up to 3 AI models will process each expense in parallel and combine their results for more accurate classifications.
-              </p>
-            </div>
-
-            <!-- Model Selection -->
-            <div class="form-group">
-              <label>AI Models</label>
-              <div class="models-config">
-                <!-- Model 1 (Primary) -->
-                <div class="model-row">
-                  <label class="model-label">Primary Model</label>
-                  <div class="model-selector">
-                    <select
-                      v-model="aiSettings.model1"
-                      :disabled="updatingAI"
-                    >
-                      <option value="">Select a model...</option>
-                      <option 
-                        v-for="model in availableModels" 
-                        :key="model.id" 
-                        :value="model.id"
-                      >
-                        {{ model.name }}
-                      </option>
-                    </select>
-                  </div>
-                </div>
-
-                <!-- Model 2 (Secondary) - Only shown in multi-model mode -->
-                <div v-if="aiSettings.multiModelEnabled" class="model-row">
-                  <label class="model-label">Secondary Model (Optional)</label>
-                  <div class="model-selector">
-                    <select
-                      v-model="aiSettings.model2"
-                      :disabled="updatingAI"
-                    >
-                      <option value="">Select a model...</option>
-                      <option 
-                        v-for="model in availableModels" 
-                        :key="model.id" 
-                        :value="model.id"
-                        :disabled="model.id === aiSettings.model1 || model.id === aiSettings.model3"
-                      >
-                        {{ model.name }}
-                      </option>
-                    </select>
-                  </div>
-                </div>
-
-                <!-- Model 3 (Tertiary) - Only shown in multi-model mode -->
-                <div v-if="aiSettings.multiModelEnabled" class="model-row">
-                  <label class="model-label">Tertiary Model (Optional)</label>
-                  <div class="model-selector">
-                    <select
-                      v-model="aiSettings.model3"
-                      :disabled="updatingAI"
-                    >
-                      <option value="">Select a model...</option>
-                      <option 
-                        v-for="model in availableModels" 
-                        :key="model.id" 
-                        :value="model.id"
-                        :disabled="model.id === aiSettings.model1 || model.id === aiSettings.model2"
-                      >
-                        {{ model.name }}
-                      </option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="refresh-models-row">
-                  <button
-                    @click="refreshModels"
-                    :disabled="loadingModels || !aiSettings.apiKey"
-                    class="btn btn-sm refresh-models-btn"
-                    title="Refresh available models"
-                  >
-                    {{ loadingModels ? 'Loading...' : '🔄 Refresh Models' }}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Multi-Model Strategy - Only shown in multi-model mode -->
-            <div v-if="aiSettings.multiModelEnabled" class="form-group">
-              <label for="ai-strategy">Result Combination Strategy</label>
-              <select
-                id="ai-strategy"
-                v-model="aiSettings.multiModelStrategy"
-                :disabled="updatingAI"
-              >
-                <option value="weighted_vote">Weighted Vote (Recommended)</option>
-                <option value="highest_confidence">Highest Confidence</option>
-              </select>
-              <p class="text-sm text-gray-400 mt-1">
-                <span v-if="aiSettings.multiModelStrategy === 'weighted_vote'">
-                  Combines results from all models, weighting votes by confidence scores.
-                </span>
-                <span v-else>
-                  Uses the result from the model with the highest combined confidence score.
-                </span>
-              </p>
-            </div>
-
-            <div class="ai-toggle">
-              <label class="toggle-container">
-                <input
-                  type="checkbox"
-                  v-model="aiSettings.enabled"
-                  :disabled="updatingAI"
-                />
-                <span class="toggle-slider"></span>
-                <span class="toggle-label">
-                  {{ aiSettings.enabled ? "AI Classification Enabled" : "AI Classification Disabled" }}
-                </span>
-              </label>
-            </div>
-
+          <!-- AI Settings Tabs -->
+          <div class="ai-tabs">
             <button
-              @click="saveAISettings"
-              :disabled="updatingAI || !aiSettings.apiKey"
-              class="btn btn-primary"
+              class="ai-tab"
+              :class="{ active: activeAITab === 'models' }"
+              @click="activeAITab = 'models'"
             >
-              {{ updatingAI ? "Saving..." : "Save AI Settings" }}
+              Models & Provider
+            </button>
+            <button
+              class="ai-tab"
+              :class="{ active: activeAITab === 'prompt' }"
+              @click="activeAITab = 'prompt'"
+            >
+              Prompt Template
+            </button>
+            <button
+              class="ai-tab"
+              :class="{ active: activeAITab === 'classification' }"
+              @click="activeAITab = 'classification'"
+            >
+              Classification Options
             </button>
           </div>
 
-          <!-- Classification Options -->
-          <div class="setting-group">
-            <h3>Classification Options</h3>
-            
-            <div class="classification-lists">
-              <div class="list-group">
-                <label>Cuisine Types</label>
-                <div class="tag-list">
-                  <span
-                    v-for="(cuisine, index) in classificationOptions.cuisineTypes"
-                    :key="index"
-                    class="tag"
-                  >
-                    {{ cuisine }}
-                    <button @click="removeCuisineType(index)" class="tag-remove">×</button>
-                  </span>
-                </div>
-                <div class="add-item">
+          <!-- Models & Provider Tab -->
+          <div v-show="activeAITab === 'models'" class="ai-tab-content">
+            <!-- AI Provider Settings -->
+            <div class="setting-group">
+              <h3>AI Provider Configuration</h3>
+
+              <div class="form-group">
+                <label for="ai-provider">Provider</label>
+                <select
+                  id="ai-provider"
+                  v-model="aiSettings.provider"
+                  @change="updateAIProviderURL"
+                  :disabled="updatingAI"
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="custom">Custom URL</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="ai-base-url">Base URL</label>
+                <input
+                  id="ai-base-url"
+                  type="url"
+                  v-model="aiSettings.baseUrl"
+                  placeholder="https://api.openai.com/v1"
+                  :disabled="updatingAI"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="ai-api-key">API Key</label>
+                <input
+                  id="ai-api-key"
+                  type="password"
+                  v-model="aiSettings.apiKey"
+                  placeholder="Enter your API key"
+                  :disabled="updatingAI"
+                />
+              </div>
+
+              <!-- Multi-Model Toggle -->
+              <div class="ai-toggle">
+                <label class="toggle-container">
                   <input
-                    v-model="newCuisineType"
-                    @keyup.enter="addCuisineType"
-                    placeholder="Add cuisine type"
-                    type="text"
+                    type="checkbox"
+                    v-model="aiSettings.multiModelEnabled"
+                    :disabled="updatingAI"
                   />
-                  <button @click="addCuisineType" class="btn btn-sm">Add</button>
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">
+                    {{
+                      aiSettings.multiModelEnabled
+                        ? "Multi-Model Processing Enabled"
+                        : "Single Model Processing"
+                    }}
+                  </span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <p class="text-sm text-gray-400">
+                  When enabled, up to 3 AI models will process each expense in
+                  parallel and combine their results for more accurate
+                  classifications.
+                </p>
+              </div>
+
+              <!-- Model Selection -->
+              <div class="form-group">
+                <label>AI Models</label>
+                <div class="models-config">
+                  <!-- Model 1 (Primary) -->
+                  <div class="model-row">
+                    <label class="model-label">Primary Model</label>
+                    <div class="model-selector">
+                      <select
+                        v-model="aiSettings.model1"
+                        :disabled="updatingAI"
+                      >
+                        <option value="">Select a model...</option>
+                        <option
+                          v-for="model in availableModels"
+                          :key="model.id"
+                          :value="model.id"
+                        >
+                          {{ model.name }}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Model 2 (Secondary) - Only shown in multi-model mode -->
+                  <div v-if="aiSettings.multiModelEnabled" class="model-row">
+                    <label class="model-label"
+                      >Secondary Model (Optional)</label
+                    >
+                    <div class="model-selector">
+                      <select
+                        v-model="aiSettings.model2"
+                        :disabled="updatingAI"
+                      >
+                        <option value="">Select a model...</option>
+                        <option
+                          v-for="model in availableModels"
+                          :key="model.id"
+                          :value="model.id"
+                          :disabled="
+                            model.id === aiSettings.model1 ||
+                            model.id === aiSettings.model3
+                          "
+                        >
+                          {{ model.name }}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Model 3 (Tertiary) - Only shown in multi-model mode -->
+                  <div v-if="aiSettings.multiModelEnabled" class="model-row">
+                    <label class="model-label">Tertiary Model (Optional)</label>
+                    <div class="model-selector">
+                      <select
+                        v-model="aiSettings.model3"
+                        :disabled="updatingAI"
+                      >
+                        <option value="">Select a model...</option>
+                        <option
+                          v-for="model in availableModels"
+                          :key="model.id"
+                          :value="model.id"
+                          :disabled="
+                            model.id === aiSettings.model1 ||
+                            model.id === aiSettings.model2
+                          "
+                        >
+                          {{ model.name }}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="refresh-models-row">
+                    <button
+                      @click="refreshModels"
+                      :disabled="loadingModels || !aiSettings.apiKey"
+                      class="btn btn-sm refresh-models-btn"
+                      title="Refresh available models"
+                    >
+                      {{ loadingModels ? "Loading..." : "🔄 Refresh Models" }}
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div class="list-group">
-                <label>Meal Times</label>
-                <div class="tag-list">
+              <!-- Multi-Model Strategy - Only shown in multi-model mode -->
+              <div v-if="aiSettings.multiModelEnabled" class="form-group">
+                <label for="ai-strategy">Result Combination Strategy</label>
+                <select
+                  id="ai-strategy"
+                  v-model="aiSettings.multiModelStrategy"
+                  :disabled="updatingAI"
+                >
+                  <option value="weighted_vote">
+                    Weighted Vote (Recommended)
+                  </option>
+                  <option value="highest_confidence">Highest Confidence</option>
+                </select>
+                <p class="text-sm text-gray-400 mt-1">
                   <span
-                    v-for="(mealTime, index) in classificationOptions.mealTimes"
-                    :key="index"
-                    class="tag"
+                    v-if="aiSettings.multiModelStrategy === 'weighted_vote'"
                   >
-                    {{ mealTime }}
-                    <button @click="removeMealTime(index)" class="tag-remove">×</button>
+                    Combines results from all models, weighting votes by
+                    confidence scores.
                   </span>
-                </div>
-                <div class="add-item">
-                  <input
-                    v-model="newMealTime"
-                    @keyup.enter="addMealTime"
-                    placeholder="Add meal time"
-                    type="text"
-                  />
-                  <button @click="addMealTime" class="btn btn-sm">Add</button>
-                </div>
+                  <span v-else>
+                    Uses the result from the model with the highest combined
+                    confidence score.
+                  </span>
+                </p>
               </div>
-            </div>
 
-            <button
-              @click="saveClassificationOptions"
-              :disabled="updatingClassifications"
-              class="btn btn-primary"
-            >
-              {{ updatingClassifications ? "Saving..." : "Save Classification Options" }}
-            </button>
-          </div>
+              <div class="ai-toggle">
+                <label class="toggle-container">
+                  <input
+                    type="checkbox"
+                    v-model="aiSettings.enabled"
+                    :disabled="updatingAI"
+                  />
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-label">
+                    {{
+                      aiSettings.enabled
+                        ? "AI Classification Enabled"
+                        : "AI Classification Disabled"
+                    }}
+                  </span>
+                </label>
+              </div>
 
-          <!-- Bulk Processing -->
-          <div class="setting-group" v-if="aiSettings.enabled && aiSettings.apiKey">
-            <h3>Process Existing Expenses</h3>
-            <p class="text-sm">
-              Apply AI classification to existing expenses that haven't been classified yet.
-            </p>
-            
-            <div class="bulk-process-controls">
               <button
-                @click="processUnclassifiedExpenses"
-                :disabled="processingExpenses"
-                class="btn btn-secondary"
+                @click="saveAISettings"
+                :disabled="updatingAI || !aiSettings.apiKey"
+                class="btn btn-primary"
               >
-                {{ processingExpenses ? "Processing..." : "Process Unclassified Expenses" }}
+                {{
+                  updatingAI ? "Saving..." : "Save Provider & Model Settings"
+                }}
               </button>
-              
-              <div v-if="processingProgress.total > 0" class="progress-info">
-                <div class="progress-bar">
-                  <div 
-                    class="progress-fill"
-                    :style="{ width: (processingProgress.current / processingProgress.total * 100) + '%' }"
-                  ></div>
-                </div>
-                <div class="progress-text">
-                  {{ processingProgress.current }} / {{ processingProgress.total }} 
-                  ({{ processingProgress.success }} success, {{ processingProgress.failed }} failed)
+            </div>
+          </div>
+
+          <!-- Prompt Template Tab -->
+          <div v-show="activeAITab === 'prompt'" class="ai-tab-content">
+            <!-- Prompt Template Configuration -->
+            <div class="setting-group">
+              <h3>Prompt Template Configuration</h3>
+              <p class="text-sm">
+                Customize the prompt template sent to AI models for expense
+                classification. Use placeholders like {{ EXPENSE_DETAILS }},
+                {{ CUISINE_TYPES }}, {{ MEAL_TIMES }}, and {{ RESPONSE_FORMAT }}
+                for dynamic content.
+              </p>
+
+              <div class="form-group">
+                <label for="prompt-template">Prompt Template</label>
+                <textarea
+                  id="prompt-template"
+                  v-model="aiSettings.promptTemplate"
+                  :disabled="updatingAI"
+                  rows="15"
+                  placeholder="Enter custom prompt template or leave empty to use default..."
+                  class="prompt-template-textarea"
+                ></textarea>
+              </div>
+
+              <div class="prompt-template-controls">
+                <button
+                  @click="resetPromptTemplate"
+                  :disabled="updatingAI"
+                  class="btn btn-secondary"
+                  type="button"
+                >
+                  Reset to Default
+                </button>
+
+                <button
+                  @click="previewPromptTemplate"
+                  :disabled="updatingAI || !aiSettings.promptTemplate"
+                  class="btn btn-secondary"
+                  type="button"
+                >
+                  Preview with Sample Data
+                </button>
+
+                <button
+                  @click="savePromptTemplate"
+                  :disabled="updatingAI"
+                  class="btn btn-primary"
+                  type="button"
+                >
+                  {{ updatingAI ? "Saving..." : "Save Prompt Template" }}
+                </button>
+              </div>
+
+              <div class="placeholder-help">
+                <p class="text-sm"><strong>Available Placeholders:</strong></p>
+                <ul class="text-sm placeholder-list">
+                  <li>
+                    <!-- prettier-ignore -->
+                    <code v-pre>{{EXPENSE_DETAILS}}</code> - Dynamic expense
+                    information (amount, place, time)
+                  </li>
+                  <li>
+                    <!-- prettier-ignore -->
+                    <code v-pre>{{CUISINE_TYPES}}</code> - List of available
+                    cuisine types
+                  </li>
+                  <li>
+                    <!-- prettier-ignore -->
+                    <code v-pre>{{MEAL_TIMES}}</code> - List of available meal
+                    times
+                  </li>
+                  <li>
+                    <!-- prettier-ignore -->
+                    <code v-pre>{{RESPONSE_FORMAT}}</code> - Required JSON
+                    response format
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Preview Modal -->
+              <div v-if="showPromptPreview" class="prompt-preview-modal">
+                <div
+                  class="preview-overlay"
+                  @click="showPromptPreview = false"
+                ></div>
+                <div class="preview-content">
+                  <div class="preview-header">
+                    <h4>Prompt Preview with Sample Data</h4>
+                    <button
+                      @click="showPromptPreview = false"
+                      class="close-btn"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  <div class="preview-body">
+                    <pre>{{ previewText }}</pre>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div v-if="updateMessageAI" class="update-message" :class="updateMessageClass">
+          <!-- Classification Options Tab -->
+          <div v-show="activeAITab === 'classification'" class="ai-tab-content">
+            <!-- Classification Options -->
+            <div class="setting-group">
+              <h3>Classification Options</h3>
+
+              <div class="classification-lists">
+                <div class="list-group">
+                  <label>Cuisine Types</label>
+                  <div class="tag-list">
+                    <span
+                      v-for="(
+                        cuisine, index
+                      ) in classificationOptions.cuisineTypes"
+                      :key="index"
+                      class="tag"
+                    >
+                      {{ cuisine }}
+                      <button
+                        @click="removeCuisineType(index)"
+                        class="tag-remove"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  </div>
+                  <div class="add-item">
+                    <input
+                      v-model="newCuisineType"
+                      @keyup.enter="addCuisineType"
+                      placeholder="Add cuisine type"
+                      type="text"
+                    />
+                    <button @click="addCuisineType" class="btn btn-sm">
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                <div class="list-group">
+                  <label>Meal Times</label>
+                  <div class="tag-list">
+                    <span
+                      v-for="(
+                        mealTime, index
+                      ) in classificationOptions.mealTimes"
+                      :key="index"
+                      class="tag"
+                    >
+                      {{ mealTime }}
+                      <button @click="removeMealTime(index)" class="tag-remove">
+                        ×
+                      </button>
+                    </span>
+                  </div>
+                  <div class="add-item">
+                    <input
+                      v-model="newMealTime"
+                      @keyup.enter="addMealTime"
+                      placeholder="Add meal time"
+                      type="text"
+                    />
+                    <button @click="addMealTime" class="btn btn-sm">Add</button>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                @click="saveClassificationOptions"
+                :disabled="updatingClassifications"
+                class="btn btn-primary"
+              >
+                {{
+                  updatingClassifications
+                    ? "Saving..."
+                    : "Save Classification Options"
+                }}
+              </button>
+            </div>
+
+            <!-- Bulk Processing -->
+            <div
+              class="setting-group"
+              v-if="aiSettings.enabled && aiSettings.apiKey"
+            >
+              <h3>Process Existing Expenses</h3>
+              <p class="text-sm">
+                Apply AI classification to existing expenses that haven't been
+                classified yet.
+              </p>
+
+              <div class="bulk-process-controls">
+                <button
+                  @click="processUnclassifiedExpenses"
+                  :disabled="processingExpenses"
+                  class="btn btn-secondary"
+                >
+                  {{
+                    processingExpenses
+                      ? "Processing..."
+                      : "Process Unclassified Expenses"
+                  }}
+                </button>
+
+                <div v-if="processingProgress.total > 0" class="progress-info">
+                  <div class="progress-bar">
+                    <div
+                      class="progress-fill"
+                      :style="{
+                        width:
+                          (processingProgress.current /
+                            processingProgress.total) *
+                            100 +
+                          '%',
+                      }"
+                    ></div>
+                  </div>
+                  <div class="progress-text">
+                    {{ processingProgress.current }} /
+                    {{ processingProgress.total }} ({{
+                      processingProgress.success
+                    }}
+                    success, {{ processingProgress.failed }} failed)
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="updateMessageAI"
+            class="update-message"
+            :class="updateMessageClass"
+          >
             {{ updateMessageAI }}
           </div>
         </div>
       </AccordionSection>
 
       <!-- System Logs -->
-      <AccordionSection 
-        title="System Logs" 
+      <AccordionSection
+        title="System Logs"
         description="View the last 100 log entries from the application server. Useful for troubleshooting issues and monitoring application activity."
         :default-expanded="false"
       >
-
         <div class="logs-controls">
           <button
             @click="loadRecentLogs"
@@ -474,42 +670,50 @@ const logError = ref("");
 
 // AI Classification settings
 const aiSettings = ref({
-  provider: 'openai',
-  baseUrl: 'https://api.openai.com/v1',
-  apiKey: '',
-  model: 'gpt-3.5-turbo', // Legacy single model
-  model1: 'gpt-3.5-turbo',
-  model2: '',
-  model3: '',
+  provider: "openai",
+  baseUrl: "https://api.openai.com/v1",
+  apiKey: "",
+  model: "gpt-3.5-turbo", // Legacy single model
+  model1: "gpt-3.5-turbo",
+  model2: "",
+  model3: "",
   multiModelEnabled: false,
-  multiModelStrategy: 'weighted_vote',
-  enabled: false
+  multiModelStrategy: "weighted_vote",
+  enabled: false,
+  promptTemplate: "",
 });
 
 const classificationOptions = ref({
   cuisineTypes: [],
-  mealTimes: []
+  mealTimes: [],
 });
 
-const newCuisineType = ref('');
-const newMealTime = ref('');
+const newCuisineType = ref("");
+const newMealTime = ref("");
 const updatingAI = ref(false);
 const updatingClassifications = ref(false);
-const updateMessageAI = ref('');
+const updateMessageAI = ref("");
 const processingExpenses = ref(false);
 const processingProgress = ref({
   current: 0,
   total: 0,
   success: 0,
-  failed: 0
+  failed: 0,
 });
 
 const availableModels = ref([]);
 const loadingModels = ref(false);
+const showPromptPreview = ref(false);
+const previewText = ref("");
+const activeAITab = ref("models");
 
 const updateMessageClass = computed(() => {
   const updateMessages =
-    updateMessageDebug.value + " " + updateMessageTimezone.value + " " + updateMessageAI.value;
+    updateMessageDebug.value +
+    " " +
+    updateMessageTimezone.value +
+    " " +
+    updateMessageAI.value;
   if (updateMessages.includes("success")) {
     return "text-green-600";
   } else if (
@@ -682,7 +886,9 @@ async function loadRecentLogs() {
     }
 
     const data = await response.json();
-    logs.value = (data.logs || []).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    logs.value = (data.logs || []).sort(
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+    );
   } catch (error) {
     console.error("Error loading recent logs:", error);
     logError.value = `Error loading logs: ${error.message}`;
@@ -705,15 +911,36 @@ function formatTimestamp(timestamp) {
 async function loadAISettings() {
   try {
     const settings = await Promise.all([
-      fetch("/api/settings/ai_provider_base_url", { headers: AuthService.getAuthHeaders() }),
-      fetch("/api/settings/ai_provider_api_key", { headers: AuthService.getAuthHeaders() }),
-      fetch("/api/settings/ai_model", { headers: AuthService.getAuthHeaders() }),
-      fetch("/api/settings/ai_classification_enabled", { headers: AuthService.getAuthHeaders() }),
-      fetch("/api/settings/ai_model_1", { headers: AuthService.getAuthHeaders() }),
-      fetch("/api/settings/ai_model_2", { headers: AuthService.getAuthHeaders() }),
-      fetch("/api/settings/ai_model_3", { headers: AuthService.getAuthHeaders() }),
-      fetch("/api/settings/ai_multi_model_enabled", { headers: AuthService.getAuthHeaders() }),
-      fetch("/api/settings/ai_multi_model_strategy", { headers: AuthService.getAuthHeaders() })
+      fetch("/api/settings/ai_provider_base_url", {
+        headers: AuthService.getAuthHeaders(),
+      }),
+      fetch("/api/settings/ai_provider_api_key", {
+        headers: AuthService.getAuthHeaders(),
+      }),
+      fetch("/api/settings/ai_model", {
+        headers: AuthService.getAuthHeaders(),
+      }),
+      fetch("/api/settings/ai_classification_enabled", {
+        headers: AuthService.getAuthHeaders(),
+      }),
+      fetch("/api/settings/ai_model_1", {
+        headers: AuthService.getAuthHeaders(),
+      }),
+      fetch("/api/settings/ai_model_2", {
+        headers: AuthService.getAuthHeaders(),
+      }),
+      fetch("/api/settings/ai_model_3", {
+        headers: AuthService.getAuthHeaders(),
+      }),
+      fetch("/api/settings/ai_multi_model_enabled", {
+        headers: AuthService.getAuthHeaders(),
+      }),
+      fetch("/api/settings/ai_multi_model_strategy", {
+        headers: AuthService.getAuthHeaders(),
+      }),
+      fetch("/api/settings/ai_classification_prompt_template", {
+        headers: AuthService.getAuthHeaders(),
+      }),
     ]);
 
     // Process responses
@@ -721,12 +948,12 @@ async function loadAISettings() {
       const baseUrl = await settings[0].json();
       aiSettings.value.baseUrl = baseUrl.value;
       // Determine provider from base URL
-      if (baseUrl.value.includes('openrouter')) {
-        aiSettings.value.provider = 'openrouter';
-      } else if (baseUrl.value === 'https://api.openai.com/v1') {
-        aiSettings.value.provider = 'openai';
+      if (baseUrl.value.includes("openrouter")) {
+        aiSettings.value.provider = "openrouter";
+      } else if (baseUrl.value === "https://api.openai.com/v1") {
+        aiSettings.value.provider = "openai";
       } else {
-        aiSettings.value.provider = 'custom';
+        aiSettings.value.provider = "custom";
       }
     }
 
@@ -743,7 +970,7 @@ async function loadAISettings() {
 
     if (settings[3].ok) {
       const enabled = await settings[3].json();
-      aiSettings.value.enabled = enabled.value === 'true';
+      aiSettings.value.enabled = enabled.value === "true";
     }
 
     // New multi-model settings
@@ -767,68 +994,95 @@ async function loadAISettings() {
 
     if (settings[7].ok) {
       const multiEnabled = await settings[7].json();
-      aiSettings.value.multiModelEnabled = multiEnabled.value === 'true';
+      aiSettings.value.multiModelEnabled = multiEnabled.value === "true";
     }
 
     if (settings[8].ok) {
       const strategy = await settings[8].json();
-      aiSettings.value.multiModelStrategy = strategy.value || 'weighted_vote';
+      aiSettings.value.multiModelStrategy = strategy.value || "weighted_vote";
+    }
+
+    if (settings[9].ok) {
+      const template = await settings[9].json();
+      aiSettings.value.promptTemplate = template.value || "";
+    }
+
+    // If no custom template exists, load the default template
+    if (!aiSettings.value.promptTemplate) {
+      try {
+        const defaultResponse = await fetch("/api/ai/default-prompt-template", {
+          headers: AuthService.getAuthHeaders(),
+        });
+        if (defaultResponse.ok) {
+          const defaultData = await defaultResponse.json();
+          aiSettings.value.promptTemplate = defaultData.template;
+        }
+      } catch (error) {
+        console.error("Error loading default template:", error);
+      }
     }
 
     // Ensure current models appear in dropdown even if models list isn't loaded yet
     const currentModels = [
       aiSettings.value.model1,
       aiSettings.value.model2,
-      aiSettings.value.model3
-    ].filter(m => m && m.trim());
-    
-    currentModels.forEach(modelValue => {
-      if (!availableModels.value.find(m => m.id === modelValue)) {
+      aiSettings.value.model3,
+    ].filter((m) => m && m.trim());
+
+    currentModels.forEach((modelValue) => {
+      if (!availableModels.value.find((m) => m.id === modelValue)) {
         availableModels.value.push({
           id: modelValue,
           name: `${modelValue} (current)`,
-          owned_by: 'unknown'
+          owned_by: "unknown",
         });
       }
     });
-    
   } catch (error) {
-    console.error('Error loading AI settings:', error);
-    updateMessageAI.value = 'Error loading AI settings';
+    console.error("Error loading AI settings:", error);
+    updateMessageAI.value = "Error loading AI settings";
   }
 }
 
 async function loadClassificationOptions() {
   try {
     const [cuisineResponse, mealResponse] = await Promise.all([
-      fetch("/api/settings/cuisine_types", { headers: AuthService.getAuthHeaders() }),
-      fetch("/api/settings/meal_times", { headers: AuthService.getAuthHeaders() })
+      fetch("/api/settings/cuisine_types", {
+        headers: AuthService.getAuthHeaders(),
+      }),
+      fetch("/api/settings/meal_times", {
+        headers: AuthService.getAuthHeaders(),
+      }),
     ]);
 
     if (cuisineResponse.ok) {
       const cuisineData = await cuisineResponse.json();
-      classificationOptions.value.cuisineTypes = JSON.parse(cuisineData.value || '[]');
+      classificationOptions.value.cuisineTypes = JSON.parse(
+        cuisineData.value || "[]"
+      );
     }
 
     if (mealResponse.ok) {
       const mealData = await mealResponse.json();
-      classificationOptions.value.mealTimes = JSON.parse(mealData.value || '[]');
+      classificationOptions.value.mealTimes = JSON.parse(
+        mealData.value || "[]"
+      );
     }
   } catch (error) {
-    console.error('Error loading classification options:', error);
-    updateMessageAI.value = 'Error loading classification options';
+    console.error("Error loading classification options:", error);
+    updateMessageAI.value = "Error loading classification options";
   }
 }
 
 function updateAIProviderURL() {
   switch (aiSettings.value.provider) {
-    case 'openai':
-      aiSettings.value.baseUrl = 'https://api.openai.com/v1';
+    case "openai":
+      aiSettings.value.baseUrl = "https://api.openai.com/v1";
       break;
-    case 'openrouter':
-      aiSettings.value.baseUrl = 'https://openrouter.ai/api/v1';
+    case "openrouter":
+      aiSettings.value.baseUrl = "https://openrouter.ai/api/v1";
       break;
-    case 'custom':
+    case "custom":
       // Keep current URL or let user set it
       break;
   }
@@ -836,47 +1090,58 @@ function updateAIProviderURL() {
 
 async function saveAISettings() {
   updatingAI.value = true;
-  updateMessageAI.value = '';
+  updateMessageAI.value = "";
 
   try {
     const settingsToSave = [
-      { key: 'ai_provider_base_url', value: aiSettings.value.baseUrl },
-      { key: 'ai_provider_api_key', value: aiSettings.value.apiKey },
-      { key: 'ai_model', value: aiSettings.value.model1 || aiSettings.value.model }, // Legacy support
-      { key: 'ai_model_1', value: aiSettings.value.model1 },
-      { key: 'ai_model_2', value: aiSettings.value.model2 || '' },
-      { key: 'ai_model_3', value: aiSettings.value.model3 || '' },
-      { key: 'ai_multi_model_enabled', value: aiSettings.value.multiModelEnabled.toString() },
-      { key: 'ai_multi_model_strategy', value: aiSettings.value.multiModelStrategy },
-      { key: 'ai_classification_enabled', value: aiSettings.value.enabled.toString() }
+      { key: "ai_provider_base_url", value: aiSettings.value.baseUrl },
+      { key: "ai_provider_api_key", value: aiSettings.value.apiKey },
+      {
+        key: "ai_model",
+        value: aiSettings.value.model1 || aiSettings.value.model,
+      }, // Legacy support
+      { key: "ai_model_1", value: aiSettings.value.model1 },
+      { key: "ai_model_2", value: aiSettings.value.model2 || "" },
+      { key: "ai_model_3", value: aiSettings.value.model3 || "" },
+      {
+        key: "ai_multi_model_enabled",
+        value: aiSettings.value.multiModelEnabled.toString(),
+      },
+      {
+        key: "ai_multi_model_strategy",
+        value: aiSettings.value.multiModelStrategy,
+      },
+      {
+        key: "ai_classification_enabled",
+        value: aiSettings.value.enabled.toString(),
+      },
     ];
 
-    const savePromises = settingsToSave.map(setting =>
+    const savePromises = settingsToSave.map((setting) =>
       fetch(`/api/settings/${setting.key}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          ...AuthService.getAuthHeaders()
+          "Content-Type": "application/json",
+          ...AuthService.getAuthHeaders(),
         },
-        body: JSON.stringify({ value: setting.value })
+        body: JSON.stringify({ value: setting.value }),
       })
     );
 
     const responses = await Promise.all(savePromises);
-    
+
     // Check if all requests succeeded
-    const failed = responses.filter(response => !response.ok);
+    const failed = responses.filter((response) => !response.ok);
     if (failed.length > 0) {
       throw new Error(`Failed to save ${failed.length} settings`);
     }
 
-    updateMessageAI.value = 'AI settings saved successfully';
+    updateMessageAI.value = "AI settings saved successfully";
     setTimeout(() => {
-      updateMessageAI.value = '';
+      updateMessageAI.value = "";
     }, 3000);
-
   } catch (error) {
-    console.error('Error saving AI settings:', error);
+    console.error("Error saving AI settings:", error);
     updateMessageAI.value = `Error saving AI settings: ${error.message}`;
   } finally {
     updatingAI.value = false;
@@ -885,40 +1150,43 @@ async function saveAISettings() {
 
 async function saveClassificationOptions() {
   updatingClassifications.value = true;
-  updateMessageAI.value = '';
+  updateMessageAI.value = "";
 
   try {
     const responses = await Promise.all([
-      fetch('/api/settings/cuisine_types', {
-        method: 'PUT',
+      fetch("/api/settings/cuisine_types", {
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          ...AuthService.getAuthHeaders()
+          "Content-Type": "application/json",
+          ...AuthService.getAuthHeaders(),
         },
-        body: JSON.stringify({ value: JSON.stringify(classificationOptions.value.cuisineTypes) })
+        body: JSON.stringify({
+          value: JSON.stringify(classificationOptions.value.cuisineTypes),
+        }),
       }),
-      fetch('/api/settings/meal_times', {
-        method: 'PUT',
+      fetch("/api/settings/meal_times", {
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          ...AuthService.getAuthHeaders()
+          "Content-Type": "application/json",
+          ...AuthService.getAuthHeaders(),
         },
-        body: JSON.stringify({ value: JSON.stringify(classificationOptions.value.mealTimes) })
-      })
+        body: JSON.stringify({
+          value: JSON.stringify(classificationOptions.value.mealTimes),
+        }),
+      }),
     ]);
 
-    const failed = responses.filter(response => !response.ok);
+    const failed = responses.filter((response) => !response.ok);
     if (failed.length > 0) {
-      throw new Error('Failed to save classification options');
+      throw new Error("Failed to save classification options");
     }
 
-    updateMessageAI.value = 'Classification options saved successfully';
+    updateMessageAI.value = "Classification options saved successfully";
     setTimeout(() => {
-      updateMessageAI.value = '';
+      updateMessageAI.value = "";
     }, 3000);
-
   } catch (error) {
-    console.error('Error saving classification options:', error);
+    console.error("Error saving classification options:", error);
     updateMessageAI.value = `Error saving classification options: ${error.message}`;
   } finally {
     updatingClassifications.value = false;
@@ -929,7 +1197,7 @@ function addCuisineType() {
   const newType = newCuisineType.value.trim();
   if (newType && !classificationOptions.value.cuisineTypes.includes(newType)) {
     classificationOptions.value.cuisineTypes.push(newType);
-    newCuisineType.value = '';
+    newCuisineType.value = "";
   }
 }
 
@@ -941,7 +1209,7 @@ function addMealTime() {
   const newTime = newMealTime.value.trim();
   if (newTime && !classificationOptions.value.mealTimes.includes(newTime)) {
     classificationOptions.value.mealTimes.push(newTime);
-    newMealTime.value = '';
+    newMealTime.value = "";
   }
 }
 
@@ -951,35 +1219,35 @@ function removeMealTime(index) {
 
 async function refreshModels() {
   if (!aiSettings.value.apiKey) {
-    updateMessageAI.value = 'API key required to fetch models';
+    updateMessageAI.value = "API key required to fetch models";
     return;
   }
 
   loadingModels.value = true;
-  updateMessageAI.value = '';
+  updateMessageAI.value = "";
 
   try {
-    const response = await fetch('/api/ai/models', {
-      method: 'GET',
-      headers: AuthService.getAuthHeaders()
+    const response = await fetch("/api/ai/models", {
+      method: "GET",
+      headers: AuthService.getAuthHeaders(),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to fetch available models');
+      throw new Error("Failed to fetch available models");
     }
 
     const data = await response.json();
     const fetchedModels = data.models || [];
-    
+
     // Merge fetched models with current model (if it exists and isn't already in the list)
     const currentModel = aiSettings.value.model;
     const modelsMap = new Map();
-    
+
     // Add fetched models
-    fetchedModels.forEach(model => {
+    fetchedModels.forEach((model) => {
       modelsMap.set(model.id, model);
     });
-    
+
     // Ensure current model is included (update if found in fetched list, or keep existing entry)
     if (currentModel) {
       if (modelsMap.has(currentModel)) {
@@ -987,36 +1255,35 @@ async function refreshModels() {
         const fetchedModel = modelsMap.get(currentModel);
         modelsMap.set(currentModel, {
           ...fetchedModel,
-          name: fetchedModel.name || fetchedModel.id
+          name: fetchedModel.name || fetchedModel.id,
         });
       } else {
         // Keep current model in list even if not found in API response
         modelsMap.set(currentModel, {
           id: currentModel,
           name: `${currentModel} (current)`,
-          owned_by: 'unknown'
+          owned_by: "unknown",
         });
       }
     }
-    
+
     availableModels.value = Array.from(modelsMap.values()).sort((a, b) => {
       // Sort current model first, then alphabetically
       if (a.id === currentModel) return -1;
       if (b.id === currentModel) return 1;
       return a.id.localeCompare(b.id);
     });
-    
+
     if (fetchedModels.length === 0) {
-      updateMessageAI.value = 'No models available or API key may be invalid';
+      updateMessageAI.value = "No models available or API key may be invalid";
     } else {
       updateMessageAI.value = `Found ${fetchedModels.length} available models`;
       setTimeout(() => {
-        updateMessageAI.value = '';
+        updateMessageAI.value = "";
       }, 3000);
     }
-
   } catch (error) {
-    console.error('Error fetching models:', error);
+    console.error("Error fetching models:", error);
     updateMessageAI.value = `Error fetching models: ${error.message}`;
   } finally {
     loadingModels.value = false;
@@ -1025,25 +1292,25 @@ async function refreshModels() {
 
 async function processUnclassifiedExpenses() {
   if (!aiSettings.value.enabled || !aiSettings.value.apiKey) {
-    updateMessageAI.value = 'AI classification not properly configured';
+    updateMessageAI.value = "AI classification not properly configured";
     return;
   }
 
   processingExpenses.value = true;
   processingProgress.value = { current: 0, total: 0, success: 0, failed: 0 };
-  updateMessageAI.value = '';
+  updateMessageAI.value = "";
 
   try {
-    const response = await fetch('/api/expenses/classify-batch', {
-      method: 'POST',
+    const response = await fetch("/api/expenses/classify-batch", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        ...AuthService.getAuthHeaders()
-      }
+        "Content-Type": "application/json",
+        ...AuthService.getAuthHeaders(),
+      },
     });
 
     if (!response.ok) {
-      throw new Error('Failed to start batch classification');
+      throw new Error("Failed to start batch classification");
     }
 
     const result = await response.json();
@@ -1051,19 +1318,115 @@ async function processUnclassifiedExpenses() {
       current: result.processed || 0,
       total: result.total || 0,
       success: result.success || 0,
-      failed: result.failed || 0
+      failed: result.failed || 0,
     };
 
     updateMessageAI.value = `Processed ${result.success} expenses successfully, ${result.failed} failed`;
     setTimeout(() => {
-      updateMessageAI.value = '';
+      updateMessageAI.value = "";
     }, 5000);
-
   } catch (error) {
-    console.error('Error processing unclassified expenses:', error);
+    console.error("Error processing unclassified expenses:", error);
     updateMessageAI.value = `Error processing expenses: ${error.message}`;
   } finally {
     processingExpenses.value = false;
+  }
+}
+
+async function resetPromptTemplate() {
+  try {
+    // Fetch the default template from the AI service
+    const response = await fetch("/api/ai/default-prompt-template", {
+      method: "GET",
+      headers: AuthService.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch default template");
+    }
+
+    const data = await response.json();
+    aiSettings.value.promptTemplate = data.template;
+    updateMessageAI.value = "Prompt template reset to default";
+    setTimeout(() => {
+      updateMessageAI.value = "";
+    }, 3000);
+  } catch (error) {
+    console.error("Error resetting prompt template:", error);
+    updateMessageAI.value = `Error resetting template: ${error.message}`;
+  }
+}
+
+function previewPromptTemplate() {
+  if (!aiSettings.value.promptTemplate) {
+    updateMessageAI.value = "No template to preview";
+    return;
+  }
+
+  // Create sample data for preview
+  const sampleExpenseDetails = `EXPENSE DETAILS:
+- Amount: $15.99
+- Place: Mario's Italian Restaurant at 123 Main St, Downtown
+- Time: 7:30 PM on Friday`;
+
+  const sampleCuisineTypes =
+    classificationOptions.value.cuisineTypes.length > 0
+      ? classificationOptions.value.cuisineTypes.join(", ")
+      : "Italian, Chinese, American, Mexican, Other";
+
+  const sampleMealTimes =
+    classificationOptions.value.mealTimes.length > 0
+      ? classificationOptions.value.mealTimes.join(", ")
+      : "breakfast, lunch, dinner, snack, drink";
+
+  const sampleResponseFormat = `Respond with JSON in this exact format:
+{
+  "cuisine_type": "exact_match_from_available_list",
+  "meal_time": "exact_match_from_available_list",
+  "confidence_cuisine": 0.85,
+  "confidence_meal": 0.90
+}`;
+
+  // Replace placeholders with sample data
+  previewText.value = aiSettings.value.promptTemplate
+    .replace(/\{\{EXPENSE_DETAILS\}\}/g, sampleExpenseDetails)
+    .replace(/\{\{CUISINE_TYPES\}\}/g, sampleCuisineTypes)
+    .replace(/\{\{MEAL_TIMES\}\}/g, sampleMealTimes)
+    .replace(/\{\{RESPONSE_FORMAT\}\}/g, sampleResponseFormat);
+
+  showPromptPreview.value = true;
+}
+
+async function savePromptTemplate() {
+  updatingAI.value = true;
+  updateMessageAI.value = "";
+
+  try {
+    const response = await fetch(
+      "/api/settings/ai_classification_prompt_template",
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...AuthService.getAuthHeaders(),
+        },
+        body: JSON.stringify({ value: aiSettings.value.promptTemplate }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to save prompt template");
+    }
+
+    updateMessageAI.value = "Prompt template saved successfully";
+    setTimeout(() => {
+      updateMessageAI.value = "";
+    }, 3000);
+  } catch (error) {
+    console.error("Error saving prompt template:", error);
+    updateMessageAI.value = `Error saving prompt template: ${error.message}`;
+  } finally {
+    updatingAI.value = false;
   }
 }
 
@@ -1462,6 +1825,48 @@ onMounted(async () => {
 .ai-settings {
   display: flex;
   flex-direction: column;
+}
+
+/* AI Tabs Styles */
+.ai-tabs {
+  display: flex;
+  border-bottom: 2px solid #444;
+  margin-bottom: 2rem;
+  gap: 0;
+}
+
+.ai-tab {
+  padding: 0.75rem 1.5rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-bottom: none;
+  color: #b0b0b0;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-radius: 6px 6px 0 0;
+  margin-right: -1px;
+}
+
+.ai-tab:hover {
+  background: #333;
+  color: #e0e0e0;
+}
+
+.ai-tab.active {
+  background: #1e1e1e;
+  color: #e0e0e0;
+  border-color: #007bff;
+  border-bottom: 2px solid #1e1e1e;
+  margin-bottom: -2px;
+  position: relative;
+  z-index: 1;
+}
+
+.ai-tab-content {
+  display: flex;
+  flex-direction: column;
   gap: 2rem;
 }
 
@@ -1792,5 +2197,147 @@ onMounted(async () => {
   .add-item input {
     margin-bottom: 0.5rem;
   }
+}
+
+/* Prompt Template Styles */
+.prompt-template-textarea {
+  width: 100%;
+  min-height: 400px;
+  padding: 1rem;
+  background: #1e1e1e;
+  border: 1px solid #555;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.prompt-template-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.prompt-template-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.prompt-template-controls {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.placeholder-help {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+}
+
+.placeholder-list {
+  margin: 0.5rem 0 0 1.5rem;
+  color: #b0b0b0;
+}
+
+.placeholder-list li {
+  margin-bottom: 0.5rem;
+}
+
+.placeholder-list code {
+  background: #1a1a1a;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  color: #60a5fa;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 0.8rem;
+}
+
+/* Preview Modal Styles */
+.prompt-preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.preview-content {
+  position: relative;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80%;
+  background: #2a2a2a;
+  border: 1px solid #555;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #444;
+}
+
+.preview-header h4 {
+  color: #e0e0e0;
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #e0e0e0;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #444;
+}
+
+.preview-body {
+  flex: 1;
+  padding: 1rem;
+  overflow: auto;
+}
+
+.preview-body pre {
+  margin: 0;
+  color: #e0e0e0;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 </style>
