@@ -342,6 +342,7 @@ CLASSIFICATION RULES:
    - If a place is a bar, and the amount is greater than $60, it is probably for a meal
    - If a place is a bakery, or candy shop, etc, it is almost always for snacks
    - Snacks are probably always cheaper than drinks, which is cheaper than meals
+   - If a place is related to golf, assume it's drinks
 
 2. CUISINE TYPE: Base on restaurant name, location context, and place types
 
@@ -352,6 +353,7 @@ STRICT CONSTRAINTS:
     )}
 - DO NOT create new categories or use variations
 - If uncertain about cuisine, use "Other"
+- If uncertain about meal time, use "snack" or "drink" based on place type
 
 Respond with JSON in this exact format:
 {
