@@ -1217,44 +1217,20 @@ class DatabaseService {
 
   upsertPlace(placeData) {
     try {
-      // Check if the new summary columns exist
-      const columns = this.db.prepare("PRAGMA table_info(places)").all()
-      const columnNames = columns.map(col => col.name)
-      const hasSummaryColumns = columnNames.includes('generative_summary') && columnNames.includes('review_summary')
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO places (id, name, address, types, location, generative_summary, review_summary, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `)
       
-      let stmt, result
-      
-      if (hasSummaryColumns) {
-        // Use new schema with summary columns
-        stmt = this.db.prepare(`
-          INSERT OR REPLACE INTO places (id, name, address, types, location, generative_summary, review_summary, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        `)
-        
-        result = stmt.run(
-          placeData.id,
-          placeData.name,
-          placeData.address || null,
-          JSON.stringify(placeData.types || []),
-          JSON.stringify(placeData.location || null),
-          placeData.generativeSummary || null,
-          placeData.reviewSummary || null
-        )
-      } else {
-        // Fallback to old schema without summary columns
-        stmt = this.db.prepare(`
-          INSERT OR REPLACE INTO places (id, name, address, types, location, updated_at)
-          VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        `)
-        
-        result = stmt.run(
-          placeData.id,
-          placeData.name,
-          placeData.address || null,
-          JSON.stringify(placeData.types || []),
-          JSON.stringify(placeData.location || null)
-        )
-      }
+      const result = stmt.run(
+        placeData.id,
+        placeData.name,
+        placeData.address || null,
+        JSON.stringify(placeData.types || []),
+        JSON.stringify(placeData.location || null),
+        placeData.generativeSummary || null,
+        placeData.reviewSummary || null
+      )
       
       logger.log('info', `Database: Upserted place ${placeData.id}: ${placeData.name}`)
       return Promise.resolve({ success: true, placeId: placeData.id })
