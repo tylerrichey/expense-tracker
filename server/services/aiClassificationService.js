@@ -199,7 +199,8 @@ class AIClassificationService {
           allSettings.ai_multi_model_strategy || "weighted_vote",
         ai_classification_enabled:
           allSettings.ai_classification_enabled === "true",
-        ai_classification_prompt_template: allSettings.ai_classification_prompt_template || "",
+        ai_classification_prompt_template:
+          allSettings.ai_classification_prompt_template || "",
         cuisine_types: JSON.parse(allSettings.cuisine_types || "[]"),
         meal_times: JSON.parse(allSettings.meal_times || "[]"),
       };
@@ -350,10 +351,12 @@ CRITICAL: Only use the exact strings from the available lists above.`;
     try {
       // Get the user's timezone setting
       const timezone = getCurrentTimezone(databaseService.db);
-      
+
       // Get the date in user's timezone
       const expenseDate = new Date(expense.timestamp);
-      const startOfDay = new Date(expenseDate.toLocaleDateString("en-CA", { timeZone: timezone }));
+      const startOfDay = new Date(
+        expenseDate.toLocaleDateString("en-CA", { timeZone: timezone })
+      );
       const endOfDay = new Date(startOfDay);
       endOfDay.setDate(endOfDay.getDate() + 1);
 
@@ -378,7 +381,9 @@ CRITICAL: Only use the exact strings from the available lists above.`;
 
   buildClassificationPrompt(expense, placeData, settings, otherExpenses = []) {
     // Get the prompt template from settings or use default
-    const template = settings.ai_classification_prompt_template || this.getDefaultPromptTemplate();
+    const template =
+      settings.ai_classification_prompt_template ||
+      this.getDefaultPromptTemplate();
 
     // Get the user's timezone setting
     const timezone = getCurrentTimezone(databaseService.db);
@@ -391,7 +396,7 @@ CRITICAL: Only use the exact strings from the available lists above.`;
       hour12: true,
       timeZone: timezone,
     });
-    const dayOfWeek = date.toLocaleDateString("en-US", { 
+    const dayOfWeek = date.toLocaleDateString("en-US", {
       weekday: "long",
       timeZone: timezone,
     });
@@ -405,7 +410,7 @@ CRITICAL: Only use the exact strings from the available lists above.`;
       placeInfo += ` (Types: ${placeData.types.join(", ")})`;
     }
     if (placeData && placeData.generative_summary) {
-      placeInfo += `\n  AI Summary: ${placeData.generative_summary}`;
+      placeInfo += `\n  Place Summary: ${placeData.generative_summary}`;
     }
     if (placeData && placeData.review_summary) {
       placeInfo += `\n  Review Summary: ${placeData.review_summary}`;
@@ -414,17 +419,29 @@ CRITICAL: Only use the exact strings from the available lists above.`;
     // Build other expenses information
     let otherExpensesInfo = "";
     if (otherExpenses && otherExpenses.length > 0) {
-      otherExpensesInfo = "\n\nOTHER EXPENSES TODAY:\n" + 
-        otherExpenses.map(exp => {
-          const expTime = new Date(exp.timestamp).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit", 
-            hour12: true,
-            timeZone: timezone,
-          });
-          const classification = exp.meal_time ? ` (Classified: ${exp.meal_time}${exp.cuisine_type ? `, ${exp.cuisine_type}` : ''})` : '';
-          return `- $${exp.amount} at ${exp.place_name || 'Unknown'} at ${expTime}${classification}`;
-        }).join("\n");
+      otherExpensesInfo =
+        "\n\nOTHER EXPENSES TODAY:\n" +
+        otherExpenses
+          .map((exp) => {
+            const expTime = new Date(exp.timestamp).toLocaleTimeString(
+              "en-US",
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+                timeZone: timezone,
+              }
+            );
+            const classification = exp.meal_time
+              ? ` (Classified: ${exp.meal_time}${
+                  exp.cuisine_type ? `, ${exp.cuisine_type}` : ""
+                })`
+              : "";
+            return `- $${exp.amount} at ${
+              exp.place_name || "Unknown"
+            } at ${expTime}${classification}`;
+          })
+          .join("\n");
     }
 
     const expenseDetails = `EXPENSE DETAILS:
@@ -582,7 +599,12 @@ CRITICAL: Only use the exact strings from the available lists above.`;
       const otherExpensesForError = await this.getOtherExpensesForDay(expense);
       this.addToPendingLogs(requestId, clientName, {
         expenseId: expense.id,
-        prompt: this.buildClassificationPrompt(expense, placeData, settings, otherExpensesForError),
+        prompt: this.buildClassificationPrompt(
+          expense,
+          placeData,
+          settings,
+          otherExpensesForError
+        ),
         error,
       });
       await this.flushPendingLogs(requestId);
@@ -671,7 +693,12 @@ CRITICAL: Only use the exact strings from the available lists above.`;
         // Add error to pending logs
         this.addToPendingLogs(requestId, modelConfig.name, {
           expenseId: expense.id,
-          prompt: this.buildClassificationPrompt(expense, placeData, settings, otherExpenses),
+          prompt: this.buildClassificationPrompt(
+            expense,
+            placeData,
+            settings,
+            otherExpenses
+          ),
           error,
         });
 

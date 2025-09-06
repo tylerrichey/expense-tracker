@@ -29,9 +29,9 @@ class PlacesService {
     try {
       await databaseService.upsertPlace(placeData);
     } catch (error) {
-      logger.error('Error saving place to database', { 
-        placeId: placeData.id, 
-        error: error.message 
+      logger.error("Error saving place to database", {
+        placeId: placeData.id,
+        error: error.message,
       });
     }
   }
@@ -104,12 +104,12 @@ class PlacesService {
           types: place.types || [],
           location: place.location,
           generativeSummary: place.generativeSummary?.overview?.text || null,
-          reviewSummary: place.reviewSummary?.text || null,
+          reviewSummary: place.reviewSummary?.text?.text || null,
           distance: this.calculateDistance(userLocation, place.location),
         })) || [];
 
       // Save places to database (don't await to avoid slowing down response)
-      places.forEach(place => {
+      places.forEach((place) => {
         this.savePlaceToDatabase({
           id: place.id,
           name: place.name,
@@ -117,7 +117,7 @@ class PlacesService {
           types: place.types,
           location: place.location,
           generativeSummary: place.generativeSummary,
-          reviewSummary: place.reviewSummary
+          reviewSummary: place.reviewSummary,
         });
       });
 
@@ -144,11 +144,12 @@ class PlacesService {
     }
 
     const detailsURL = `https://places.googleapis.com/v1/places/${placeId}`;
-    
+
     const requestHeaders = {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": this.apiKey,
-      "X-Goog-FieldMask": "id,displayName,formattedAddress,location,types,generativeSummary,reviewSummary",
+      "X-Goog-FieldMask":
+        "id,displayName,formattedAddress,location,types,generativeSummary,reviewSummary",
     };
 
     try {
@@ -164,7 +165,7 @@ class PlacesService {
         location: place.location,
         types: place.types || [],
         generativeSummary: place.generativeSummary?.overview?.text || null,
-        reviewSummary: place.reviewSummary?.text || null,
+        reviewSummary: place.reviewSummary?.text?.text || null,
       };
 
       // Save place to database (don't await to avoid slowing down response)
@@ -269,7 +270,7 @@ class PlacesService {
                 generativeSummary: details.generativeSummary,
                 reviewSummary: details.reviewSummary,
               };
-              
+
               // Save the detailed place data to database
               // Note: getPlaceDetails already saves basic data, but this ensures we have the complete info
               this.savePlaceToDatabase({
@@ -279,14 +280,17 @@ class PlacesService {
                 types: details.types,
                 location: details.location,
                 generativeSummary: details.generativeSummary,
-                reviewSummary: details.reviewSummary
+                reviewSummary: details.reviewSummary,
               });
-              
+
               return detailedSuggestion;
             } catch (error) {
-              logger.error(`Failed to fetch details for place ${suggestion.id}`, {
-                error: error.message,
-              });
+              logger.error(
+                `Failed to fetch details for place ${suggestion.id}`,
+                {
+                  error: error.message,
+                }
+              );
               // Return original suggestion if details fetch fails
               return suggestion;
             }
@@ -296,7 +300,7 @@ class PlacesService {
       }
 
       // For basic suggestions without details, save what we have (without types)
-      suggestions.forEach(suggestion => {
+      suggestions.forEach((suggestion) => {
         this.savePlaceToDatabase({
           id: suggestion.id,
           name: suggestion.name,
@@ -304,7 +308,7 @@ class PlacesService {
           types: [], // No types available without details
           location: null, // No location available without details
           generativeSummary: null, // No summary available without details
-          reviewSummary: null // No summary available without details
+          reviewSummary: null, // No summary available without details
         });
       });
 
