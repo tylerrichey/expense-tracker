@@ -1218,8 +1218,8 @@ class DatabaseService {
   upsertPlace(placeData) {
     try {
       const stmt = this.db.prepare(`
-        INSERT OR REPLACE INTO places (id, name, address, types, location, updated_at)
-        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT OR REPLACE INTO places (id, name, address, types, location, generative_summary, review_summary, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `)
       
       const result = stmt.run(
@@ -1227,7 +1227,9 @@ class DatabaseService {
         placeData.name,
         placeData.address || null,
         JSON.stringify(placeData.types || []),
-        JSON.stringify(placeData.location || null)
+        JSON.stringify(placeData.location || null),
+        placeData.generativeSummary || null,
+        placeData.reviewSummary || null
       )
       
       logger.log('info', `Database: Upserted place ${placeData.id}: ${placeData.name}`)

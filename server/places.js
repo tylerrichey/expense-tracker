@@ -72,7 +72,7 @@ class PlacesService {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": this.apiKey,
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.types,places.location",
+        "places.id,places.displayName,places.formattedAddress,places.types,places.location,places.generativeSummary,places.reviewSummary",
     };
 
     // Log the Google Places API request
@@ -103,6 +103,8 @@ class PlacesService {
           address: place.formattedAddress || "",
           types: place.types || [],
           location: place.location,
+          generativeSummary: place.generativeSummary?.overview?.text || null,
+          reviewSummary: place.reviewSummary?.text || null,
           distance: this.calculateDistance(userLocation, place.location),
         })) || [];
 
@@ -113,7 +115,9 @@ class PlacesService {
           name: place.name,
           address: place.address,
           types: place.types,
-          location: place.location
+          location: place.location,
+          generativeSummary: place.generativeSummary,
+          reviewSummary: place.reviewSummary
         });
       });
 
@@ -144,7 +148,7 @@ class PlacesService {
     const requestHeaders = {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": this.apiKey,
-      "X-Goog-FieldMask": "id,displayName,formattedAddress,location,types",
+      "X-Goog-FieldMask": "id,displayName,formattedAddress,location,types,generativeSummary,reviewSummary",
     };
 
     try {
@@ -159,6 +163,8 @@ class PlacesService {
         address: place.formattedAddress || "",
         location: place.location,
         types: place.types || [],
+        generativeSummary: place.generativeSummary?.overview?.text || null,
+        reviewSummary: place.reviewSummary?.text || null,
       };
 
       // Save place to database (don't await to avoid slowing down response)
@@ -260,6 +266,8 @@ class PlacesService {
                 address: details.address,
                 location: details.location,
                 types: details.types,
+                generativeSummary: details.generativeSummary,
+                reviewSummary: details.reviewSummary,
               };
               
               // Save the detailed place data to database
@@ -269,7 +277,9 @@ class PlacesService {
                 name: details.name,
                 address: details.address,
                 types: details.types,
-                location: details.location
+                location: details.location,
+                generativeSummary: details.generativeSummary,
+                reviewSummary: details.reviewSummary
               });
               
               return detailedSuggestion;
