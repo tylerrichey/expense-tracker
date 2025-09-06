@@ -302,7 +302,9 @@ class PlacesService {
           name: suggestion.name,
           address: suggestion.address,
           types: [], // No types available without details
-          location: null // No location available without details
+          location: null, // No location available without details
+          generativeSummary: null, // No summary available without details
+          reviewSummary: null // No summary available without details
         });
       });
 
