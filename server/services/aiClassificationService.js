@@ -328,6 +328,12 @@ CLASSIFICATION RULES:
 
 2. CUISINE TYPE: Base on restaurant name, location context, and place types
 
+3. CONTEXT FROM OTHER EXPENSES: If other expenses are listed for today, consider:
+   - Avoid duplicate meal classifications (e.g., don't classify as "dinner" if dinner already exists)
+   - If breakfast/lunch/dinner already classified, this expense is likely snack/drink
+   - Multiple drinks or snacks per day are normal
+   - Pattern recognition: coffee shops in morning = breakfast, afternoon = snack
+
 STRICT CONSTRAINTS:
 - You MUST ONLY use these exact meal times: {{MEAL_TIMES}}
 - You MUST ONLY use these exact cuisine types: {{CUISINE_TYPES}}
@@ -340,7 +346,37 @@ STRICT CONSTRAINTS:
 CRITICAL: Only use the exact strings from the available lists above.`;
   }
 
-  buildClassificationPrompt(expense, placeData, settings) {
+  async getOtherExpensesForDay(expense) {
+    try {
+      // Get the user's timezone setting
+      const timezone = getCurrentTimezone(databaseService.db);
+      
+      // Get the date in user's timezone
+      const expenseDate = new Date(expense.timestamp);
+      const startOfDay = new Date(expenseDate.toLocaleDateString("en-CA", { timeZone: timezone }));
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setDate(endOfDay.getDate() + 1);
+
+      const stmt = databaseService.db.prepare(`
+        SELECT e.id, e.amount, e.place_name, e.place_address, e.timestamp,
+               ec.cuisine_type, ec.meal_time, ec.ai_confidence_cuisine, ec.ai_confidence_meal
+        FROM expenses e
+        LEFT JOIN expense_classifications ec ON e.id = ec.expense_id
+        WHERE e.timestamp >= ? AND e.timestamp < ? AND e.id != ?
+        ORDER BY e.timestamp ASC
+      `);
+
+      return stmt.all(startOfDay.getTime(), endOfDay.getTime(), expense.id);
+    } catch (error) {
+      logger.log("error", "❌ Failed to get other expenses for day:", {
+        expenseId: expense.id,
+        error: error.message,
+      });
+      return [];
+    }
+  }
+
+  buildClassificationPrompt(expense, placeData, settings, otherExpenses = []) {
     // Get the prompt template from settings or use default
     const template = settings.ai_classification_prompt_template || this.getDefaultPromptTemplate();
 
@@ -368,11 +404,33 @@ CRITICAL: Only use the exact strings from the available lists above.`;
     if (placeData && placeData.types) {
       placeInfo += ` (Types: ${placeData.types.join(", ")})`;
     }
+    if (placeData && placeData.generative_summary) {
+      placeInfo += `\n  AI Summary: ${placeData.generative_summary}`;
+    }
+    if (placeData && placeData.review_summary) {
+      placeInfo += `\n  Review Summary: ${placeData.review_summary}`;
+    }
+
+    // Build other expenses information
+    let otherExpensesInfo = "";
+    if (otherExpenses && otherExpenses.length > 0) {
+      otherExpensesInfo = "\n\nOTHER EXPENSES TODAY:\n" + 
+        otherExpenses.map(exp => {
+          const expTime = new Date(exp.timestamp).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit", 
+            hour12: true,
+            timeZone: timezone,
+          });
+          const classification = exp.meal_time ? ` (Classified: ${exp.meal_time}${exp.cuisine_type ? `, ${exp.cuisine_type}` : ''})` : '';
+          return `- $${exp.amount} at ${exp.place_name || 'Unknown'} at ${expTime}${classification}`;
+        }).join("\n");
+    }
 
     const expenseDetails = `EXPENSE DETAILS:
 - Amount: $${expense.amount}
 - Place: ${placeInfo}
-- Time: ${timeString} on ${dayOfWeek}`;
+- Time: ${timeString} on ${dayOfWeek}${otherExpensesInfo}`;
 
     const responseFormat = `Respond with JSON in this exact format:
 {
@@ -449,10 +507,14 @@ CRITICAL: Only use the exact strings from the available lists above.`;
     try {
       await this.rateLimit(clientName);
 
+      // Get other expenses for the same day
+      const otherExpenses = await this.getOtherExpensesForDay(expense);
+
       const prompt = this.buildClassificationPrompt(
         expense,
         placeData,
-        settings
+        settings,
+        otherExpenses
       );
 
       logger.debug("🤖 Classifying expense with single AI model", {
@@ -517,9 +579,10 @@ CRITICAL: Only use the exact strings from the available lists above.`;
       return classification;
     } catch (error) {
       // Add error to pending logs
+      const otherExpensesForError = await this.getOtherExpensesForDay(expense);
       this.addToPendingLogs(requestId, clientName, {
         expenseId: expense.id,
-        prompt: this.buildClassificationPrompt(expense, placeData, settings),
+        prompt: this.buildClassificationPrompt(expense, placeData, settings, otherExpensesForError),
         error,
       });
       await this.flushPendingLogs(requestId);
@@ -544,6 +607,9 @@ CRITICAL: Only use the exact strings from the available lists above.`;
       timestamp: expense.timestamp,
     });
 
+    // Get other expenses for the same day (shared for all models)
+    const otherExpenses = await this.getOtherExpensesForDay(expense);
+
     // Run all models in parallel
     const modelPromises = models.map(async (modelConfig) => {
       const client = this.clients[modelConfig.name];
@@ -555,7 +621,8 @@ CRITICAL: Only use the exact strings from the available lists above.`;
         const prompt = this.buildClassificationPrompt(
           expense,
           placeData,
-          settings
+          settings,
+          otherExpenses
         );
 
         const response = await client.chat.completions.create({
@@ -604,7 +671,7 @@ CRITICAL: Only use the exact strings from the available lists above.`;
         // Add error to pending logs
         this.addToPendingLogs(requestId, modelConfig.name, {
           expenseId: expense.id,
-          prompt: this.buildClassificationPrompt(expense, placeData, settings),
+          prompt: this.buildClassificationPrompt(expense, placeData, settings, otherExpenses),
           error,
         });
 
