@@ -1366,8 +1366,15 @@ function previewPromptTemplate() {
   // Create sample data for preview
   const sampleExpenseDetails = `EXPENSE DETAILS:
 - Amount: $15.99
-- Place: Mario's Italian Restaurant at 123 Main St, Downtown
-- Time: 7:30 PM on Friday`;
+- Place: Mario's Italian Restaurant at 123 Main St, Downtown (Types: restaurant, food, establishment)
+  Place Summary: A popular Italian restaurant known for authentic pasta dishes and wood-fired pizzas
+  Review Summary: Customers praise the authentic flavors and cozy atmosphere
+- Time: 7:30 PM on Friday
+
+OTHER EXPENSES TODAY:
+- $4.50 at Starbucks Coffee at 8:00 AM (Classified: breakfast, American)
+- $12.25 at Subway at 12:30 PM (Classified: lunch, American)
+- $8.75 at Local Bar & Grill at 3:45 PM (Classified: drink, American)`;
 
   const sampleCuisineTypes =
     classificationOptions.value.cuisineTypes.length > 0

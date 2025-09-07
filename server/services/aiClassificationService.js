@@ -354,22 +354,43 @@ CRITICAL: Only use the exact strings from the available lists above.`;
 
       // Get the date in user's timezone
       const expenseDate = new Date(expense.timestamp);
-      const startOfDay = new Date(
-        expenseDate.toLocaleDateString("en-CA", { timeZone: timezone })
-      );
-      const endOfDay = new Date(startOfDay);
-      endOfDay.setDate(endOfDay.getDate() + 1);
+      
+      // Get start and end of day in the user's timezone
+      const dateStr = expenseDate.toLocaleDateString("en-CA", { timeZone: timezone });
+      const startOfDay = new Date(dateStr + "T00:00:00");
+      const endOfDay = new Date(dateStr + "T23:59:59.999");
+
+      // Convert to ISO strings for database query (database stores ISO strings, not ticks)
+      const startTimestamp = startOfDay.toISOString();
+      const endTimestamp = endOfDay.toISOString();
+
+      logger.debug("🤖 Getting other expenses for day", {
+        expenseId: expense.id,
+        expenseTimestamp: expense.timestamp,
+        timezone,
+        dateStr,
+        startTimestamp,
+        endTimestamp
+      });
 
       const stmt = databaseService.db.prepare(`
         SELECT e.id, e.amount, e.place_name, e.place_address, e.timestamp,
                ec.cuisine_type, ec.meal_time, ec.ai_confidence_cuisine, ec.ai_confidence_meal
         FROM expenses e
         LEFT JOIN expense_classifications ec ON e.id = ec.expense_id
-        WHERE e.timestamp >= ? AND e.timestamp < ? AND e.id != ?
+        WHERE e.timestamp >= ? AND e.timestamp <= ? AND e.id != ?
         ORDER BY e.timestamp ASC
       `);
 
-      return stmt.all(startOfDay.getTime(), endOfDay.getTime(), expense.id);
+      const results = stmt.all(startTimestamp, endTimestamp, expense.id);
+      
+      logger.debug("🤖 Found other expenses for day", {
+        expenseId: expense.id,
+        otherExpensesCount: results.length,
+        otherExpenseIds: results.map(r => r.id)
+      });
+
+      return results;
     } catch (error) {
       logger.log("error", "❌ Failed to get other expenses for day:", {
         expenseId: expense.id,
