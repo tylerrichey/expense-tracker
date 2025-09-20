@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { logger } from "../logger.js";
 import { databaseService } from "../database.js";
-import { getCurrentTimezone } from "../timezone-utils.js";
+import { getCurrentTimezone, createStartOfDayInTimezone, createEndOfDayInTimezone } from "../timezone-utils.js";
 import fs from "fs";
 import path from "path";
 import { promisify } from "util";
@@ -352,26 +352,12 @@ CRITICAL: Only use the exact strings from the available lists above.`;
       // Get the user's timezone setting
       const timezone = getCurrentTimezone(databaseService.db);
 
-      // Get the date in user's timezone
+      // Get the date in user's timezone  
       const expenseDate = new Date(expense.timestamp);
       
-      // Get start and end of day in the user's timezone
-      const dateStr = expenseDate.toLocaleDateString("en-CA", { timeZone: timezone });
-      
-      // Create proper timezone-aware dates by using the timezone in the date construction
-      // This ensures we get the actual start/end of day in the user's timezone
-      const year = parseInt(dateStr.split('-')[0]);
-      const month = parseInt(dateStr.split('-')[1]) - 1; // months are 0-indexed
-      const day = parseInt(dateStr.split('-')[2]);
-      
-      // Create dates that represent start/end of day in the user's timezone
-      const startOfDay = new Date();
-      startOfDay.setFullYear(year, month, day);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date();
-      endOfDay.setFullYear(year, month, day);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Use proper timezone utilities to get start and end of day in user's timezone
+      const startOfDay = createStartOfDayInTimezone(expenseDate, timezone);
+      const endOfDay = createEndOfDayInTimezone(expenseDate, timezone);
 
       // Convert to ISO strings for database query (database stores ISO strings, not ticks)
       const startTimestamp = startOfDay.toISOString();
@@ -381,9 +367,11 @@ CRITICAL: Only use the exact strings from the available lists above.`;
         expenseId: expense.id,
         expenseTimestamp: expense.timestamp,
         timezone,
-        dateStr,
+        expenseDateInTimezone: expenseDate.toLocaleString("en-US", { timeZone: timezone }),
         startTimestamp,
-        endTimestamp
+        endTimestamp,
+        startDateInTimezone: startOfDay.toLocaleString("en-US", { timeZone: timezone }),
+        endDateInTimezone: endOfDay.toLocaleString("en-US", { timeZone: timezone })
       });
 
       const stmt = databaseService.db.prepare(`
