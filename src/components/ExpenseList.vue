@@ -80,10 +80,12 @@
     :expense="selectedExpense!"
     :loading-image-id="loadingImageId"
     :deleting-id="deletingId"
+    :reprocessing-id="reprocessingId"
     @close="closeDetailsModal"
     @view-receipt="handleViewReceipt"
     @delete-expense="handleDeleteExpense"
     @rating-updated="handleRatingUpdated"
+    @reprocess-classification="handleReprocessClassification"
     v-if="selectedExpense"
   />
 </template>
@@ -100,6 +102,7 @@ const expenses = ref<Expense[]>([])
 const loading = ref(false)
 const error = ref('')
 const deletingId = ref<number | null>(null)
+const reprocessingId = ref<number | null>(null)
 
 // Image modal functionality
 const { loadingImageId, showImageModal, currentImageUrl, viewImage, closeImageModal } = useImageModal()
@@ -177,6 +180,33 @@ function handleDeleteExpense(expenseId: number) {
 
 function handleRatingUpdated() {
   loadExpenses()
+}
+
+async function handleReprocessClassification(expenseId: number) {
+  reprocessingId.value = expenseId
+  
+  try {
+    await databaseService.reprocessExpenseClassification(expenseId)
+    
+    // Reload expenses to show updated classifications
+    await loadExpenses()
+    
+    // Show success message briefly
+    const originalError = error.value
+    error.value = 'AI classification reprocessed successfully!'
+    setTimeout(() => {
+      error.value = originalError
+    }, 3000)
+    
+  } catch (err) {
+    console.error('Error reprocessing AI classification:', err)
+    error.value = 'Failed to reprocess AI classification'
+    setTimeout(() => {
+      error.value = ''
+    }, 3000)
+  } finally {
+    reprocessingId.value = null
+  }
 }
 
 function formatDate(date: Date): string {

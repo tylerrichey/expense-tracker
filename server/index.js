@@ -426,6 +426,60 @@ app.post(
   }
 );
 
+// Reprocess AI classification for single expense
+app.post(
+  "/api/expenses/:id/reprocess-classification",
+  authenticateRequest,
+  async (req, res) => {
+    try {
+      const expenseId = parseInt(req.params.id);
+
+      if (!expenseId || isNaN(expenseId)) {
+        return res.status(400).json({ error: "Valid expense ID is required" });
+      }
+
+      // Initialize AI service if not already done
+      await aiClassificationService.initialize();
+
+      if (!aiClassificationService.isConfigured) {
+        return res
+          .status(400)
+          .json({ error: "AI classification not configured" });
+      }
+
+      // Reprocess the classification
+      const classification = await aiClassificationService.reprocessExpenseClassification(expenseId);
+
+      if (classification) {
+        res.json({
+          message: "AI classification reprocessed successfully",
+          expenseId,
+          classification: {
+            cuisine_type: classification.cuisine_type,
+            meal_time: classification.meal_time,
+            confidence_cuisine: classification.confidence_cuisine,
+            confidence_meal: classification.confidence_meal,
+          },
+        });
+      } else {
+        res.status(500).json({
+          error: "Failed to reprocess AI classification",
+          expenseId,
+        });
+      }
+    } catch (error) {
+      logger.log("error", "Error reprocessing AI classification:", {
+        expenseId: req.params.id,
+        error: error.message,
+      });
+      res.status(500).json({ 
+        error: error.message || "Failed to reprocess AI classification",
+        expenseId: req.params.id,
+      });
+    }
+  }
+);
+
 // Get available AI models endpoint
 app.get("/api/ai/models", authenticateRequest, async (req, res) => {
   try {

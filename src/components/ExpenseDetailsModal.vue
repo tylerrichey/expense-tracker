@@ -126,6 +126,15 @@
         </button>
         
         <button 
+          @click="handleReprocessClassification"
+          class="action-btn reprocess-btn"
+          :disabled="reprocessingId === expense.id"
+        >
+          <span class="btn-icon">🔄</span>
+          <span class="btn-text">{{ reprocessingId === expense.id ? 'Re-processing...' : 'Re-process AI' }}</span>
+        </button>
+        
+        <button 
           @click="handleDeleteExpense"
           class="action-btn delete-btn"
           :disabled="deletingId === expense.id"
@@ -158,10 +167,14 @@ const props = defineProps({
   deletingId: {
     type: Number,
     default: null
+  },
+  reprocessingId: {
+    type: Number,
+    default: null
   }
 })
 
-const emit = defineEmits(['close', 'view-receipt', 'delete-expense', 'rating-updated'])
+const emit = defineEmits(['close', 'view-receipt', 'delete-expense', 'rating-updated', 'reprocess-classification'])
 
 // Rating editing state
 const isEditingRating = ref(false)
@@ -180,6 +193,10 @@ function handleViewReceipt() {
 
 function handleDeleteExpense() {
   emit('delete-expense', props.expense.id)
+}
+
+function handleReprocessClassification() {
+  emit('reprocess-classification', props.expense.id)
 }
 
 function formatFullDate(timestamp) {
@@ -531,6 +548,15 @@ async function saveRating() {
 
 .receipt-btn:hover:not(:disabled) {
   background: #0056b3;
+}
+
+.reprocess-btn {
+  background: #6f42c1;
+  color: white;
+}
+
+.reprocess-btn:hover:not(:disabled) {
+  background: #5a32a3;
 }
 
 .delete-btn {

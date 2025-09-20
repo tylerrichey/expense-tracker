@@ -1052,6 +1052,55 @@ CRITICAL: Only use the exact strings from the available lists above.`;
       throw error;
     }
   }
+
+  async reprocessExpenseClassification(expenseId) {
+    try {
+      if (!this.isConfigured) {
+        throw new Error("AI classification not configured");
+      }
+
+      // Get the expense
+      const expense = await databaseService.getExpenseById(expenseId);
+      if (!expense) {
+        throw new Error("Expense not found");
+      }
+
+      logger.log("info", "🔄 Reprocessing AI classification for expense", {
+        expenseId,
+        placeName: expense.place_name,
+        amount: expense.amount,
+      });
+
+      // Delete existing classification
+      const deleteStmt = databaseService.db.prepare(`
+        DELETE FROM expense_classifications WHERE expense_id = ?
+      `);
+      deleteStmt.run(expenseId);
+
+      // Reclassify the expense
+      const classification = await this.classifyAndSaveExpense(expense);
+
+      if (classification) {
+        logger.log("info", "✅ Successfully reprocessed AI classification", {
+          expenseId,
+          cuisine: classification.cuisine_type,
+          mealTime: classification.meal_time,
+          confidenceCuisine: classification.confidence_cuisine,
+          confidenceMeal: classification.confidence_meal,
+        });
+        return classification;
+      } else {
+        logger.log("warn", "⚠️ Failed to reclassify expense", { expenseId });
+        return null;
+      }
+    } catch (error) {
+      logger.log("error", "❌ Failed to reprocess expense classification:", {
+        expenseId,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
 }
 
 export const aiClassificationService = new AIClassificationService();

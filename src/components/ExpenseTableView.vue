@@ -199,10 +199,12 @@
       :expense="selectedExpense"
       :loading-image-id="loadingImageId"
       :deleting-id="deletingId"
+      :reprocessing-id="reprocessingId"
       @close="closeExpenseDetails"
       @view-receipt="viewImage"
       @delete-expense="handleDeleteExpense"
       @rating-updated="handleRatingUpdated"
+      @reprocess-classification="handleReprocessClassification"
     />
   </div>
 </template>
@@ -238,6 +240,7 @@ const {
 const showExpenseDetails = ref(false);
 const selectedExpense = ref({});
 const deletingId = ref(null);
+const reprocessingId = ref(null);
 
 // Reactive data
 const searchQuery = ref("");
@@ -464,6 +467,23 @@ async function handleDeleteExpense(expenseId) {
 function handleRatingUpdated() {
   // Emit event to parent component to refresh expense data
   emit("expense-updated");
+}
+
+async function handleReprocessClassification(expenseId) {
+  reprocessingId.value = expenseId;
+  
+  try {
+    await databaseService.reprocessExpenseClassification(expenseId);
+    
+    // Emit event to parent component to refresh expense data
+    emit("expense-updated");
+    
+  } catch (err) {
+    console.error('Error reprocessing AI classification:', err);
+    alert('Failed to reprocess AI classification. Please try again.');
+  } finally {
+    reprocessingId.value = null;
+  }
 }
 </script>
 

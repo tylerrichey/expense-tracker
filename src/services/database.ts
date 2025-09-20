@@ -223,6 +223,18 @@ class DatabaseService {
 
     return await response.json()
   }
+
+  async reprocessExpenseClassification(expenseId: number): Promise<void> {
+    const response = await fetch(`${this.baseURL}/expenses/${expenseId}/reprocess-classification`, {
+      method: 'POST',
+      headers: this.getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to reprocess AI classification')
+    }
+  }
 }
 
 export const databaseService = new DatabaseService()
