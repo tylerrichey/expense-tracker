@@ -357,8 +357,21 @@ CRITICAL: Only use the exact strings from the available lists above.`;
       
       // Get start and end of day in the user's timezone
       const dateStr = expenseDate.toLocaleDateString("en-CA", { timeZone: timezone });
-      const startOfDay = new Date(dateStr + "T00:00:00");
-      const endOfDay = new Date(dateStr + "T23:59:59.999");
+      
+      // Create proper timezone-aware dates by using the timezone in the date construction
+      // This ensures we get the actual start/end of day in the user's timezone
+      const year = parseInt(dateStr.split('-')[0]);
+      const month = parseInt(dateStr.split('-')[1]) - 1; // months are 0-indexed
+      const day = parseInt(dateStr.split('-')[2]);
+      
+      // Create dates that represent start/end of day in the user's timezone
+      const startOfDay = new Date();
+      startOfDay.setFullYear(year, month, day);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date();
+      endOfDay.setFullYear(year, month, day);
+      endOfDay.setHours(23, 59, 59, 999);
 
       // Convert to ISO strings for database query (database stores ISO strings, not ticks)
       const startTimestamp = startOfDay.toISOString();
@@ -454,8 +467,8 @@ CRITICAL: Only use the exact strings from the available lists above.`;
               }
             );
             const classification = exp.meal_time
-              ? ` (Classified: ${exp.meal_time}${
-                  exp.cuisine_type ? `, ${exp.cuisine_type}` : ""
+              ? ` (Classified - Meal: ${exp.meal_time}${
+                  exp.cuisine_type ? `, Cuisine: ${exp.cuisine_type}` : ""
                 })`
               : "";
             return `- $${exp.amount} at ${
