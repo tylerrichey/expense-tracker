@@ -1,11 +1,30 @@
 <template>
   <div class="reports">
+    <div class="year-filter">
+      <button
+        v-for="year in availableYears"
+        :key="year"
+        @click="selectedYear = year"
+        class="year-btn"
+        :class="{ active: selectedYear === year }"
+      >
+        {{ year }}
+      </button>
+      <button
+        @click="selectedYear = 'all'"
+        class="year-btn"
+        :class="{ active: selectedYear === 'all' }"
+      >
+        All
+      </button>
+    </div>
+
     <div class="report-section">
       <h4>Quick Stats</h4>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-value">${{ totalSpent.toFixed(2) }}</div>
-          <div class="stat-label">Total Spent (YTD)</div>
+          <div class="stat-label">Total Spent {{ selectedYear === 'all' ? '(All)' : `(${selectedYear})` }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ totalExpenses }}</div>
@@ -23,7 +42,7 @@
     </div>
 
     <!-- Expense Summary (only shown when there's an active budget) -->
-    <div v-if="hasActiveBudget" class="report-section">
+    <div v-if="hasActiveBudget && selectedYear === new Date().getFullYear()" class="report-section">
       <h4>Expense Summary</h4>
       <div class="expense-summary-wrapper">
         <div class="summary-grid">
@@ -106,18 +125,33 @@ const expenseSummary = ref({
   thisMonth: 0
 })
 
+const selectedYear = ref<number | 'all'>(new Date().getFullYear())
+const availableYears = computed(() => {
+  if (expenses.value.length === 0) return []
+
+  const years = [...new Set(
+    expenses.value.map(expense => new Date(expense.timestamp).getFullYear())
+  )]
+
+  return years.sort((a, b) => b - a) // Descending order (newest first)
+})
+
+const filteredExpenses = computed(() => {
+  if (selectedYear.value === 'all') {
+    return expenses.value
+  }
+  return expenses.value.filter(
+    expense => new Date(expense.timestamp).getFullYear() === selectedYear.value
+  )
+})
+
 const totalSpent = computed(() => {
-  const currentYear = new Date().getFullYear()
-  return expenses.value
-    .filter(expense => new Date(expense.timestamp).getFullYear() === currentYear)
+  return filteredExpenses.value
     .reduce((sum, expense) => sum + expense.amount, 0)
 })
 
 const totalExpenses = computed(() => {
-  const currentYear = new Date().getFullYear()
-  return expenses.value
-    .filter(expense => new Date(expense.timestamp).getFullYear() === currentYear)
-    .length
+  return filteredExpenses.value.length
 })
 
 const averageExpense = computed(() => {
@@ -125,20 +159,20 @@ const averageExpense = computed(() => {
 })
 
 const dailyAverage = computed(() => {
-  if (expenses.value.length === 0) return 0
-  
-  // Find the earliest and latest dates in the full dataset
-  const dates = expenses.value.map(expense => new Date(expense.timestamp).getTime())
+  if (filteredExpenses.value.length === 0) return 0
+
+  // Find the earliest and latest dates in the filtered dataset
+  const dates = filteredExpenses.value.map(expense => new Date(expense.timestamp).getTime())
   const earliestDate = new Date(Math.min(...dates))
   const latestDate = new Date(Math.max(...dates))
-  
+
   // Calculate days between first and last expense (inclusive)
   const daysBetween = Math.ceil((latestDate.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-  
-  // Calculate total for all expenses (not just current year)
-  const allTimeTotal = expenses.value.reduce((sum, expense) => sum + expense.amount, 0)
-  
-  return daysBetween > 0 ? allTimeTotal / daysBetween : 0
+
+  // Calculate total for filtered expenses
+  const filteredTotal = filteredExpenses.value.reduce((sum, expense) => sum + expense.amount, 0)
+
+  return daysBetween > 0 ? filteredTotal / daysBetween : 0
 })
 
 async function loadReports() {
@@ -192,11 +226,9 @@ async function loadExpenseSummary() {
 }
 
 function calculateTopLocations() {
-  const currentYear = new Date().getFullYear()
   const locationMap = new Map<string, LocationStat>()
-  
-  expenses.value
-    .filter(expense => new Date(expense.timestamp).getFullYear() === currentYear)
+
+  filteredExpenses.value
     .forEach(expense => {
       if (expense.place_name) {
         const key = expense.place_name
@@ -226,20 +258,20 @@ function calculateTopLocations() {
 }
 
 function calculateWeekdayAverages() {
-  weekdayAverages.value = calculateWeekdayDailyAverages(expenses.value)
+  weekdayAverages.value = calculateWeekdayDailyAverages(filteredExpenses.value)
 }
 
 function downloadCSV() {
-  if (expenses.value.length === 0) {
+  if (filteredExpenses.value.length === 0) {
     alert('No data available to download')
     return
   }
 
   // CSV headers
   const headers = ['Date', 'Amount', 'Location', 'Address', 'Latitude', 'Longitude']
-  
+
   // Convert expenses to CSV rows
-  const csvRows = expenses.value.map(expense => {
+  const csvRows = filteredExpenses.value.map(expense => {
     const date = new Date(expense.timestamp).toLocaleDateString()
     const amount = expense.amount.toFixed(2)
     const location = expense.place_name || ''
@@ -290,6 +322,37 @@ onMounted(() => {
   width: 100%;
 }
 
+.year-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.year-btn {
+  background: #3a3a3a;
+  color: #e0e0e0;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  min-width: 80px;
+}
+
+.year-btn:hover {
+  background: #4a4a4a;
+  border-color: #007bff;
+}
+
+.year-btn.active {
+  background: #007bff;
+  border-color: #007bff;
+  color: white;
+}
 
 .download-section {
   margin-top: 30px;
@@ -463,7 +526,18 @@ onMounted(() => {
     padding: 14px 20px;
     font-size: 16px;
   }
-  
+
+  .year-filter {
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+
+  .year-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+    min-width: 70px;
+  }
+
   .stats-grid {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
