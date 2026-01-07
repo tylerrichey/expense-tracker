@@ -116,8 +116,6 @@ interface LocationStat {
 }
 
 const expenses = ref<any[]>([])
-const weekdayAverages = ref<Array<{name: string, average: number, percentage: number}>>([])
-const topLocations = ref<LocationStat[]>([])
 const hasActiveBudget = ref(false)
 const expenseSummary = ref({
   last7Days: 0,
@@ -175,6 +173,42 @@ const dailyAverage = computed(() => {
   return daysBetween > 0 ? filteredTotal / daysBetween : 0
 })
 
+const topLocations = computed(() => {
+  const locationMap = new Map<string, LocationStat>()
+
+  filteredExpenses.value
+    .forEach(expense => {
+      if (expense.place_name) {
+        const key = expense.place_name
+        if (locationMap.has(key)) {
+          const existing = locationMap.get(key)!
+          existing.total += expense.amount
+          existing.count += 1
+        } else {
+          locationMap.set(key, {
+            place_name: expense.place_name,
+            total: expense.amount,
+            count: 1
+          })
+        }
+      }
+    })
+
+  // Sort by number of expenses first, then by amount
+  return Array.from(locationMap.values())
+    .sort((a, b) => {
+      if (b.count !== a.count) {
+        return b.count - a.count
+      }
+      return b.total - a.total
+    })
+    .slice(0, 5)
+})
+
+const weekdayAverages = computed(() => {
+  return calculateWeekdayDailyAverages(filteredExpenses.value)
+})
+
 async function loadReports() {
   try {
     // Load all expenses
@@ -188,10 +222,6 @@ async function loadReports() {
     if (hasActiveBudget.value) {
       await loadExpenseSummary()
     }
-
-    // Calculate top locations and weekday averages
-    calculateTopLocations()
-    calculateWeekdayAverages()
   } catch (error) {
     console.error('Error loading reports:', error)
   }
@@ -223,42 +253,6 @@ async function loadExpenseSummary() {
   } catch (error) {
     console.error('Error loading expense summary:', error)
   }
-}
-
-function calculateTopLocations() {
-  const locationMap = new Map<string, LocationStat>()
-
-  filteredExpenses.value
-    .forEach(expense => {
-      if (expense.place_name) {
-        const key = expense.place_name
-        if (locationMap.has(key)) {
-          const existing = locationMap.get(key)!
-          existing.total += expense.amount
-          existing.count += 1
-        } else {
-          locationMap.set(key, {
-            place_name: expense.place_name,
-            total: expense.amount,
-            count: 1
-          })
-        }
-      }
-    })
-
-  // Sort by number of expenses first, then by amount
-  topLocations.value = Array.from(locationMap.values())
-    .sort((a, b) => {
-      if (b.count !== a.count) {
-        return b.count - a.count
-      }
-      return b.total - a.total
-    })
-    .slice(0, 5)
-}
-
-function calculateWeekdayAverages() {
-  weekdayAverages.value = calculateWeekdayDailyAverages(filteredExpenses.value)
 }
 
 function downloadCSV() {
